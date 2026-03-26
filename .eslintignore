@@ -1,0 +1,6 @@
+jest.setup.js
+.next/
+out/
+build/
+next-env.d.ts
+src/lib/__tests__/**

@@ -1,0 +1,9 @@
+-- Away verwendet drei eigene Schemas (kein public-Schema).
+-- Bitte die jeweils passende Datei im Supabase SQL-Editor ausführen:
+--
+--   supabase/away-dev.sql   → Entwicklungsumgebung
+--   supabase/away-test.sql  → Testumgebung
+--   supabase/away-prod.sql  → Produktionsumgebung
+--
+-- Das aktive Schema wird über die Umgebungsvariable gesteuert:
+--   NEXT_PUBLIC_DB_SCHEMA=away-dev|away-test|away-prod

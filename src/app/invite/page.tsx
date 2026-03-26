@@ -42,8 +42,8 @@ function InviteContent() {
       }
       await joinOrganization(user.id, orgId);
       setStatus('success');
-    } catch (err: any) {
-      setMessage(err.message || 'Unbekannter Fehler');
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : 'Unbekannter Fehler');
       setStatus('error');
     }
   };

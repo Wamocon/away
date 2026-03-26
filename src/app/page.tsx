@@ -1,12 +1,9 @@
 'use client';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plane } from 'lucide-react';
-import Link from 'next/link';
-
 export default function Home() {
-  const [user, setUser] = useState<{ email: string } | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -14,7 +11,6 @@ export default function Home() {
       const supabase = createClient();
       supabase.auth.getUser().then(({ data }) => {
         if (data.user) {
-          setUser({ email: data.user.email ?? '' });
           router.push('/dashboard');
         } else {
           router.push('/auth/login');

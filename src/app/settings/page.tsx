@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react';
 import { Settings, User, ShieldCheck, Loader, CheckCircle, Plane } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { saveUserSettings, getUserSettings } from '@/lib/userSettings';
-import { getOrganizationsForUser } from '@/lib/organization';
-import { getUserRole } from '@/lib/roles';
 import OrganizationSwitcher from '@/components/OrganizationSwitcher';
 
 export default function SettingsPage() {
@@ -15,7 +13,6 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [orgId, setOrgId] = useState<string>('');
-  const [role, setRole] = useState<string>('');
   const [schema] = useState(process.env.NEXT_PUBLIC_SCHEMA || 'away-dev');
   const [env, setEnv] = useState('Entwicklung');
 
@@ -72,7 +69,6 @@ export default function SettingsPage() {
             userId={userId} 
             onOrgChange={(id, r) => {
               setOrgId(id);
-              setRole(r);
               setIsAdmin(r === 'admin');
             }} 
           />

@@ -7,7 +7,6 @@ import { Plus } from 'lucide-react';
 export default function OrganizationSwitcher({ userId, onOrgChange }: { userId: string, onOrgChange: (orgId: string, role: string) => void }) {
   const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<string>('');
-  const [role, setRole] = useState<string>('');
   const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
@@ -27,7 +26,6 @@ export default function OrganizationSwitcher({ userId, onOrgChange }: { userId: 
   useEffect(() => {
     if (selectedOrg) {
       getUserRole(userId, selectedOrg).then(role => {
-        setRole(role);
         onOrgChange(selectedOrg, role);
       });
     }

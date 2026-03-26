@@ -9,7 +9,6 @@ type Provider = 'google' | 'microsoft' | null;
 
 export default function EmailPage() {
   const [userId, setUserId] = useState<string | null>(null);
-  const [savedEmail, setSavedEmail] = useState('');
   const [connectedProvider, setConnectedProvider] = useState<Provider>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,10 +24,8 @@ export default function EmailPage() {
       if (orgId) {
         getUserSettings(data.user.id, orgId).then(settings => {
           if (settings?.email) {
-            setSavedEmail(settings.email);
             setEmailInput(settings.email);
           } else {
-            setSavedEmail('');
             setEmailInput('');
           }
         }).catch(() => {});
@@ -42,7 +39,6 @@ export default function EmailPage() {
     setSaving(true);
     try {
       await saveUserSettings(userId, orgId, emailInput);
-      setSavedEmail(emailInput);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } finally {

@@ -25,8 +25,8 @@ export default function CreateOrganization({
       const newOrg = await createOrganization(userId, name.trim());
       onCreated(newOrg);
       setName('');
-    } catch (err: any) {
-      setError(err.message || 'Fehler beim Erstellen der Organisation');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Fehler beim Erstellen der Organisation');
     } finally {
       setLoading(false);
     }

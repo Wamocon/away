@@ -7,7 +7,7 @@ import { saveUserSettings, getUserSettings } from '@/lib/userSettings';
 import EmailConnect from '@/components/EmailConnect';
 import InviteUser from '@/components/InviteUser';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Settings, Mail, Building2, ClipboardList } from 'lucide-react';
 import VacationList from '@/components/VacationList';
@@ -48,24 +48,33 @@ export default function Dashboard() {
     setAccessToken('demo-access-token');
   };
 
-  useEffect(() => {
+  const handleOrgChange = useCallback((id: string, r: string) => {
+    setOrgId(id);
+    setRole(r);
+  }, []);
+
+  const fetchUserSettings = useCallback(async () => {
     if (user && orgId) {
-      getUserSettings(user.id, orgId).then(data => {
+      try {
+        const data = await getUserSettings(user.id, orgId);
         if (data && data.email) {
-          // Wir aktualisieren hier nur den lokalen State für die Anzeige
           setUser(prev => prev ? { ...prev, email: data.email } : null);
         } else {
-          // Fallback auf Auth-Email, wenn noch nichts in den Settings steht
           const supabase = createClient();
-          supabase.auth.getUser().then(({ data: authData }) => {
-            if (authData.user) {
-              setUser(prev => prev ? { ...prev, email: authData.user?.email ?? '' } : null);
-            }
-          });
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData.user) {
+            setUser(prev => prev ? { ...prev, email: authData.user?.email ?? '' } : null);
+          }
         }
-      }).catch(() => {});
+      } catch (err) {
+        console.error('Error fetching settings:', err);
+      }
     }
-  }, [user?.id, orgId]);
+  }, [user, orgId]);
+
+  useEffect(() => {
+    fetchUserSettings();
+  }, [fetchUserSettings]);
 
   if (!user) {
     return (
@@ -99,7 +108,7 @@ export default function Dashboard() {
         </div>
         <OrganizationSwitcher
           userId={user.id}
-          onOrgChange={(orgId, role) => { setOrgId(orgId); setRole(role); }}
+          onOrgChange={handleOrgChange}
         />
         {role === 'admin' && (
           <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-green-500/10 text-green-500">

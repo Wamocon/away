@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getVacationRequestsForOrg } from '@/lib/vacation';
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
@@ -16,7 +16,6 @@ interface VacationRequest {
 }
 
 export default function CalendarPage() {
-  const [userId, setUserId] = useState<string | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -26,7 +25,6 @@ export default function CalendarPage() {
     supabase.auth.getUser().then(({ data }) => {
       const uid = data.user?.id;
       if (!uid) return;
-      setUserId(uid);
       getOrganizationsForUser(uid).then(orgs => {
         const firstOrg = orgs.find(o => o !== null) as { id: string; name: string } | undefined;
         if (firstOrg) setOrgId(firstOrg.id);

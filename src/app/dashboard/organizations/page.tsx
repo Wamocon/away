@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser, createOrganization } from '@/lib/organization';
 import { getUserRole } from '@/lib/roles';
@@ -19,16 +19,7 @@ export default function OrganizationsPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return;
-      setUserId(data.user.id);
-      loadOrgs(data.user.id);
-    });
-  }, []);
-
-  const loadOrgs = async (uid: string) => {
+  const loadOrgs = useCallback(async (uid: string) => {
     const data = await getOrganizationsForUser(uid);
     const filtered = (data || []).filter((o): o is Org => o !== null);
     setOrgs(filtered);
@@ -37,7 +28,16 @@ export default function OrganizationsPage() {
       try { roleMap[org.id] = await getUserRole(uid, org.id); } catch { roleMap[org.id] = 'user'; }
     }));
     setRoles(roleMap);
-  };
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      setUserId(data.user.id);
+      loadOrgs(data.user.id);
+    });
+  }, [loadOrgs]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +51,8 @@ export default function OrganizationsPage() {
       setNewName('');
       setShowCreate(false);
       setExpanded(newOrg.id);
-    } catch (err: any) {
-      setCreateError(err.message);
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : 'Ein unbekannter Fehler ist aufgetreten');
     } finally {
       setCreating(false);
     }

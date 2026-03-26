@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  font-size: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59,130,246,0.3) transparent;
+}
+@media (max-width: 640px) {
+  html { font-size: 15px; }
+}
+html::-webkit-scrollbar { width: 6px; }
+html::-webkit-scrollbar-track { background: transparent; }
+html::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.25); border-radius: 3px; }
+
+/* ── Theme-Variablen ─────────────────────────────────────────── */
+:root {
+  --bg-base:    #070b14;
+  --bg-surface: #111827;
+  --bg-elevated:#1a2236;
+  --bg-input:   #0f1729;
+  --text-base:  #f1f5f9;
+  --text-muted: rgba(255,255,255,0.35);
+  --border:     rgba(255,255,255,0.08);
+  --glow-1:     rgba(59,130,246,0.06);
+  --glow-2:     rgba(20,184,166,0.035);
+  --dot-grid:   rgba(255,255,255,0.018);
+  --ring-focus: rgba(59,130,246,0.35);
+  --glass:      rgba(17,24,39,0.6);
+  --glass-border: rgba(255,255,255,0.06);
+}
+
+html:not(.dark) {
+  --bg-base:    #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-elevated:#f1f5f9;
+  --bg-input:   #ffffff;
+  --text-base:  #0f172a;
+  --text-muted: rgba(0,0,0,0.45);
+  --border:     rgba(0,0,0,0.08);
+  --glow-1:     rgba(59,130,246,0.04);
+  --glow-2:     rgba(20,184,166,0.02);
+  --dot-grid:   rgba(0,0,0,0.03);
+  --ring-focus: rgba(59,130,246,0.25);
+  --glass:      rgba(255,255,255,0.7);
+  --glass-border: rgba(0,0,0,0.06);
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-base);
+  transition: background 0.3s ease, color 0.3s ease;
+  background-image:
+    radial-gradient(ellipse 1400px 900px at -10% -10%, var(--glow-1) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 400px at 105% 105%, var(--glow-2) 0%, transparent 60%);
+}
+
+.main-content {
+  background-image: radial-gradient(var(--dot-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ── Input & Select ────────────────────────────────────────────── */
+input, select, textarea {
+  background: var(--bg-input) !important;
+  color: var(--text-base) !important;
+  border-color: var(--border) !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input::placeholder { color: var(--text-muted) !important; }
+select option { background: var(--bg-input); color: var(--text-base); }
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(59,130,246,0.5) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring-focus) !important;
+}
+
+/* ── Light-Mode Overrides ─────────────────────────────────────── */
+html:not(.dark) .main-content { color: #1e293b; }
+html:not(.dark) [class*="bg-[#111827]"],
+html:not(.dark) [class*="bg-[#0f1729]"],
+html:not(.dark) [class*="bg-[#070b14]"],
+html:not(.dark) [class*="bg-[#0a0f1a]"] {
+  background-color: #f8fafc !important;
+}
+
+/* ── Glass Card ───────────────────────────────────────────────── */
+.card-shimmer {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+.card-shimmer:hover {
+  border-color: rgba(59,130,246,0.2);
+  box-shadow: 0 8px 32px rgba(59,130,246,0.08), 0 2px 8px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+html:not(.dark) .card-shimmer {
+  background: rgba(255,255,255,0.85) !important;
+  border-color: rgba(0,0,0,0.06) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+}
+html:not(.dark) .card-shimmer:hover {
+  border-color: rgba(59,130,246,0.15) !important;
+  box-shadow: 0 8px 24px rgba(59,130,246,0.06), 0 2px 6px rgba(0,0,0,0.04) !important;
+}
+
+/* Light-mode containers */
+html:not(.dark) .main-content .rounded-xl.border,
+html:not(.dark) .main-content .rounded-2xl.border,
+html:not(.dark) .main-content .rounded-md.border,
+html:not(.dark) .main-content .rounded-lg.border {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.06) !important;
+}
+
+/* ── Progress bar ─────────────────────────────────────────────── */
+.progress-bar {
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── Fade-in animation ────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in-up 0.4s ease-out forwards; }
+.animate-fade-in-delay-1 { animation: fade-in-up 0.4s ease-out 0.05s forwards; opacity: 0; }
+.animate-fade-in-delay-2 { animation: fade-in-up 0.4s ease-out 0.1s forwards; opacity: 0; }
+.animate-fade-in-delay-3 { animation: fade-in-up 0.4s ease-out 0.15s forwards; opacity: 0; }
+
+/* ── Search ───────────────────────────────────────────────────── */
+.search-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.search-input:focus {
+  border-color: rgba(59,130,246,0.5);
+  box-shadow: 0 0 0 3px var(--ring-focus);
+}
+
+/* ── Scrollbar for sidebar ────────────────────────────────────── */
+.sidebar-scroll::-webkit-scrollbar { width: 3px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.2); border-radius: 2px; }

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import SendMailButton from './SendMailButton';
 import CalendarInviteButton from './CalendarInviteButton';
 import { createVacationRequest } from '@/lib/vacation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function VacationRequestForm({ userId, organizationId, emailProvider, accessToken }: { userId: string, organizationId: string, emailProvider?: string, accessToken?: string }) {
   const [from, setFrom] = useState('');
@@ -31,38 +32,33 @@ export default function VacationRequestForm({ userId, organizationId, emailProvi
 
   const handleSendMail = async () => {
     if (!emailProvider || !accessToken) throw new Error('Kein E-Mail-Provider verbunden!');
-    const res = await fetch('/api/send-vacation-mail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const supabase = createClient();
+    const { data, error } = await supabase.functions.invoke('send-vacation-mail', {
+      body: {
         provider: emailProvider,
         to: '', // Zieladresse ggf. aus Settings/Organisation
         subject: 'Urlaubsantrag',
         text: `Urlaubsantrag von ${from} bis ${to}: ${reason}`,
         accessToken,
-      }),
+      }
     });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message);
+    if (error || !data?.success) throw new Error(error?.message || data?.error || 'Fehler beim Senden');
   };
 
   const handleSendInvite = async () => {
     if (!accessToken) throw new Error('Kein Outlook-Token verbunden!');
-    // Team-Emails und weitere Infos müssten aus DB/Settings kommen
-    const res = await fetch('/api/send-outlook-invite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const supabase = createClient();
+    const { data, error } = await supabase.functions.invoke('send-outlook-invite', {
+      body: {
         accessToken,
         subject: 'Urlaubsabwesenheit',
         start: from,
         end: to,
         attendees: [], // Team-Emails hier einfügen
         body: `Urlaubsantrag von ${from} bis ${to}: ${reason}`,
-      }),
+      }
     });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message);
+    if (error || !data?.success) throw new Error(error?.message || data?.error || 'Fehler beim Senden des Invites');
   };
 
   return (

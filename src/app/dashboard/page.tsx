@@ -5,10 +5,12 @@ import TemplateUpload from '@/components/TemplateUpload';
 import UserSettings from '@/components/UserSettings';
 import { saveUserSettings, getUserSettings } from '@/lib/userSettings';
 import EmailConnect from '@/components/EmailConnect';
+import InviteUser from '@/components/InviteUser';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, Building2 } from 'lucide-react';
+import { Settings, Mail, Building2, ClipboardList } from 'lucide-react';
+import VacationList from '@/components/VacationList';
 
 export default function Dashboard() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
@@ -36,8 +38,8 @@ export default function Dashboard() {
   }, [router]);
 
   const handleSaveSettings = async (settings: { email: string }) => {
-    if (!user) return;
-    await saveUserSettings(user.id, settings.email);
+    if (!user || !orgId) return;
+    await saveUserSettings(user.id, orgId, settings.email);
   };
 
   const handleEmailConnect = (provider: string) => {
@@ -47,14 +49,23 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (user) {
-      getUserSettings(user.id).then(data => {
+    if (user && orgId) {
+      getUserSettings(user.id, orgId).then(data => {
         if (data && data.email) {
+          // Wir aktualisieren hier nur den lokalen State für die Anzeige
           setUser(prev => prev ? { ...prev, email: data.email } : null);
+        } else {
+          // Fallback auf Auth-Email, wenn noch nichts in den Settings steht
+          const supabase = createClient();
+          supabase.auth.getUser().then(({ data: authData }) => {
+            if (authData.user) {
+              setUser(prev => prev ? { ...prev, email: authData.user?.email ?? '' } : null);
+            }
+          });
         }
       }).catch(() => {});
     }
-  }, [user?.id]);
+  }, [user?.id, orgId]);
 
   if (!user) {
     return (
@@ -164,10 +175,23 @@ export default function Dashboard() {
             accessToken={accessToken || undefined}
           />
           {role === 'admin' && (
-            <div className="mt-6 pt-5 border-t" style={{ borderColor: 'var(--border)' }}>
+            <div className="mt-6 pt-5 border-t space-y-6" style={{ borderColor: 'var(--border)' }}>
               <TemplateUpload organizationId={orgId} />
+              <InviteUser organizationId={orgId} />
             </div>
           )}
+        </div>
+      )}
+      {/* Urlaubsanträge Liste */}
+      {orgId && (
+        <div className="rounded-xl border p-5 mb-4" style={{ borderColor: 'var(--border)', background: 'var(--bg-surface)' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <ClipboardList size={14} className="text-blue-500" />
+            <span className="text-xs font-bold uppercase tracking-widest dark:text-white/40 text-gray-500">
+              {role === 'admin' ? 'Alle Urlaubsanträge' : 'Meine Anträge'}
+            </span>
+          </div>
+          <VacationList organizationId={orgId} isAdmin={role === 'admin'} />
         </div>
       )}
     </div>

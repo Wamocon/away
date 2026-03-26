@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 
 export async function createClient() {
   const cookieStore = await cookies();
-  const schema = process.env.NEXT_PUBLIC_DB_SCHEMA || 'away-dev';
+  const schema = process.env.NEXT_PUBLIC_SCHEMA || 'away-dev';
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

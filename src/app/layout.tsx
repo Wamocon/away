@@ -5,8 +5,8 @@ import { ViewModeProvider } from '@/components/ui/ViewModeProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Away – Moderne Urlaubsplanung',
-  description: 'Effiziente Urlaubsplanung für Teams – Anträge, Genehmigungen, Kalender',
+  title: 'AWAY – MODERNE URLAUBSPLANUNG',
+  description: 'EFFIZIENTE URLAUBSPLANUNG FÜR TEAMS – ANTRÄGE, GENEHMIGUNGEN, KALENDER',
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',

@@ -5,6 +5,7 @@ const mockSupabase = {
   from: vi.fn().mockReturnThis(),
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
+  order: vi.fn().mockReturnThis(),
   single: vi.fn().mockReturnThis(),
   rpc: vi.fn(),
 };
@@ -19,10 +20,11 @@ describe('organization lib', () => {
   });
 
   it('should fetch organizations for a user (mocked)', async () => {
-    mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null });
+    mockSupabase.order.mockResolvedValueOnce({ data: [], error: null });
     const res = await getOrganizationsForUser('user-1');
     expect(res).toEqual([]);
     expect(mockSupabase.from).toHaveBeenCalledWith('user_roles');
+    expect(mockSupabase.order).toHaveBeenCalledWith('organization_id', { ascending: true });
   });
 
   it('should fetch a single organization (mocked)', async () => {

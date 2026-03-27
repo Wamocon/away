@@ -7,6 +7,7 @@ import { getUserRole, UserRole, canApprove } from '@/lib/roles';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { renderFieldValue } from '@/lib/utils/formatters';
 import {
   ArrowLeft, CheckCircle, XCircle, Clock,
   Mail, Calendar, Loader, AlertCircle,
@@ -107,31 +108,6 @@ export default function RequestDetailPage() {
 
   const cfg = statusConfig[request.status];
   const days = differenceInCalendarDays(parseISO(request.to), parseISO(request.from)) + 1;
-
-  const renderFieldValue = (value: unknown): React.ReactNode => {
-    if (value === null || value === undefined) return null;
-
-    if (Array.isArray(value)) {
-      // Handle Checkbox/Multi-select objects (array of {label, checked})
-      const activeLabels = value
-        .filter(item => item && typeof item === 'object' && 'checked' in item && item.checked)
-        .map(item => item.label);
-      return activeLabels.length > 0 ? activeLabels.join(', ') : null;
-    } else if (typeof value === 'object' && 'label' in (value as any)) {
-      // Handle single-select objects {label, value}
-      return String((value as any).label);
-    } else if (typeof value === 'boolean') {
-      return value ? 'Ja' : 'Nein';
-    } else if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3}Z)?)?$/)) {
-      // Attempt to format as date if it looks like one
-      try {
-        return format(parseISO(value), 'dd.MM.yyyy', { locale: de });
-      } catch (e) {
-        return String(value); // Fallback if date parsing fails
-      }
-    }
-    return String(value);
-  };
 
   return (
     <div className="p-6 md:p-8 w-full max-w-3xl animate-fade-in">
@@ -239,27 +215,7 @@ export default function RequestDetailPage() {
               <div>
                 <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Weitere Angaben</p>
                 {Object.entries(request.template_fields as Record<string, unknown>).map(([k, v]) => {
-                  if (v === null || v === undefined) return null;
-                  
-                  let displayValue: React.ReactNode = "";
-                  
-                  try {
-                    if (Array.isArray(v)) {
-                      // Handle Checkbox/Multi-select objects (array of {label, checked})
-                      const activeLabels = v
-                        .filter(item => item && typeof item === 'object' && 'checked' in item && item.checked)
-                        .map(item => item.label);
-                      displayValue = activeLabels.length > 0 ? activeLabels.join(', ') : null;
-                    } else if (typeof v === 'object' && v !== null && 'label' in (v as any)) {
-                      displayValue = String((v as any).label);
-                    } else {
-                      displayValue = String(v);
-                    }
-                  } catch (e) {
-                    console.error("Error rendering field value:", e);
-                    displayValue = "[Fehlerhaftes Datenformat]";
-                  }
-
+                  const displayValue = renderFieldValue(v);
                   if (!displayValue) return null;
 
                   return (

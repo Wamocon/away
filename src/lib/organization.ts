@@ -29,28 +29,20 @@ export async function getCurrentOrganization(orgId: string) {
 export async function createOrganization(userId: string, name: string) {
   const supabase = createClient();
   
-  // 1. Create the new organization
-  const { data: orgData, error: orgError } = await supabase
-    .from('organizations')
-    .insert([{ name }])
-    .select('id, name')
-    .single();
+  // Rufen Sie die neue Datenbank-Funktion auf, die Organisation + Admin-Rolle in einem Schritt erstellt
+  const { data: orgId, error } = await supabase
+    .rpc('create_new_organization', {
+      org_name: name,
+      creator_id: userId
+    });
     
-  if (orgError) throw orgError;
-  if (!orgData) throw new Error('Could not create organization');
-  
-  // 2. Assign the creator as admin of this organization
-  const { error: roleError } = await supabase
-    .from('user_roles')
-    .insert([{
-      user_id: userId,
-      organization_id: orgData.id,
-      role: 'admin'
-    }]);
-    
-  if (roleError) throw roleError;
-  
-  return orgData;
+  if (error) {
+    console.error('Error in create_new_organization RPC:', error);
+    throw error;
+  }
+
+  // Rückgabe der neuen Organisations-Daten
+  return { id: orgId, name };
 }
 
 export async function joinOrganization(userId: string, organizationId: string) {

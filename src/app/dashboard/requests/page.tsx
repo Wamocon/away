@@ -3,12 +3,12 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getVacationRequestsForOrg, updateVacationStatus, VacationRequest, getMyVacationRequests } from '@/lib/vacation';
-import { getUserRole, UserRole, canApprove, ROLE_LABELS } from '@/lib/roles';
+import { getUserRole, UserRole, canApprove } from '@/lib/roles';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
-  ClipboardList, Plus, Filter, CheckCircle, XCircle,
-  Clock, Search, ChevronDown, Eye, Mail, Loader, SlidersHorizontal, LayoutGrid, List
+  ClipboardList, Plus, CheckCircle, XCircle,
+  Clock, Search, Eye, Loader, SlidersHorizontal, LayoutGrid, List
 } from 'lucide-react';
 import Link from 'next/link';
 import WizardVacationRequest from '@/components/WizardVacationRequest';

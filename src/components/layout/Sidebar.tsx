@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState, useCallback } from 'react';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getUserRole } from '@/lib/roles';
+import SchemaRoleSwitcher from '@/components/SchemaRoleSwitcher';
 import {
   LayoutDashboard,
   CalendarDays,
@@ -18,11 +19,8 @@ import {
   Mail,
   LogOut,
   Menu,
-  ChevronDown,
   Plane,
-  Users,
   Building2,
-  Bell,
 } from 'lucide-react';
 
 type UserRole = 'admin' | 'approver' | 'employee' | null;
@@ -103,11 +101,11 @@ function SidebarContent({
     },
     { href: '/dashboard/calendar', icon: CalendarDays, label: 'Kalender', exact: true },
     { href: '/dashboard/email', icon: Mail, label: 'E-Mail', exact: true },
+    { href: '/dashboard/organizations', icon: Building2, label: 'Organisationen', exact: true },
   ];
 
   const adminItems: NavItem[] = [
     { href: '/dashboard/admin', icon: ShieldCheck, label: 'Administration', exact: false },
-    { href: '/dashboard/admin/users', icon: Users, label: 'Benutzerverwaltung', exact: false },
   ];
 
   const isActive = (href: string, exact?: boolean) =>
@@ -172,7 +170,6 @@ function SidebarContent({
             <X size={18} />
           </button>
         )}
-        {/* Mobile toggle for desktop header */}
         {!isMobile && onMobileToggle && (
           <button
             onClick={onMobileToggle}
@@ -203,98 +200,98 @@ function SidebarContent({
       )}
 
       {/* ─── Navigation ────────────────────────────────── */}
-      <div className="shrink-0 px-3 mt-4">
-        <p className="section-label px-2 mb-2">Navigation</p>
-        <nav className="flex flex-col gap-0.5">
-          {navItems.map(item => <NavLink key={item.href} item={item} />)}
-        </nav>
-      </div>
-
-      {/* ─── Admin Section ─────────────────────────────── */}
-      {(role === 'admin' || role === 'approver') && (
-        <div className="shrink-0 px-3 mt-4">
-          <p className="section-label px-2 mb-2">
-            {role === 'admin' ? 'Administration' : 'Genehmigung'}
-          </p>
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="px-3 mt-4">
+          <p className="section-label px-2 mb-2">Navigation</p>
           <nav className="flex flex-col gap-0.5">
-            {role === 'admin' && adminItems.map(item => <NavLink key={item.href} item={item} />)}
-            {role === 'approver' && (
-              <NavLink item={{ href: '/dashboard/requests', icon: ClipboardList, label: 'Antr. genehmigen', exact: false }} />
-            )}
+            {navItems.map(item => <NavLink key={item.href} item={item} />)}
           </nav>
         </div>
-      )}
 
-      {/* ─── Spacer ────────────────────────────────────── */}
-      <div className="flex-1" />
-
-      {/* ─── Theme Toggle ──────────────────────────────── */}
-      <div className="shrink-0 px-3 pb-2">
-        <div
-          className="p-0.5 rounded-xl flex"
-          style={{ background: 'var(--bg-elevated)' }}
-        >
-          <button
-            onClick={() => setTheme('light')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
-              theme === 'light'
-                ? 'bg-white text-[var(--primary)] shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-base)]'
-            }`}
-          >
-            <Sun size={11} />
-            <span>Hell</span>
-          </button>
-          <button
-            onClick={() => setTheme('dark')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
-              theme === 'dark'
-                ? 'bg-white/[0.1] text-[var(--primary)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-base)]'
-            }`}
-          >
-            <Moon size={11} />
-            <span>Dunkel</span>
-          </button>
-        </div>
+        {/* Admin Section */}
+        {(role === 'admin' || role === 'approver') && (
+          <div className="px-3 mt-4">
+            <p className="section-label px-2 mb-2">
+              {role === 'admin' ? 'Administration' : 'Genehmigung'}
+            </p>
+            <nav className="flex flex-col gap-0.5">
+              {role === 'admin' && adminItems.map(item => <NavLink key={item.href} item={item} />)}
+              {role === 'approver' && (
+                <NavLink item={{ href: '/dashboard/requests', icon: ClipboardList, label: 'Antr. genehmigen', exact: false }} />
+              )}
+            </nav>
+          </div>
+        )}
       </div>
 
-      {/* ─── User / Settings Footer ────────────────────── */}
-      <div
-        className="shrink-0 p-3 border-t"
-        style={{ borderColor: 'var(--border)' }}
-      >
-        <div className="flex items-center gap-2.5 px-2 py-2">
-          {/* Avatar */}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#8b5cf6] flex items-center justify-center text-white font-bold text-xs shrink-0">
-            {userInitial}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-base)' }}>
-              {userEmail || 'Benutzer'}
-            </p>
-            <p className="text-[9px]" style={{ color: 'var(--text-subtle)' }}>Angemeldet</p>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Link
-              href="/settings"
-              onClick={onNavigate}
-              className={`p-1.5 rounded-lg transition-all ${
-                pathname === '/settings'
-                  ? 'bg-[var(--primary-light)] text-[var(--primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-base)] hover:bg-[var(--bg-elevated)]'
-              }`}
-              title="Einstellungen"
-            >
-              <Settings size={13} />
-            </Link>
+      {/* ─── Footer with Role Switcher ─────────────────── */}
+      <div className="shrink-0 border-t" style={{ borderColor: 'var(--border)' }}>
+        
+        {/* Visual 1:1 TeamRadar Switcher */}
+        {mounted && process.env.NODE_ENV !== 'production' && <SchemaRoleSwitcher />}
+
+        <div className="px-3 py-2">
+          <div
+            className="p-0.5 rounded-xl flex"
+            style={{ background: 'var(--bg-elevated)' }}
+          >
             <button
-              onClick={handleLogout}
-              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-light)] transition-all"
-              title="Abmelden"
+              onClick={() => setTheme('light')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                theme === 'light'
+                  ? 'bg-white text-[var(--primary)] shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-base)]'
+              }`}
             >
-              <LogOut size={13} />
+              <Sun size={11} />
+              <span>Hell</span>
             </button>
+            <button
+              onClick={() => setTheme('dark')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                theme === 'dark'
+                  ? 'bg-white/[0.1] text-[var(--primary)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-base)]'
+              }`}
+            >
+              <Moon size={11} />
+              <span>Dunkel</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-3">
+          <div className="flex items-center gap-2.5 px-2 py-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#8b5cf6] flex items-center justify-center text-white font-bold text-xs shrink-0">
+              {userInitial}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-base)' }}>
+                {userEmail || 'Benutzer'}
+              </p>
+              <p className="text-[9px]" style={{ color: 'var(--text-subtle)' }}>Angemeldet</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Link
+                href="/settings"
+                onClick={onNavigate}
+                className={`p-1.5 rounded-lg transition-all ${
+                  pathname === '/settings'
+                    ? 'bg-[var(--primary-light)] text-[var(--primary)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-base)] hover:bg-[var(--bg-elevated)]'
+                }`}
+                title="Einstellungen"
+              >
+                <Settings size={13} />
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-light)] transition-all"
+                title="Abmelden"
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -313,20 +310,15 @@ export function Sidebar({
 }) {
   return (
     <>
-      {/* Desktop – fixed sidebar */}
       <aside className="sidebar-fixed hidden md:flex flex-col">
         <SidebarContent onMobileToggle={onMobileToggle} />
       </aside>
-
-      {/* Mobile – overlay sidebar */}
       <aside
         className={`sidebar-fixed flex flex-col md:hidden ${mobileOpen ? 'mobile-open' : ''}`}
         style={{ zIndex: 40 }}
       >
         <SidebarContent isMobile onNavigate={onMobileClose} />
       </aside>
-
-      {/* Mobile burger button (outside sidebar when closed) */}
       {!mobileOpen && (
         <button
           onClick={onMobileToggle}

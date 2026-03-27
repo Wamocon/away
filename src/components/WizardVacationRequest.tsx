@@ -1,10 +1,11 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import {
-  X, ChevronRight, ChevronLeft, Upload, FileText, Calendar,
-  CheckCircle, Loader, Mail, AlertCircle, Download, Eye, File as FileIcon,
-  Plus, Trash2
+  X, ChevronRight, ChevronLeft, Upload,
+  CheckCircle, Loader, Download, File as FileIcon,
+  Plus, CalendarDays
 } from 'lucide-react';
 import { generatePDF, generateExcel, generateWord, DocumentData } from '@/lib/documentGenerator';
 import { differenceInBusinessDays, parseISO } from 'date-fns';
@@ -62,10 +63,8 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   const [approverSignature, setApproverSignature] = useState<string | null>(null);
 
   // Hilfsfelder
-  const [deputy, setDeputy] = useState('');
-  const [notes, setNotes] = useState('');
-  const [sendMail, setSendMail] = useState(false);
-  const [approverEmail, setApproverEmail] = useState('');
+  const deputy = '';
+  const notes = '';
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -82,7 +81,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
         setLastName(data.user.user_metadata.last_name || '');
       }
     });
-  }, [orgId]);
+  }, [orgId, setFirstName, setLastName, setTemplates]);
 
   useEffect(() => {
     if (from && to) {
@@ -91,7 +90,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
         setVacationDays(days > 0 ? days : 0);
       } catch { setVacationDays(0); }
     }
-  }, [from, to]);
+  }, [from, to, setVacationDays]);
 
   const addVacationType = () => {
     if (!newTypeName.trim()) return;
@@ -104,7 +103,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   const handleFileUpload = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
     setUploadedFile(file);
-    setSelectedTemplate({ id: 'custom-'+Date.now(), name: file.name.split('.')[0], type: ext as any, storage_path: '' });
+    setSelectedTemplate({ id: 'custom-'+Date.now(), name: file.name.split('.')[0], type: ext as 'pdf' | 'docx' | 'xlsx', storage_path: '' });
   };
 
   const generateDocumentBlob = async (): Promise<{ blob: Blob; ext: string } | null> => {
@@ -115,7 +114,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
 
       if (uploadedFile) {
         bytes = await uploadedFile.arrayBuffer();
-        type = uploadedFile.name.split('.').pop()?.toLowerCase() as any;
+        type = uploadedFile.name.split('.').pop()?.toLowerCase() as 'pdf' | 'docx' | 'xlsx';
       } else if (selectedTemplate?.storage_path) {
         const supabase = createClient();
         const { data: fileData, error: downloadError } = await supabase.storage
@@ -172,7 +171,21 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
       }
 
       setStep(4);
-    } catch (err: any) { setError(err.message); } finally { setSubmitting(false); }
+    } catch (err: unknown) { 
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg); 
+    } finally { setSubmitting(false); }
+  };
+
+  const handleDownload = async () => {
+    const result = await generateDocumentBlob();
+    if (result) {
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `urlaubsantrag-${lastName || 'neu'}.${result.ext}`;
+      a.click();
+    }
   };
 
   const footer = step < 4 && (
@@ -228,7 +241,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
                 <p className="text-[10px] font-black uppercase tracking-widest">Eigene Vorlage</p>
                 <input type="file" className="hidden" onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0])} />
              </label>
-             <button onClick={() => { setSelectedTemplate(null); setStep(2); }} className="p-5 rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--bg-elevated)] hover:border-indigo-500/3s0 text-center transition-all md:col-span-2">
+             <button onClick={() => { setSelectedTemplate(null); setStep(2); }} className="p-5 rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--bg-elevated)] hover:border-indigo-500/3s0 text-center transition-all md:col-span-2" style={{ borderColor: 'var(--border)' }}>
                 <Plus className="mx-auto mb-2 text-indigo-500" size={24} />
                 <p className="text-[10px] font-black uppercase tracking-widest">Ohne Vorlage fortfahren</p>
              </button>
@@ -236,67 +249,209 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
         )}
 
         {step === 2 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1 decoration-blue-500">Vorname *</label><input value={firstName} onChange={e => setFirstName(e.target.value)} className="form-input-lux" /></div>
-              <div className="space-y-1.5"><label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Nachname *</label><input value={lastName} onChange={e => setLastName(e.target.value)} className="form-input-lux" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Personalnummer</label><input value={employeeId} onChange={e => setEmployeeId(e.target.value)} className="form-input-lux" /></div>
-              <div className="space-y-1.5"><label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Belegnummer</label><input value={documentId} onChange={e => setDocumentId(e.target.value)} className="form-input-lux" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Von *</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="form-input-lux" /></div>
-              <div className="space-y-1.5"><label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Bis *</label><input type="date" value={to} onChange={e => setTo(e.target.value)} className="form-input-lux" /></div>
-            </div>
-            <div className="bg-indigo-500/5 p-4 rounded-2xl border-2 border-indigo-500/20 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Urlaubstage (Werktage)</span>
-              <input type="number" value={vacationDays} onChange={e => setVacationDays(Number(e.target.value))} className="w-16 bg-white rounded-lg px-2 py-1 text-center font-black text-sm border-2 border-indigo-500/30" />
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between"><label className="text-[10px] font-black uppercase tracking-widest opacity-60">Urlaubsart</label><div className="flex items-center gap-1.5 bg-[var(--bg-elevated)] p-1.5 rounded-xl border border-[var(--border)]"><input value={newTypeName} onChange={e => setNewTypeName(e.target.value)} placeholder="Eigene..." className="bg-transparent text-[10px] outline-none w-20 px-1 font-bold" /><button onClick={addVacationType} className="p-1.5 bg-indigo-500 text-white rounded-lg"><Plus size={12} /></button></div></div>
-              <div className="grid grid-cols-2 gap-2.5">
-                {vacationTypes.map(t => (
-                  <div key={t.id} className="group relative">
-                    <label className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${t.checked ? 'border-[var(--primary)] bg-[var(--primary-light)]' : 'border-[var(--border)] bg-[var(--bg-elevated)]'}`}>
-                      <input type="checkbox" checked={t.checked} onChange={() => toggleVacationType(t.id)} className="w-4 h-4 rounded text-[var(--primary)]" />
-                      <span className="text-[11px] font-black truncate">{t.label}</span>
-                    </label>
-                    <button onClick={() => removeVacationType(t.id)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"><X size={10} /></button>
-                  </div>
-                ))}
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 pb-4">
+            {/* ─── 1. Identität ─── */}
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 delay-75 fill-mode-both">
+              <div className="flex items-center gap-2 mb-1 px-1">
+                <div className="w-1 h-4 bg-[var(--primary)] rounded-full" />
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70">Identität & Personal</h4>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5"><label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Ort</label><input value={location} onChange={e => setLocation(e.target.value)} className="form-input-lux" /></div>
-              <div className="space-y-1.5"><label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Datum</label><input type="date" value={signedAt} onChange={e => setSignedAt(e.target.value)} className="form-input-lux" /></div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-5">
-              <div className="space-y-3">
-                <label className="text-[9px] font-black uppercase tracking-widest opacity-50">Unterschrift (Mitarbeiter)</label>
-                <div className="aspect-video rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center bg-[var(--bg-elevated)] relative overflow-hidden transition-all hover:bg-white/5 active:scale-95">
-                  {employeeSignature ? (
-                    <img src={employeeSignature} className="h-full w-full object-contain p-4" alt="Signature MA" />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 opacity-50"><Upload size={24} /><span className="text-[8px] font-black uppercase tracking-widest">Upload PNG</span></div>
-                  )}
-                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = () => setEmployeeSignature(r.result as string); r.readAsDataURL(f); } }} />
-                  {employeeSignature && <button onClick={() => setEmployeeSignature(null)} className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg"><X size={10} /></button>}
+              <div className="card-glass p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Vorname *</label>
+                    <input value={firstName} onChange={e => setFirstName(e.target.value)} className="form-input-lux" placeholder="Max" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Nachname *</label>
+                    <input value={lastName} onChange={e => setLastName(e.target.value)} className="form-input-lux" placeholder="Mustermann" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 border-t border-[var(--border-subtle)] pt-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Personalnummer</label>
+                    <input value={employeeId} onChange={e => setEmployeeId(e.target.value)} className="form-input-lux" placeholder="P-0000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Belegnummer</label>
+                    <input value={documentId} onChange={e => setDocumentId(e.target.value)} className="form-input-lux" placeholder="UA-2024" />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-3">
-                <label className="text-[9px] font-black uppercase tracking-widest opacity-50">Unterschrift (Genehmiger)</label>
-                <div className="aspect-video rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center bg-[var(--bg-elevated)] relative overflow-hidden transition-all hover:bg-white/5 active:scale-95">
-                  {approverSignature ? (
-                    <img src={approverSignature} className="h-full w-full object-contain p-4" alt="Signature Gen" />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 opacity-50"><Upload size={24} /><span className="text-[8px] font-black uppercase tracking-widest">Upload PNG</span></div>
-                  )}
-                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = () => setApproverSignature(r.result as string); r.readAsDataURL(f); } }} />
-                  {approverSignature && <button onClick={() => setApproverSignature(null)} className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg"><X size={10} /></button>}
+            </div>
+
+            {/* ─── 2. Zeitraum ─── */}
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 delay-150 fill-mode-both">
+              <div className="flex items-center gap-2 mb-1 px-1">
+                <div className="w-1 h-4 bg-emerald-500 rounded-full" />
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70">Zeitraum & Dauer</h4>
+              </div>
+              <div className="card-glass p-5 space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Von *</label>
+                    <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="form-input-lux shadow-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Bis *</label>
+                    <input type="date" value={to} onChange={e => setTo(e.target.value)} className="form-input-lux shadow-sm" />
+                  </div>
+                </div>
+                
+                <div className="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                      <CalendarDays size={16} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block">Gesamt Urlaubstage</span>
+                      <span className="text-[9px] opacity-60">Automatisch berechnet (Werktage)</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" 
+                      value={vacationDays} 
+                      onChange={e => setVacationDays(Number(e.target.value))} 
+                      className="w-14 bg-white dark:bg-slate-900 rounded-xl px-2 py-1.5 text-center font-black text-sm border-2 border-emerald-500/30 text-slate-900 dark:text-white" 
+                    />
+                    <span className="text-[10px] font-bold opacity-40 uppercase">Tage</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ─── 3. Urlaubsart & Details ─── */}
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 delay-200 fill-mode-both">
+              <div className="flex items-center gap-2 mb-1 px-1">
+                <div className="w-1 h-4 bg-amber-500 rounded-full" />
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70">Art & Details</h4>
+              </div>
+              <div className="card-glass p-5 space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Urlaubsart wählen</label>
+                    <div className="flex items-center gap-1.5 bg-[var(--bg-elevated)] p-1.5 rounded-xl border border-[var(--border)]">
+                      <input 
+                        value={newTypeName} 
+                        onChange={e => setNewTypeName(e.target.value)} 
+                        placeholder="Eigene..." 
+                        className="bg-transparent text-[10px] outline-none w-20 px-1 font-bold !border-none !ring-0 !box-shadow-none" 
+                      />
+                      <button onClick={addVacationType} className="p-1.5 bg-[var(--primary)] text-white rounded-lg hover:scale-105 active:scale-95 transition-all">
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {vacationTypes.map(t => (
+                      <div key={t.id} className="group relative">
+                        <label className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${t.checked ? 'border-[var(--primary)] bg-[var(--primary-light)]' : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:border-[var(--border)]'}`}>
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${t.checked ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--text-subtle)]'}`}>
+                            {t.checked && <CheckCircle size={10} className="text-white" />}
+                          </div>
+                          <input type="checkbox" checked={t.checked} onChange={() => toggleVacationType(t.id)} className="hidden" />
+                          <span className="text-[11px] font-black truncate">{t.label}</span>
+                        </label>
+                        <button onClick={() => removeVacationType(t.id)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 hover:scale-100"><X size={10} /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 border-t border-[var(--border-subtle)] pt-4">
+                  <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Grund (optional)</label>
+                  <textarea 
+                    value={reason} 
+                    onChange={e => setReason(e.target.value)} 
+                    className="form-input-lux min-h-[70px] py-3 resize-none font-medium"
+                    placeholder="z.B. Erholungsurlaub..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ─── 4. Unterschrift & Datum ─── */}
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 delay-300 fill-mode-both">
+              <div className="flex items-center gap-2 mb-1 px-1">
+                <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70">Finalisierung</h4>
+              </div>
+              <div className="card-glass p-5 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Ort</label>
+                    <input value={location} onChange={e => setLocation(e.target.value)} className="form-input-lux" placeholder="Berlin" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Datum</label>
+                    <input type="date" value={signedAt} onChange={e => setSignedAt(e.target.value)} className="form-input-lux" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6 pt-2">
+                  <div className="space-y-3">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-60 text-center block">Unterschrift (Mitarbeiter)</label>
+                    <div className="aspect-[3/2] rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center bg-[var(--bg-elevated)] relative overflow-hidden transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] group">
+                      {employeeSignature ? (
+                        <Image src={employeeSignature} className="h-full w-full object-contain p-4" alt="Signature Employee" width={300} height={200} unoptimized />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-70 group-hover:scale-110 transition-all">
+                          <Upload size={24} />
+                          <span className="text-[8px] font-black uppercase tracking-widest">PNG Hochladen</span>
+                        </div>
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="absolute inset-0 opacity-0 cursor-pointer" 
+                        onChange={e => { 
+                          const f = e.target.files?.[0]; 
+                          if (f) { 
+                            const r = new FileReader(); 
+                            r.onload = () => setEmployeeSignature(r.result as string); 
+                            r.readAsDataURL(f); 
+                          } 
+                        }} 
+                      />
+                      {employeeSignature && (
+                        <button onClick={() => setEmployeeSignature(null)} className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg shadow-lg hover:shadow-rose-500/40 transition-all">
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[9px] font-black uppercase tracking-widest opacity-60 text-center block">Unterschrift (Genehmiger)</label>
+                    <div className="aspect-[3/2] rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center bg-[var(--bg-elevated)] relative overflow-hidden transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] group">
+                      {approverSignature ? (
+                        <Image src={approverSignature} className="h-full w-full object-contain p-4" alt="Signature Gen" width={300} height={200} unoptimized />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-70 group-hover:scale-110 transition-all">
+                          <Upload size={24} />
+                          <span className="text-[8px] font-black uppercase tracking-widest">PNG Hochladen</span>
+                        </div>
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="absolute inset-0 opacity-0 cursor-pointer" 
+                        onChange={e => { 
+                          const f = e.target.files?.[0]; 
+                          if (f) { 
+                            const r = new FileReader(); 
+                            r.onload = () => setApproverSignature(r.result as string); 
+                            r.readAsDataURL(f); 
+                          } 
+                        }} 
+                      />
+                      {approverSignature && (
+                        <button onClick={() => setApproverSignature(null)} className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg shadow-lg hover:shadow-rose-500/40 transition-all">
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -323,6 +478,12 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
              <h3 className="text-2xl font-black mb-3">Antrag eingereicht!</h3>
              <p className="text-sm font-medium opacity-60 mb-10">Dein Urlaubsantrag wurde erfolgreich erstellt.</p>
              <button onClick={onSuccess} className="w-full py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-[1.02] transition-all">Fertigstellen</button>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[11px] font-black uppercase tracking-widest animate-in shake-1">
+            {error}
           </div>
         )}
       </div>

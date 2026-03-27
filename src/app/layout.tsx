@@ -20,7 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen" style={{ background: 'var(--bg-base)' }}>
         <ThemeProvider>
           <ViewModeProvider>
-            <AppShell>{children}</AppShell>
+            <AppShell>
+              {children}
+            </AppShell>
           </ViewModeProvider>
         </ThemeProvider>
       </body>

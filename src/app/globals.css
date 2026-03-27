@@ -17,6 +17,48 @@ html::-webkit-scrollbar { width: 5px; }
 html::-webkit-scrollbar-track { background: transparent; }
 html::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 3px; }
 
+/* --- Custom Text Styles --- */
+.section-label {
+  @apply text-[9px] font-black uppercase tracking-[0.2em] opacity-40 mb-3;
+}
+
+/* --- Staggered Animations & Delays --- */
+.delay-75 { animation-delay: 75ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-500 { animation-delay: 500ms; }
+
+.animate-glow {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; filter: blur(40px); }
+  50% { opacity: 0.6; filter: blur(60px); }
+}
+
+/* --- Premium Hover Effects --- */
+.hover-lift {
+  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10 active:translate-y-0 active:scale-95;
+}
+
+/* --- Scrollbar Styling --- */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
 /* ── Design Tokens (Dark Mode Default) ────────────────────── */
 :root {
   /* Backgrounds */

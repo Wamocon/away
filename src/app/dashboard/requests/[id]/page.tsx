@@ -8,9 +8,9 @@ import { getOrganizationsForUser } from '@/lib/organization';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
-  ArrowLeft, CheckCircle, XCircle, Clock, Download,
-  Mail, Calendar, User, FileText, Loader, AlertCircle,
-  Building2, ChevronRight
+  ArrowLeft, CheckCircle, XCircle, Clock,
+  Mail, Calendar, Loader, AlertCircle,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,8 +19,6 @@ export default function RequestDetailPage() {
   const router = useRouter();
   const [request, setRequest] = useState<VacationRequest | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,12 +27,11 @@ export default function RequestDetailPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.push('/auth/login'); return; }
-      setUserId(data.user.id);
+      if (!data.user) { router.push('/auth/login'); return; }
 
       const orgs = await getOrganizationsForUser(data.user.id);
       if (orgs.length > 0) {
         const org = orgs[0] as { id: string; name: string };
-        setOrgId(org.id);
         const r = await getUserRole(data.user.id, org.id).catch(() => 'employee' as UserRole);
         setRole(r);
       }
@@ -110,7 +107,6 @@ export default function RequestDetailPage() {
 
   const cfg = statusConfig[request.status];
   const days = differenceInCalendarDays(parseISO(request.to), parseISO(request.from)) + 1;
-  const isOwner = request.user_id === userId;
 
   return (
     <div className="p-6 md:p-8 w-full max-w-3xl animate-fade-in">

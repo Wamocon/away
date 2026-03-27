@@ -45,6 +45,9 @@ export async function saveOAuthSettings(
   email: string,
   token: string
 ) {
+  if (!userId || userId.length < 32) throw new Error('Benutzer-ID fehlt oder ist ungültig.');
+  if (!orgId || orgId.length < 32) throw new Error('Organisations-ID fehlt oder ist ungültig.');
+  
   const supabase = createClient();
 
   // Load current settings
@@ -81,6 +84,8 @@ export async function getOAuthSettings(
   orgId: string,
   provider: 'outlook' | 'google'
 ): Promise<{ email: string; token: string } | null> {
+  if (!userId || userId.length < 32 || !orgId || orgId.length < 32) return null;
+
   const supabase = createClient();
   const { data } = await supabase
     .from('user_settings')

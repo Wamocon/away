@@ -1,21 +1,20 @@
 'use client';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getVacationRequestsForOrg, VacationRequest } from '@/lib/vacation';
 import {
   format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval,
-  getDay, addMonths, subMonths, isSameDay, isWeekend, isSameMonth,
-  startOfWeek, endOfWeek, addDays, differenceInCalendarDays,
+  getDay, addMonths, subMonths, isSameDay, isWeekend,
+  startOfWeek, addDays, differenceInCalendarDays,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
-  ChevronLeft, ChevronRight, CalendarDays, RefreshCw, Calendar,
-  Clock, CheckCircle, XCircle, Info, Download, Plus,
+  ChevronLeft, ChevronRight, CalendarDays, RefreshCw,
+  Clock, CheckCircle, XCircle, Plus, Building2, LayoutDashboard
 } from 'lucide-react';
 import Link from 'next/link';
 import CalendarSync from '@/components/CalendarSync';
-import { getUserRole, UserRole, canApprove } from '@/lib/roles';
 
 type ViewMode = 'month' | 'week';
 
@@ -31,7 +30,6 @@ interface CalendarEvent {
 
 export default function CalendarPage() {
   const [orgId, setOrgId] = useState<string | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [syncEvents, setSyncEvents] = useState<CalendarEvent[]>([]);
@@ -39,27 +37,31 @@ export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [loading, setLoading] = useState(true);
   const [showSync, setShowSync] = useState(false);
-  const [hoveredEvent, setHoveredEvent] = useState<CalendarEvent | null>(null);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [selectedSyncEvent, setSelectedSyncEvent] = useState<CalendarEvent | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
-      const uid = data.user?.id;
-      if (!uid) return;
-      setUserId(uid);
-      const orgs = await getOrganizationsForUser(uid);
-      const firstOrg = orgs.find(o => o !== null) as { id: string; name: string } | undefined;
-      if (firstOrg) {
-        setOrgId(firstOrg.id);
-        const r = await getUserRole(uid, firstOrg.id).catch(() => 'employee' as UserRole);
-        setRole(r);
+      try {
+        const uid = data.user?.id;
+        if (!uid) return;
+        setUserId(uid);
+        const orgs = await getOrganizationsForUser(uid);
+        const firstOrg = orgs.find(o => o !== null) as { id: string; name: string } | undefined;
+        if (firstOrg) {
+          setOrgId(firstOrg.id);
+        }
+      } finally {
+        setLoading(false);
       }
     });
   }, []);
 
   const loadData = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await getVacationRequestsForOrg(orgId);
@@ -169,9 +171,10 @@ export default function CalendarPage() {
 
           <button
             onClick={() => setShowSync(true)}
-            className="btn-secondary"
+            disabled={!orgId || !userId}
+            className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <RefreshCw size={13} />
+            {(!orgId || !userId) && loading ? <RefreshCw size={13} className="animate-spin" /> : <RefreshCw size={13} />}
             Sync
           </button>
 
@@ -211,9 +214,24 @@ export default function CalendarPage() {
         ))}
       </div>
 
-      {/* ─── Calendar Grid ──────────────────────────────── */}
-      <div className="card overflow-hidden">
-        {/* Weekday Headers */}
+      {/* ─── Calendar Grid / Empty State ───────────────── */}
+      {!orgId && !loading ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-12 card-glass border-dashed border-2 min-h-[400px] animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-20 h-20 rounded-full bg-[var(--primary-light)] flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/10">
+            <Building2 size={40} style={{ color: 'var(--primary)' }} />
+          </div>
+          <h2 className="text-2xl font-black mb-3 text-center">Keine Organisation aktiv</h2>
+          <p className="max-w-md text-center text-sm font-medium opacity-60 mb-8 leading-relaxed">
+            Um den Kalender zu nutzen und Termine zu synchronisieren, musst du Mitglied einer Organisation sein.
+          </p>
+          <Link href="/dashboard/organizations" className="btn-primary px-8 py-3 rounded-2xl flex items-center gap-2 hover:scale-105 transition-all">
+            <Plus size={18} />
+            Organisation erstellen oder beitreten
+          </Link>
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          {/* Weekday Headers */}
         <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
           {weekdays.map(d => (
             <div key={d} className="text-center py-3 text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>
@@ -261,18 +279,41 @@ export default function CalendarPage() {
                     </span>
                   </div>
 
-                  {/* Events */}
                   <div className="space-y-0.5">
-                    {dayEvents.slice(0, maxVisible).map(ev => (
-                      <Link
-                        key={ev.id}
-                        href={`/dashboard/requests/${ev.id}`}
-                        className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline`}
-                        title={ev.title}
-                      >
-                        {ev.title}
-                      </Link>
-                    ))}
+                    {dayEvents.slice(0, maxVisible).map(ev => {
+                      const isSync = ev.type === 'sync';
+                      const Content = (
+                        <span className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline truncate block w-full text-left`} title={ev.title}>
+                          {ev.title}
+                        </span>
+                      );
+
+                      if (isSync) {
+                        return (
+                          <div
+                            key={ev.id}
+                            className="cursor-pointer hover:brightness-95 transition-all"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedSyncEvent(ev);
+                            }}
+                          >
+                            {Content}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          key={ev.id}
+                          href={`/dashboard/requests/${ev.id}`}
+                          className="no-underline block"
+                        >
+                          {Content}
+                        </Link>
+                      );
+                    })}
                     {dayEvents.length > maxVisible && (
                       <div className="text-[9px] font-semibold" style={{ color: 'var(--text-muted)' }}>
                         +{dayEvents.length - maxVisible} mehr
@@ -313,15 +354,42 @@ export default function CalendarPage() {
                   </div>
 
                   <div className="flex flex-col gap-1 flex-1">
-                    {dayEvents.map(ev => (
-                      <Link
-                        key={ev.id}
-                        href={`/dashboard/requests/${ev.id}`}
-                        className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline py-1.5 px-2 rounded-lg text-[11px] flex items-center gap-1`}
-                      >
-                        {ev.title}
-                      </Link>
-                    ))}
+                    {dayEvents.map(ev => {
+                      const isSync = ev.type === 'sync';
+                      const Content = (
+                        <span className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline py-1.5 px-2 rounded-lg text-[11px] flex items-center gap-1 w-full text-left`}>
+                          {ev.title}
+                        </span>
+                      );
+
+                      if (isSync) {
+                        return (
+                          <div
+                            key={ev.id}
+                            className="cursor-pointer hover:brightness-95 transition-all"
+                            title={ev.title}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedSyncEvent(ev);
+                            }}
+                          >
+                            {Content}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          key={ev.id}
+                          href={`/dashboard/requests/${ev.id}`}
+                          className="no-underline block"
+                          title={ev.title}
+                        >
+                          {Content}
+                        </Link>
+                      );
+                    })}
                     {dayEvents.length === 0 && isToday_ && (
                       <Link href="/dashboard/requests" className="text-[10px] text-[var(--primary)] border border-dashed border-[var(--primary-light)] rounded-lg p-1.5 text-center no-underline hover:bg-[var(--primary-light)] transition-colors">
                         + Antrag
@@ -334,6 +402,7 @@ export default function CalendarPage() {
           </div>
         )}
       </div>
+    )}
 
       {/* ─── Upcoming Requests ──────────────────────────── */}
       {requests.length > 0 && (
@@ -382,6 +451,68 @@ export default function CalendarPage() {
           onClose={() => setShowSync(false)}
           onSynced={loadData}
         />
+      )}
+
+      {/* ─── Event Detail Modal (Synced) ────────────────── */}
+      {selectedSyncEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md card p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-1 px-4 py-3 flex items-center justify-between border-b" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2">
+                <RefreshCw size={14} className="text-[var(--primary)]" />
+                <span className="text-xs font-bold uppercase tracking-widest opacity-60">Synchronisierter Termin</span>
+              </div>
+              <button onClick={() => setSelectedSyncEvent(null)} className="btn-ghost p-1.5 rounded-lg">
+                <Plus size={18} className="rotate-45" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <h3 className="text-xl font-black mb-4 leading-tight">{selectedSyncEvent.title}</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
+                    <Clock size={15} style={{ color: 'var(--primary)' }} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold tracking-widest opacity-40 block mb-1">Zeitraum</label>
+                    <p className="text-sm font-semibold">
+                      {format(parseISO(selectedSyncEvent.from), 'dd. MMMM yyyy', { locale: de })}
+                      {selectedSyncEvent.from !== selectedSyncEvent.to && ` – ${format(parseISO(selectedSyncEvent.to), 'dd. MMMM yyyy', { locale: de })}`}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedSyncEvent.reason && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
+                      <LayoutDashboard size={15} style={{ color: 'var(--primary)' }} />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] uppercase font-bold tracking-widest opacity-40 block mb-1">Beschreibung</label>
+                      <p className="text-sm opacity-80 leading-relaxed whitespace-pre-wrap">{selectedSyncEvent.reason}</p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="p-3 rounded-xl bg-[var(--bg-elevated)] border text-[10px] text-center" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                  Dieser Termin wurde aus deinem externen Kalender synchronisiert.
+                  Änderungen müssen direkt im Quell-Kalender vorgenommen werden.
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end">
+                <button
+                  onClick={() => setSelectedSyncEvent(null)}
+                  className="btn-primary px-6 py-2 rounded-xl"
+                >
+                  Schließen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -11,7 +11,7 @@ export interface VacationRequest {
   reason: string;
   status: VacationStatus;
   created_at: string;
-  template_fields?: Record<string, any>;
+  template_fields?: Record<string, unknown>;
 }
 
 export interface VacationRequestInput {

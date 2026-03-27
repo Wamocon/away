@@ -6,12 +6,12 @@ import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getVacationRequestsForOrg, VacationRequest } from '@/lib/vacation';
 import { getUserRole, UserRole, canApprove, ROLE_LABELS } from '@/lib/roles';
-import { format, parseISO, differenceInCalendarDays, isToday, isFuture } from 'date-fns';
+import { format, parseISO, differenceInCalendarDays, isFuture } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
   ClipboardList, CheckCircle, Clock, XCircle, CalendarDays,
-  Plus, ArrowRight, RefreshCw, Users, TrendingUp, Mail,
-  Building2, ShieldCheck, LayoutGrid, List
+  Plus, ArrowRight, Users, TrendingUp, Mail,
+  ShieldCheck, LayoutGrid, List
 } from 'lucide-react';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
 

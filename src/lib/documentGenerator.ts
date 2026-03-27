@@ -12,7 +12,7 @@ export interface DocumentData {
   userEmail: string;
   orgName: string;
   date: string;
-  customFields?: Record<string, string>;
+  customFields?: Record<string, unknown>;
 }
 
 /**
@@ -39,11 +39,24 @@ export async function generatePDF(data: DocumentData, templateBytes?: ArrayBuffe
 
     for (const field of fields) {
       const name = field.getName().toLowerCase();
+      // Handle Checkboxes
+      if (field.constructor.name === 'PDFCheckBox') {
+        for (const [key, value] of Object.entries(fieldMap)) {
+          if (name.includes(key.toLowerCase()) && typeof value === 'boolean') {
+            const cb = form.getCheckBox(field.getName());
+            if (value) cb.check(); else cb.uncheck();
+            break;
+          }
+        }
+        continue;
+      }
+
+      // Handle Text Fields
       for (const [key, value] of Object.entries(fieldMap)) {
         if (name.includes(key.toLowerCase()) && value) {
           try {
             const tf = form.getTextField(field.getName());
-            tf.setText(value);
+            tf.setText(String(value));
           } catch { /* field type mismatch */ }
           break;
         }
@@ -60,10 +73,17 @@ export async function generatePDF(data: DocumentData, templateBytes?: ArrayBuffe
   
   page.drawText('URLAUBSANTRAG', { x: 50, y: height - 80, size: 22 });
   page.drawText(`Organisation: ${data.orgName}`, { x: 50, y: height - 120, size: 12 });
-  page.drawText(`Von: ${data.from}`, { x: 50, y: height - 160, size: 12 });
-  page.drawText(`Bis: ${data.to}`, { x: 50, y: height - 185, size: 12 });
+  page.drawText(`Name: ${data.customFields?.firstName} ${data.customFields?.lastName}`, { x: 50, y: height - 145, size: 12 });
+  page.drawText(`Von: ${data.from}`, { x: 50, y: height - 170, size: 12 });
+  page.drawText(`Bis: ${data.to}`, { x: 200, y: height - 170, size: 12 });
+  page.drawText(`Tage: ${data.customFields?.vacationDays}`, { x: 350, y: height - 170, size: 12 });
+  
   page.drawText(`Grund: ${data.reason}`, { x: 50, y: height - 210, size: 12 });
-  page.drawText(`Antragsteller: ${data.userEmail}`, { x: 50, y: height - 240, size: 11 });
+  page.drawText(`Personalnr: ${data.customFields?.employeeId}`, { x: 50, y: height - 235, size: 11 });
+  page.drawText(`Belegnr: ${data.customFields?.documentId}`, { x: 200, y: height - 235, size: 11 });
+
+  page.drawText(`Ort: ${data.customFields?.location}`, { x: 50, y: height - 270, size: 11 });
+  page.drawText(`Datum: ${data.customFields?.signedAt}`, { x: 200, y: height - 270, size: 11 });
   
   const bytes = await doc.save();
   return new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
@@ -80,26 +100,27 @@ export async function generateExcel(data: DocumentData, templateBytes?: ArrayBuf
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     
-    // Simple cell mapping logic (replace {key} in cells or just append)
-    // For now we append a new row as a "generated" entry if it's a list
-    // Or we look for placeholders
     XLSX.utils.sheet_add_aoa(sheet, [
-      ['Antragsteller', data.userEmail],
+      ['Name', `${data.customFields?.firstName} ${data.customFields?.lastName}`],
+      ['Personalnr', data.customFields?.employeeId],
       ['Von', data.from],
       ['Bis', data.to],
-      ['Grund', data.reason],
-      ['Vertretung', data.deputy]
-    ], { origin: -1 }); // append at end
+      ['Tage', data.customFields?.vacationDays],
+      ['Grund', data.reason]
+    ], { origin: -1 }); 
   } else {
     workbook = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet([{
-      'Antragsteller': data.userEmail,
+      'Vorname': data.customFields?.firstName,
+      'Nachname': data.customFields?.lastName,
+      'Personalnr': data.customFields?.employeeId,
       'Organisation': data.orgName,
       'Von': data.from,
       'Bis': data.to,
+      'Tage': data.customFields?.vacationDays,
       'Grund': data.reason,
-      'Vertretung': data.deputy,
-      'Anmerkungen': data.notes
+      'Ort': data.customFields?.location,
+      'Datum': data.customFields?.signedAt
     }]);
     XLSX.utils.book_append_sheet(workbook, ws, 'Urlaub');
   }

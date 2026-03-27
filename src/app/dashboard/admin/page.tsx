@@ -1,13 +1,14 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getUserRole, updateUserRole, UserRole, ROLE_LABELS, ROLE_COLORS } from '@/lib/roles';
+import { getOrgMembersWithEmails } from '@/lib/actions/adminActions';
 import {
-  Users, ShieldCheck, UserPlus, Mail, Loader, CheckCircle,
-  MoreVertical, Trash2, Edit2, Send, Building2, AlertCircle, RefreshCw, LayoutGrid, List,
-  FileText, Upload, Plus, Download, X, Files
+  Users, ShieldCheck, UserPlus, Loader, CheckCircle,
+  Trash2, Send, Building2, AlertCircle, RefreshCw, LayoutGrid, List,
+  FileText, Upload, Files
 } from 'lucide-react';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
 
@@ -34,22 +35,22 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
-  // Invite
+  // Einladung
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('employee');
   const [inviting, setInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState('');
   const [inviteError, setInviteError] = useState('');
 
-  // Tab Management
+  // Tab-Management
   const [activeTab, setActiveTab] = useState<'users' | 'templates'>('users');
 
-  // Templates
+  // Vorlagen
   const [templates, setTemplates] = useState<Template[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
-  // Role change
+  // Rollenänderung
   const [updatingRole, setUpdatingRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export default function AdminPage() {
       if (orgs.length === 0) return;
       const org = orgs[0] as { id: string; name: string };
       
-      // Only admins can access
+      // Nur Admins dürfen auf diese Seite
       const role = await getUserRole(data.user.id, org.id).catch(() => null);
       if (role !== 'admin') { router.push('/dashboard'); return; }
 
@@ -75,27 +76,11 @@ export default function AdminPage() {
     if (!orgId) return;
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('user_roles')
-        .select('user_id, role, created_at')
-        .eq('organization_id', orgId)
-        .order('created_at');
-
-      if (!data) return;
-
-      // Fetch emails from auth (admin only)
-      const memberData: OrgMember[] = await Promise.all(
-        data.map(async (m: { user_id: string; role: string; created_at: string }) => {
-          try {
-            const { data: userData } = await supabase.auth.admin.getUserById(m.user_id);
-            return { ...m, role: m.role as UserRole, email: userData?.user?.email };
-          } catch {
-            return { ...m, role: m.role as UserRole, email: undefined };
-          }
-        })
-      );
-      setMembers(memberData);
+      // Nutzt die neue Server Action statt clientseitige Admin-Calls (behebt 403)
+      const data = await getOrgMembersWithEmails(orgId);
+      setMembers(data as OrgMember[]);
+    } catch (err) {
+      console.error('Fehler beim Laden der Mitglieder:', err);
     } finally {
       setLoading(false);
     }
@@ -111,7 +96,7 @@ export default function AdminPage() {
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
       setTemplates((data as Template[]) || []);
-    } catch { /* ignore */ }
+    } catch { /* ignorieren */ }
   }, [orgId]);
 
   useEffect(() => { 
@@ -130,7 +115,7 @@ export default function AdminPage() {
 
     try {
       const supabase = createClient();
-      // Send invitation email via Supabase auth
+      // Einladung via Supabase auth (benötigt ggf. ebenfalls Admin-API, hier Client-Fallback)
       const { error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
         data: { organization_id: orgId, role: inviteRole },
         redirectTo: `${window.location.origin}/auth/accept-invite?org=${orgId}&role=${inviteRole}`,
@@ -139,8 +124,8 @@ export default function AdminPage() {
       if (error) throw error;
       setInviteSuccess(`Einladung an ${inviteEmail} gesendet!`);
       setInviteEmail('');
+      loadMembers(); // Liste aktualisieren
     } catch (err) {
-      // Fallback: just show the invite link approach
       setInviteError(`Supabase Admin-Rechte erforderlich. Einladungs-URL: ${window.location.origin}/invite?org=${orgId}&role=${inviteRole}`);
     } finally {
       setInviting(false);
@@ -194,7 +179,7 @@ export default function AdminPage() {
         .from('document_templates')
         .insert([{
           name: file.name.replace(`.${ext}`, ''),
-          type: ext as any,
+          type: ext as 'pdf' | 'docx' | 'xlsx',
           storage_path: path,
           organization_id: orgId
         }])
@@ -218,16 +203,16 @@ export default function AdminPage() {
     setTemplates(prev => prev.filter(t => t.id !== template.id));
   };
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: members.length,
     admins: members.filter(m => m.role === 'admin').length,
     approvers: members.filter(m => m.role === 'approver').length,
     employees: members.filter(m => m.role === 'employee').length,
     templates: templates.length,
-  };
+  }), [members, templates]);
 
   return (
-    <div className="p-6 md:p-8 w-full animate-fade-in">
+    <div className="p-6 md:p-8 w-full animate-fade-in pb-20">
       {/* Header */}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
         <div>
@@ -301,7 +286,7 @@ export default function AdminPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Main Content */}
+        {/* Haupt-Inhalt */}
         <div className="lg:col-span-2">
           {activeTab === 'users' ? (
             <div className="card overflow-hidden">
@@ -322,75 +307,77 @@ export default function AdminPage() {
                   <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Noch keine Mitglieder</p>
                 </div>
               ) : viewMode === 'list' ? (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Benutzer</th>
-                      <th>Rolle</th>
-                      <th>Seit</th>
-                      <th>Aktionen</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {members.map(m => (
-                      <tr key={m.user_id}>
-                        <td>
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#8b5cf6] flex items-center justify-center text-white font-bold text-xs shrink-0">
-                              {(m.email || '?').charAt(0).toUpperCase()}
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Benutzer</th>
+                        <th>Rolle</th>
+                        <th>Seit</th>
+                        <th>Aktionen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {members.map(m => (
+                        <tr key={m.user_id}>
+                          <td>
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#8b5cf6] flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                {(m.email || m.user_id || '?').charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium truncate max-w-[150px]" style={{ color: 'var(--text-base)' }}>
+                                  {m.email || m.user_id.slice(0, 8) + '...'}
+                                </p>
+                                {m.user_id === currentUserId && (
+                                  <span className="text-[9px] font-bold" style={{ color: 'var(--primary)' }}>Du</span>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium truncate max-w-[150px]" style={{ color: 'var(--text-base)' }}>
-                                {m.email || m.user_id.slice(0, 8) + '...'}
-                              </p>
-                              {m.user_id === currentUserId && (
-                                <span className="text-[9px] font-bold" style={{ color: 'var(--primary)' }}>Du</span>
+                          </td>
+                          <td>
+                            <div className="relative">
+                              <select
+                                value={m.role}
+                                onChange={e => handleRoleChange(m.user_id, e.target.value as UserRole)}
+                                disabled={updatingRole === m.user_id || m.user_id === currentUserId}
+                                className="text-xs rounded-lg px-2 py-1.5 pr-6 border appearance-none cursor-pointer disabled:opacity-50"
+                                style={{
+                                  background: 'var(--bg-elevated)',
+                                  borderColor: 'var(--border)',
+                                  color: 'var(--text-base)',
+                                }}
+                              >
+                                <option value="admin">Administrator</option>
+                                <option value="approver">Genehmiger</option>
+                                <option value="employee">Mitarbeiter</option>
+                              </select>
+                              {updatingRole === m.user_id && (
+                                <Loader size={10} className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--primary)' }} />
                               )}
                             </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="relative">
-                            <select
-                              value={m.role}
-                              onChange={e => handleRoleChange(m.user_id, e.target.value as UserRole)}
-                              disabled={updatingRole === m.user_id || m.user_id === currentUserId}
-                              className="text-xs rounded-lg px-2 py-1.5 pr-6 border appearance-none cursor-pointer disabled:opacity-50"
-                              style={{
-                                background: 'var(--bg-elevated)',
-                                borderColor: 'var(--border)',
-                                color: 'var(--text-base)',
-                              }}
-                            >
-                              <option value="admin">Administrator</option>
-                              <option value="approver">Genehmiger</option>
-                              <option value="employee">Mitarbeiter</option>
-                            </select>
-                            {updatingRole === m.user_id && (
-                              <Loader size={10} className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--primary)' }} />
+                          </td>
+                          <td>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                              {new Date(m.created_at).toLocaleDateString('de-DE')}
+                            </span>
+                          </td>
+                          <td>
+                            {m.user_id !== currentUserId && (
+                              <button
+                                onClick={() => handleRemoveMember(m.user_id)}
+                                className="btn-ghost p-1.5 text-[var(--text-muted)] hover:text-[var(--danger)]"
+                                title="Entfernen"
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             )}
-                          </div>
-                        </td>
-                        <td>
-                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {new Date(m.created_at).toLocaleDateString('de-DE')}
-                          </span>
-                        </td>
-                        <td>
-                          {m.user_id !== currentUserId && (
-                            <button
-                              onClick={() => handleRemoveMember(m.user_id)}
-                              className="btn-ghost p-1.5 text-[var(--text-muted)] hover:text-[var(--danger)]"
-                              title="Entfernen"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
                    {members.map(m => (
@@ -398,15 +385,15 @@ export default function AdminPage() {
                        <div className="flex justify-between items-start">
                          <div className="flex items-center gap-2.5">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#8b5cf6] flex items-center justify-center text-white font-bold text-sm shrink-0">
-                              {(m.email || '?').charAt(0).toUpperCase()}
+                               {(m.email || m.user_id || '?').charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-sm font-medium truncate max-w-[150px]" style={{ color: 'var(--text-base)' }}>
-                                {m.email || m.user_id.slice(0, 8) + '...'}
-                              </p>
-                              {m.user_id === currentUserId && (
-                                <span className="text-[10px] font-bold" style={{ color: 'var(--primary)' }}>Du</span>
-                              )}
+                               <p className="text-sm font-medium truncate max-w-[150px]" style={{ color: 'var(--text-base)' }}>
+                                 {m.email || m.user_id.slice(0, 8) + '...'}
+                               </p>
+                               {m.user_id === currentUserId && (
+                                 <span className="text-[10px] font-bold" style={{ color: 'var(--primary)' }}>Du</span>
+                               )}
                             </div>
                          </div>
                          {m.user_id !== currentUserId && (
@@ -515,7 +502,7 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* Invite Panel */}
+        {/* Einladungs-Panel */}
         <div className="flex flex-col gap-4">
           <div className="card p-5">
             <h2 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--text-base)' }}>
@@ -567,7 +554,7 @@ export default function AdminPage() {
             </form>
           </div>
 
-          {/* Role Legend */}
+          {/* Rollen-Legende */}
           <div className="card p-5">
             <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--text-base)' }}>Rollen-Übersicht</h2>
             <div className="space-y-2.5">

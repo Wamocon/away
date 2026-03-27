@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Settings, User, ShieldCheck, Loader, CheckCircle, Plane, Calendar, Info, LayoutGrid, List } from 'lucide-react';
+import { Settings, User, ShieldCheck, Loader, CheckCircle, Calendar, Info, LayoutGrid, List } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { saveUserSettings, getUserSettings } from '@/lib/userSettings';
 import { getOAuthSettings, saveOAuthSettings } from '@/lib/calendarSync';

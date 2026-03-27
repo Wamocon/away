@@ -82,8 +82,9 @@ export async function toggleUserRoleAction(newRole: string) {
     }
 
     return { success: true, newRole };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorBody = err instanceof Error ? err.message : String(err);
     console.error('SERVER ACTION ERROR:', err);
-    throw new Error(err.message || 'Interner Server-Fehler beim Rollenwechsel');
+    throw new Error(errorBody || 'Interner Server-Fehler beim Rollenwechsel');
   }
 }

@@ -1,21 +1,26 @@
 'use client';
-
 import { useState } from 'react';
 import { createOrganization } from '@/lib/organization';
+import Modal from './ui/Modal';
+import { Plus, Building2, Loader } from 'lucide-react';
 
 export default function CreateOrganization({
   userId,
   onCreated,
+  isOpen,
+  onClose
 }: {
   userId: string;
   onCreated: (org: { id: string; name: string }) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!name.trim()) return;
 
     setLoading(true);
@@ -25,6 +30,7 @@ export default function CreateOrganization({
       const newOrg = await createOrganization(userId, name.trim());
       onCreated(newOrg);
       setName('');
+      onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Fehler beim Erstellen der Organisation');
     } finally {
@@ -32,28 +38,55 @@ export default function CreateOrganization({
     }
   };
 
-  return (
-    <div className="mt-4 pt-4 border-t border-gray-700/50">
-      <h3 className="text-sm font-semibold text-gray-300 mb-2">Neue Organisation anlegen</h3>
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          placeholder="Name der Organisation"
-          className="flex-1 bg-gray-950/50 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={loading}
-          required
-        />
-        <button
-          type="submit"
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
-          disabled={loading || !name.trim()}
-        >
-          {loading ? 'Erstelle...' : 'Erstellen'}
-        </button>
-      </form>
-      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+  const footer = (
+    <div className="flex gap-3">
+      <button onClick={onClose} className="flex-1 py-3 px-4 rounded-xl bg-[var(--bg-elevated)] text-[var(--text-base)] font-black text-[10px] uppercase tracking-widest border-2 border-[var(--border)] transition-all hover:bg-[var(--bg-surface)]">
+        Abbrechen
+      </button>
+      <button 
+        onClick={() => handleSubmit()}
+        disabled={loading || !name.trim()}
+        className="flex-[2] py-3 px-4 rounded-xl bg-[var(--primary)] text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+      >
+        {loading ? <Loader size={14} className="animate-spin" /> : <Plus size={14} />}
+        Organisation erstellen
+      </button>
     </div>
+  );
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Organisation anlegen"
+      subtitle="Erstelle ein neues Team oder Unternehmen"
+      footer={footer}
+    >
+      <div className="space-y-6 py-2">
+        <div className="flex flex-col items-center justify-center py-4 opacity-40">
+           <Building2 size={48} className="text-[var(--text-muted)] mb-2" />
+           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-center">Unternehmensprofil</p>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 ml-1">Name der Organisation *</label>
+          <input
+            type="text"
+            placeholder="z.B. Acme Corp GmbH"
+            className="w-full px-4 py-3.5 rounded-xl border-2 border-[var(--border)] bg-[var(--bg-elevated)] outline-none text-sm font-bold focus:border-[var(--primary)] transition-all"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={loading}
+            autoFocus
+          />
+        </div>
+
+        {error && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-top-1">
+            {error}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

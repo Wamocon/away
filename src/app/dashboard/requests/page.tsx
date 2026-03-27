@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getVacationRequestsForOrg, updateVacationStatus, VacationRequest, getMyVacationRequests } from '@/lib/vacation';
@@ -23,8 +23,6 @@ const statusConfig = {
   approved: { label: 'Genehmigt',   cls: 'badge-approved', Icon: CheckCircle },
   rejected: { label: 'Abgelehnt',  cls: 'badge-rejected',  Icon: XCircle },
 };
-
-import { Suspense } from 'react';
 
 function RequestsPageContent() {
   const { viewMode, setViewMode } = useViewMode();
@@ -54,16 +52,33 @@ function RequestsPageContent() {
     try {
       setLoading(true);
       const orgs = await getOrganizationsForUser(user.id);
-      if (orgs.length === 0) return;
-      const firstOrg = orgs[0] as { id: string; name: string };
-      setOrg(firstOrg);
-      const r = await getUserRole(user.id, firstOrg.id).catch(() => 'employee' as UserRole);
-      setRole(r);
+      
+      let currentOrg: { id: string; name: string } | null = null;
+      
+      if (orgs.length > 0) {
+        currentOrg = orgs[0] as { id: string; name: string };
+      } else {
+        // Fallback: Erste Organisation im System suchen (für Debugging ohne explizite Rollen)
+        const supabase = createClient();
+        const { data: fallbackOrgs } = await supabase.from('organizations').select('id, name').limit(1);
+        if (fallbackOrgs && fallbackOrgs.length > 0) {
+          currentOrg = fallbackOrgs[0];
+        }
+      }
 
-      const data = canApprove(r)
-        ? await getVacationRequestsForOrg(firstOrg.id)
-        : await getMyVacationRequests(user.id);
-      setRequests(data);
+      setOrg(currentOrg);
+
+      if (currentOrg) {
+        const r = await getUserRole(user.id, currentOrg.id).catch(() => 'employee' as UserRole);
+        setRole(r);
+
+        const data = canApprove(r)
+          ? await getVacationRequestsForOrg(currentOrg.id)
+          : await getMyVacationRequests(user.id);
+        setRequests(data);
+      }
+    } catch (err) {
+      console.error('Error loading requests:', err);
     } finally {
       setLoading(false);
     }
@@ -108,7 +123,11 @@ function RequestsPageContent() {
             {canApprove(role) ? `${org?.name} – Alle eingereichten Anträge` : 'Deine Urlaubsanträge verwalten'}
           </p>
         </div>
-        <button onClick={() => setShowWizard(true)} className="btn-primary">
+        <button 
+          onClick={() => setShowWizard(true)} 
+          className="btn-primary"
+          disabled={!user}
+        >
           <Plus size={14} />
           Neuer Antrag
         </button>
@@ -328,12 +347,12 @@ function RequestsPageContent() {
       </div>
 
       {/* Wizard Modal */}
-      {showWizard && org && user && (
+      {showWizard && user && (
         <WizardVacationRequest
           userId={user.id}
-          orgId={org.id}
+          orgId={org?.id || ''}
           userEmail={user.email}
-          orgName={org.name}
+          orgName={org?.name || 'Standard Organisation'}
           onClose={() => setShowWizard(false)}
           onSuccess={() => { setShowWizard(false); loadData(); }}
         />

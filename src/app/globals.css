@@ -32,8 +32,8 @@ html::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius
   --text-subtle:  rgba(241,245,249,0.20);
 
   /* Borders */
-  --border:       rgba(255,255,255,0.07);
-  --border-subtle: rgba(255,255,255,0.04);
+  --border:       rgba(255,255,255,0.12);
+  --border-subtle: rgba(255,255,255,0.06);
 
   /* Brand – Indigo */
   --primary:      #6366f1;
@@ -72,13 +72,13 @@ html:not(.dark) {
   --bg-base:      #f4f6fb;
   --bg-surface:   #ffffff;
   --bg-elevated:  #f0f4ff;
-  --bg-input:     #ffffff;
+  --bg-input:     #f8fafc;
   --bg-card:      rgba(255,255,255,0.95);
   --text-base:    #0f172a;
   --text-muted:   rgba(15,23,42,0.45);
   --text-subtle:  rgba(15,23,42,0.20);
-  --border:       rgba(0,0,0,0.07);
-  --border-subtle: rgba(0,0,0,0.04);
+  --border:       rgba(0,0,0,0.12);
+  --border-subtle: rgba(0,0,0,0.06);
   --primary-light: rgba(99,102,241,0.08);
   --primary-glow: rgba(99,102,241,0.15);
   --glow-1:       rgba(99,102,241,0.05);
@@ -141,15 +141,21 @@ body {
 input, select, textarea {
   background: var(--bg-input) !important;
   color: var(--text-base) !important;
-  border-color: var(--border) !important;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  border: 2px solid var(--border) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 input::placeholder { color: var(--text-muted) !important; }
 select option { background: var(--bg-input); color: var(--text-base); }
 input:focus, select:focus, textarea:focus {
   border-color: var(--primary) !important;
   outline: none;
-  box-shadow: 0 0 0 3px var(--ring-focus) !important;
+  box-shadow: 0 0 0 4px var(--primary-light) !important;
+  transform: translateY(-1px);
+}
+
+.form-input-lux {
+  @apply w-full px-4 py-3 rounded-xl outline-none font-bold text-sm transition-all;
+  border-width: 2px !important;
 }
 
 /* ── Cards ─────────────────────────────────────────────────── */

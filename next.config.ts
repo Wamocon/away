@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy', 
             value: "frame-ancestors 'self' http://localhost:3000 https://teamradar-*.vercel.app https://*.vercel.app" 
           },
+          {
+            key: 'X-Frame-Options',
+            value: 'ALLOW-FROM https://teamradar-walerymoretz-lang-walerymoretz-langs-projects.vercel.app'
+          },
         ],
       },
     ];

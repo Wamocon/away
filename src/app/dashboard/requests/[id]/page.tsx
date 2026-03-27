@@ -213,11 +213,29 @@ export default function RequestDetailPage() {
             {request.template_fields && Object.keys(request.template_fields).length > 0 && (
               <div>
                 <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Weitere Angaben</p>
-                {Object.entries(request.template_fields as Record<string, string>).map(([k, v]) => v && (
-                  <p key={k} className="text-xs" style={{ color: 'var(--text-base)' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>{k}:</span> {v}
-                  </p>
-                ))}
+                {Object.entries(request.template_fields as Record<string, unknown>).map(([k, v]) => {
+                  if (!v) return null;
+                  
+                  let displayValue = String(v);
+                  
+                  // Handle Checkbox/Multi-select objects (array of {label, checked})
+                  if (Array.isArray(v)) {
+                    displayValue = v
+                      .filter(item => item && typeof item === 'object' && 'checked' in item && item.checked)
+                      .map(item => item.label)
+                      .join(', ');
+                  } else if (typeof v === 'object' && v !== null && 'label' in (v as any)) {
+                    displayValue = (v as any).label;
+                  }
+
+                  if (!displayValue) return null;
+
+                  return (
+                    <p key={k} className="text-xs" style={{ color: 'var(--text-base)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{k}:</span> {displayValue}
+                    </p>
+                  );
+                })}
               </div>
             )}
           </div>

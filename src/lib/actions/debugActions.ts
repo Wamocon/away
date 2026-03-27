@@ -36,45 +36,48 @@ export async function toggleUserRoleAction(newRole: string) {
     const userId = session.user.id;
     const admin = await createAdminClient();
 
-    // 1. Organisation ermitteln
-    // Wir suchen nach der ersten verfügbaren Organisation als primäres Ziel
-    const { data: orgs, error: orgError } = await admin
-      .from('organizations')
-      .select('id')
-      .limit(1);
+    // 1. Organisationen des Nutzers ermitteln
+    const { data: userOrgs, error: orgError } = await admin
+      .from('user_roles')
+      .select('organization_id')
+      .eq('user_id', userId);
 
     if (orgError) {
-      console.error('Org Fetch Error:', orgError);
-      throw new Error(`Konnte Organisationen nicht laden: ${orgError.message}`);
+      console.error('User Orgs Fetch Error:', orgError);
+      throw new Error(`Konnte Organisationen des Nutzers nicht laden: ${orgError.message}`);
     }
 
-    const orgId = orgs && orgs.length > 0 ? orgs[0].id : null;
+    const orgIds = userOrgs?.map(o => o.organization_id) || [];
 
-    if (!orgId) {
-      throw new Error('Keine Organisation im Datenbank-Schema gefunden. Bitte erst eine Organisation anlegen.');
+    if (orgIds.length === 0) {
+      // Fallback: Erste verfügbare Org im System suchen (für neue Setups)
+      const { data: allOrgs } = await admin.from('organizations').select('id').limit(1);
+      if (allOrgs && allOrgs.length > 0) orgIds.push(allOrgs[0].id);
     }
 
-    console.log(`[DEBUG] Nutzer ${userId} wechselt zu Rolle "${newRole}" in Org "${orgId}"`);
+    if (orgIds.length === 0) {
+      throw new Error('Keine Organisation gefunden. Bitte erst eine Organisation anlegen.');
+    }
 
-    // 2. Bestehende Rollen in DIESER Organisation löschen
-    const { error: deleteError } = await admin
+    console.log(`[DEBUG] Nutzer ${userId} wechselt zu Rolle "${newRole}" in ${orgIds.length} Orgs`);
+
+    // 2. Bestehende Rollen in ALLEN gefundenen Organisationen löschen
+    await admin
       .from('user_roles')
       .delete()
       .eq('user_id', userId)
-      .eq('organization_id', orgId);
+      .in('organization_id', orgIds);
 
-    if (deleteError) {
-      console.error('Delete Role Error:', deleteError);
-    }
+    // 3. Neue Rolle für JEDE Organisation einfügen
+    const inserts = orgIds.map(oid => ({
+      user_id: userId,
+      organization_id: oid,
+      role: newRole
+    }));
 
-    // 3. Neue Rolle einfügen
     const { error: insertError } = await admin
       .from('user_roles')
-      .insert({
-        user_id: userId,
-        organization_id: orgId,
-        role: newRole
-      });
+      .insert(inserts);
 
     if (insertError) {
       console.error('Insert Role Error:', insertError);

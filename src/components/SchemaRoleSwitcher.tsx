@@ -26,13 +26,13 @@ export default function SchemaRoleSwitcher() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const { data } = await supabase
+        const { data: orgs } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
-          .maybeSingle();
+          .order('organization_id', { ascending: true });
         
-        setCurrentRole(data?.role || 'employee');
+        setCurrentRole(orgs?.[0]?.role || 'employee');
       } catch (err) {
         console.error('Debug Role Check failed:', err);
       }

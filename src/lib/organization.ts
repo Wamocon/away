@@ -5,7 +5,8 @@ export async function getOrganizationsForUser(userId: string) {
   const { data, error } = await supabase
     .from('user_roles')
     .select('organization_id, organizations:organization_id(id, name)')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .order('organization_id', { ascending: true });
   if (error) throw error;
   if (!data) return [];
   type OrgRow = { organizations: { id: string; name: string } | { id: string; name: string }[] | null };

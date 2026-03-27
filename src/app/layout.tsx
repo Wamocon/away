@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   title: 'AWAY – MODERNE URLAUBSPLANUNG',
   description: 'EFFIZIENTE URLAUBSPLANUNG FÜR TEAMS – ANTRÄGE, GENEHMIGUNGEN, KALENDER',
   icons: {
-    icon: '/favicon.png',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon.png', type: 'image/png' }
+    ],
     apple: '/favicon.png',
   },
 };

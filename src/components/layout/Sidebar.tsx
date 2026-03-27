@@ -154,10 +154,10 @@ function SidebarContent({
           </div>
           <div>
             <div className="text-sm font-black tracking-tight" style={{ color: 'var(--text-base)' }}>
-              <span style={{ color: 'var(--primary)' }}>Away</span>
+              <span style={{ color: 'var(--primary)' }}>AWAY</span>
             </div>
             <div className="text-[9px] uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>
-              Urlaubsplaner
+              URLAUBSPLANER
             </div>
           </div>
         </div>

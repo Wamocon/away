@@ -1,6 +1,6 @@
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getUserRole } from '@/lib/roles';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import CreateOrganization from './CreateOrganization';
 import { Plus } from 'lucide-react';
 
@@ -9,11 +9,7 @@ export default function OrganizationSwitcher({ userId, onOrgChange }: { userId: 
   const [selectedOrg, setSelectedOrg] = useState<string>('');
   const [showCreate, setShowCreate] = useState(false);
 
-  useEffect(() => {
-    loadOrgs();
-  }, [userId]);
-
-  const loadOrgs = () => {
+  const loadOrgs = useCallback(() => {
     getOrganizationsForUser(userId).then(data => {
       const filtered = (data || []).filter((o): o is { id: string; name: string } => o !== null);
       setOrgs(filtered);
@@ -21,7 +17,11 @@ export default function OrganizationSwitcher({ userId, onOrgChange }: { userId: 
         setSelectedOrg(filtered[0].id);
       }
     });
-  };
+  }, [userId, selectedOrg]);
+
+  useEffect(() => {
+    loadOrgs();
+  }, [loadOrgs]);
 
   useEffect(() => {
     if (selectedOrg) {
@@ -67,7 +67,12 @@ export default function OrganizationSwitcher({ userId, onOrgChange }: { userId: 
       )}
 
       {showCreate && (
-        <CreateOrganization userId={userId} onCreated={handleOrgCreated} />
+        <CreateOrganization 
+          userId={userId} 
+          onCreated={handleOrgCreated} 
+          isOpen={showCreate}
+          onClose={() => setShowCreate(false)}
+        />
       )}
     </div>
   );

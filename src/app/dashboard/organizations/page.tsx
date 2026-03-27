@@ -5,7 +5,7 @@ import { getOrganizationsForUser, createOrganization } from '@/lib/organization'
 import { getUserRole } from '@/lib/roles';
 import InviteUser from '@/components/InviteUser';
 import TemplateUpload from '@/components/TemplateUpload';
-import { Building2, Plus, ChevronDown, ChevronRight, ShieldCheck, User, LayoutGrid, List } from 'lucide-react';
+import { Building2, Plus, ChevronDown, ChevronRight, ShieldCheck, User, LayoutGrid, List, Upload } from 'lucide-react';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
 
 interface Org { id: string; name: string }
@@ -20,6 +20,7 @@ export default function OrganizationsPage() {
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [uploadingOrgId, setUploadingOrgId] = useState<string | null>(null);
 
   const loadOrgs = useCallback(async (uid: string) => {
     const data = await getOrganizationsForUser(uid);
@@ -157,10 +158,15 @@ export default function OrganizationsPage() {
                 {isOpen && (
                   <div className="border-t px-5 py-4 space-y-4" style={{ borderColor: 'var(--border)' }}>
                     {isAdmin && (
-                      <>
-                        <TemplateUpload organizationId={org.id} />
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <button 
+                          onClick={() => setUploadingOrgId(org.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--primary-light)] text-[10px] font-black uppercase tracking-widest rounded-lg border border-[var(--border)] transition-all"
+                        >
+                          <Upload size={12} /> Vorlage hochladen
+                        </button>
                         <InviteUser organizationId={org.id} />
-                      </>
+                      </div>
                     )}
                     {!isAdmin && (
                       <p className="text-sm dark:text-white/40 text-gray-500">Du bist Mitglied dieser Organisation.</p>
@@ -201,13 +207,18 @@ export default function OrganizationsPage() {
                     {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </button>
                 </div>
-                
+
                 {isOpen && (
                   <div className="px-5 pb-5 pt-2 space-y-4 animate-slide-down">
                     <div className="h-px bg-[var(--border)] mb-4" />
                     {isAdmin && (
-                      <div className="space-y-4">
-                        <TemplateUpload organizationId={org.id} />
+                      <div className="flex flex-col gap-2 w-full">
+                        <button
+                          onClick={() => setUploadingOrgId(org.id)}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[var(--bg-elevated)] hover:bg-[var(--primary-light)] text-[10px] font-black uppercase tracking-widest rounded-lg border border-[var(--border)] transition-all"
+                        >
+                          <Upload size={12} /> Vorlage hochladen
+                        </button>
                         <InviteUser organizationId={org.id} />
                       </div>
                     )}
@@ -222,6 +233,14 @@ export default function OrganizationsPage() {
             );
           })}
         </div>
+      )}
+      {uploadingOrgId && (
+        <TemplateUpload 
+          organizationId={uploadingOrgId} 
+          isOpen={!!uploadingOrgId} 
+          onClose={() => setUploadingOrgId(null)} 
+          onSuccess={() => { setUploadingOrgId(null); loadOrgs(userId!); }}
+        />
       )}
     </div>
   );

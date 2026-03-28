@@ -73,3 +73,13 @@ export async function joinOrganization(userId: string, organizationId: string) {
 
   return { success: true, alreadyMember: false };
 }
+
+export async function updateOrganizationName(orgId: string, newName: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('organizations')
+    .update({ name: newName })
+    .eq('id', orgId);
+  if (error) throw error;
+  return { success: true };
+}

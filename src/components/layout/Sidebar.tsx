@@ -105,7 +105,7 @@ function SidebarContent({
   ];
 
   const adminItems: NavItem[] = [
-    { href: '/dashboard/admin', icon: ShieldCheck, label: 'Administration', exact: false },
+    { href: '/admin/settings', icon: ShieldCheck, label: 'Administration', exact: true },
   ];
 
   const isActive = (href: string, exact?: boolean) =>

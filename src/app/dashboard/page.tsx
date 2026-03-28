@@ -315,7 +315,7 @@ export default function Dashboard() {
                 </Link>
               )}
               {role === 'admin' && (
-                <Link href="/dashboard/admin" className="btn-secondary w-full justify-center" style={{ borderColor: 'rgba(239,68,68,0.2)', color: 'var(--danger)' }}>
+                <Link href="/admin/settings" className="btn-secondary w-full justify-center" style={{ borderColor: 'rgba(239,68,68,0.2)', color: 'var(--danger)' }}>
                   <ShieldCheck size={14} /> Administration
                 </Link>
               )}
@@ -355,7 +355,7 @@ export default function Dashboard() {
               <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
                 {pending.length} Anträge warten auf Genehmigung
               </p>
-              <Link href="/dashboard/admin" className="btn-secondary w-full justify-center text-xs">
+              <Link href="/admin/settings" className="btn-secondary w-full justify-center text-xs">
                 <Users size={13} /> Zur Administration
               </Link>
             </div>

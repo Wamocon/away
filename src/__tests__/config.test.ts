@@ -11,7 +11,8 @@ describe('Next.js Configuration', () => {
     expect(content).toContain('frame-ancestors');
     expect(content).toContain("'self'");
     expect(content).toContain('http://localhost:3000');
-    expect(content).toContain('https://teamradar-*.vercel.app');
+    expect(content).toContain('https://teamradar-walerimoretz-lang-walerimoretz-langs-projects.vercel.app');
+    expect(content).toContain('https://*.vercel.app');
   });
 
   it('should have CORS headers configured', () => {

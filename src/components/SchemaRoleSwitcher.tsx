@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toggleUserRoleAction } from '@/lib/actions/debugActions';
+import { getSchema } from '@/lib/supabase/config';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 /**
@@ -17,7 +18,7 @@ export default function SchemaRoleSwitcher() {
 
   useEffect(() => {
     setMounted(true);
-    const schema = process.env.NEXT_PUBLIC_SCHEMA || 'away-dev';
+    const schema = getSchema();
     setCurrentSchema(schema);
 
     const checkRole = async () => {

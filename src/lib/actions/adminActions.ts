@@ -2,15 +2,21 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { UserRole } from '@/lib/roles';
+import { getSchema } from '@/lib/supabase/config';
 
 /**
  * Erstellt einen Supabase-Client mit Admin-Rechten (Server-Side only)
  */
 async function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const schema = process.env.NEXT_PUBLIC_SCHEMA || 'away-dev';
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const schema = getSchema();
   
+  if (!supabaseServiceKey) {
+    console.error('SERVER-FEHLER: SUPABASE_SERVICE_ROLE_KEY fehlt.');
+    throw new Error('Konfigurationsfehler: Admin-Schlüssel fehlt.');
+  }
+
   return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
     db: { schema },
     auth: {
@@ -24,58 +30,111 @@ async function createAdminClient() {
  * Holt alle Mitglieder einer Organisation inklusive E-Mails via Admin-API
  */
 export async function getOrgMembersWithEmails(orgId: string) {
-  const supabase = await createServerClient();
-  
-  // 1. Session prüfen
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Nicht authentifiziert');
+  try {
+    const supabase = await createServerClient();
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      return { error: 'Nicht authentifiziert: Bitte melde dich neu an.' };
+    }
 
-  // 2. Prüfen, ob der anfragende Nutzer Admin in dieser Org ist
-  const { data: roleData } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', session.user.id)
-    .eq('organization_id', orgId)
-    .single();
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .eq('organization_id', orgId)
+      .single();
 
-  if (roleData?.role !== 'admin') {
-    throw new Error('Keine Berechtigung: Nur Administratoren können die Benutzerliste einsehen.');
+    if (roleData?.role !== 'admin') {
+      return { error: 'Keine Berechtigung: Nur Administratoren können die Benutzerliste einsehen.' };
+    }
+
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role, created_at')
+      .eq('organization_id', orgId)
+      .order('created_at');
+
+    if (rolesError) throw rolesError;
+    if (!roles) return { data: [] };
+
+    const adminClient = await createAdminClient();
+    
+    const members = await Promise.all(
+      roles.map(async (m) => {
+        try {
+          const { data: userData } = await adminClient.auth.admin.getUserById(m.user_id);
+          return {
+            user_id: m.user_id,
+            role: m.role as UserRole,
+            created_at: m.created_at,
+            email: userData?.user?.email
+          };
+        } catch (err) {
+          return {
+            user_id: m.user_id,
+            role: m.role as UserRole,
+            created_at: m.created_at,
+          };
+        }
+      })
+    );
+
+    return { data: members };
+  } catch (err) {
+    console.error('Kritischer Fehler in getOrgMembersWithEmails:', err);
+    return { error: 'Ein interner Fehler ist beim Laden der Mitglieder aufgetreten.' };
   }
-
-  // 3. Rollen aus der DB holen
-  const { data: roles, error: rolesError } = await supabase
-    .from('user_roles')
-    .select('user_id, role, created_at')
-    .eq('organization_id', orgId)
-    .order('created_at');
-
-  if (rolesError) throw rolesError;
-  if (!roles) return [];
-
-  // 4. E-Mails via Admin Client anreichern
-  const adminClient = await createAdminClient();
-  
-  const members = await Promise.all(
-    roles.map(async (m) => {
-      try {
-        const { data: userData } = await adminClient.auth.admin.getUserById(m.user_id);
-        return {
-          user_id: m.user_id,
-          role: m.role as UserRole,
-          created_at: m.created_at,
-          email: userData?.user?.email
-        };
-      } catch (err) {
-        console.error(`Fehler beim Laden der E-Mail für ${m.user_id}:`, err);
-        return {
-          user_id: m.user_id,
-          role: m.role as UserRole,
-          created_at: m.created_at,
-          email: undefined
-        };
-      }
-    })
-  );
-
-  return members;
 }
+
+/**
+ * Lädt einen Benutzer via Admin-API in eine Organisation ein
+ */
+export async function inviteUserToOrg(email: string, orgId: string, role: UserRole, origin: string) {
+  try {
+    const supabase = await createServerClient();
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { error: 'Nicht authentifiziert: Bitte melde dich neu an.' };
+
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (roleData?.role !== 'admin') {
+      return { error: 'Keine Berechtigung: Nur Administratoren können Personen einladen.' };
+    }
+
+    const adminClient = await createAdminClient();
+
+    const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+      data: { organization_id: orgId, role: role },
+      redirectTo: `${origin}/auth/accept-invite?org=${orgId}&role=${role}`,
+    });
+
+    if (inviteError) {
+      console.error('Supabase Invite Error:', inviteError);
+      let msg = inviteError.message;
+      if (msg.includes('email rate limit exceeded')) {
+        msg = 'E-Mail-Limit überschritten. Bitte warte eine Stunde, bevor du weitere Einladungen verschickst.';
+      } else if (msg.includes('User already registered')) {
+        msg = 'Dieser Benutzer ist bereits registriert.';
+      } else {
+        // Allgemeine Übersetzung für unbekannte Fehler (optional)
+        msg = `Einladungsfehler: ${msg}`;
+      }
+      return { error: msg };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Fehler bei der Einladung:', err);
+    const msg = err instanceof Error ? err.message : 'Unbekannter Fehler';
+    return { error: `Server-Fehler: ${msg}` };
+  }
+}
+
+// Trigger Redeploy: 2026-03-28 (Fix SUPABASE_SERVICE_ROLE_KEY)

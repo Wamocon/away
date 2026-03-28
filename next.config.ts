@@ -11,11 +11,7 @@ const nextConfig: NextConfig = {
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
           { 
             key: 'Content-Security-Policy', 
-            value: "frame-ancestors 'self' http://localhost:3000 https://teamradar-*.vercel.app https://*.vercel.app" 
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'ALLOW-FROM https://teamradar-walerymoretz-lang-walerymoretz-langs-projects.vercel.app'
+            value: "frame-ancestors 'self' http://localhost:3000 https://teamradar-walerimoretz-lang-walerimoretz-langs-projects.vercel.app https://*.vercel.app" 
           },
         ],
       },

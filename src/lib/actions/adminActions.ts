@@ -120,8 +120,13 @@ export async function inviteUserToOrg(email: string, orgId: string, role: UserRo
       let msg = inviteError.message;
       if (msg.includes('email rate limit exceeded')) {
         msg = 'E-Mail-Limit überschritten. Bitte warte eine Stunde, bevor du weitere Einladungen verschickst.';
+      } else if (msg.includes('User already registered')) {
+        msg = 'Dieser Benutzer ist bereits registriert.';
+      } else {
+        // Allgemeine Übersetzung für unbekannte Fehler (optional)
+        msg = `Einladungsfehler: ${msg}`;
       }
-      return { error: `Einladungsfehler: ${msg}` };
+      return { error: msg };
     }
 
     return { success: true };

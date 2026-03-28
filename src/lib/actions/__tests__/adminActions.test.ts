@@ -57,6 +57,19 @@ describe('inviteUserToOrg Logic', () => {
     expect(result.error).toContain('E-Mail-Limit überschritten');
   });
 
+  it('should translate already registered error', async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'admin-id' } } }, error: null });
+    mockSupabase.single.mockResolvedValue({ data: { role: 'admin' }, error: null });
+    mockAdminClient.auth.admin.inviteUserByEmail.mockResolvedValue({ 
+      data: {}, 
+      error: { message: 'User already registered' } 
+    });
+
+    const result = await inviteUserToOrg('test@example.com', 'org-123', 'employee', 'http://localhost:3000');
+    
+    expect(result.error).toBe('Dieser Benutzer ist bereits registriert.');
+  });
+
   it('should return success on valid invitation', async () => {
     mockSupabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'admin-id' } } }, error: null });
     mockSupabase.single.mockResolvedValue({ data: { role: 'admin' }, error: null });

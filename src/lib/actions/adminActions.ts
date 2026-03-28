@@ -117,7 +117,11 @@ export async function inviteUserToOrg(email: string, orgId: string, role: UserRo
 
     if (inviteError) {
       console.error('Supabase Invite Error:', inviteError);
-      return { error: `Einladungsfehler: ${inviteError.message}` };
+      let msg = inviteError.message;
+      if (msg.includes('email rate limit exceeded')) {
+        msg = 'E-Mail-Limit überschritten. Bitte warte eine Stunde, bevor du weitere Einladungen verschickst.';
+      }
+      return { error: `Einladungsfehler: ${msg}` };
     }
 
     return { success: true };

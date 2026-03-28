@@ -40,6 +40,17 @@ export async function completeInvitationAction(orgId: string, role: string) {
     const userId = session.user.id;
     const admin = await createAdminClient();
 
+    // 0. Prüfen, ob Organisation existiert
+    const { data: orgExists, error: orgError } = await admin
+      .from('organizations')
+      .select('id')
+      .eq('id', orgId)
+      .single();
+
+    if (orgError || !orgExists) {
+      throw new Error('Organisation existiert nicht mehr.');
+    }
+
     // 1. In user_roles einfügen (upsert)
     const { error: roleError } = await admin
       .from('user_roles')

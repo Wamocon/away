@@ -1,11 +1,11 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plane, Eye, EyeOff, Loader, AlertCircle, Lock, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { completeInvitationAction } from '@/lib/actions/authActions';
 
-export default function AcceptInvitePage() {
+function AcceptInviteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orgId = searchParams.get('org');
@@ -32,7 +32,7 @@ export default function AcceptInvitePage() {
     };
 
     checkSession();
-  }, [router]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,5 +219,17 @@ export default function AcceptInvitePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
+        <Loader className="animate-spin text-[var(--primary)]" size={32} />
+      </div>
+    }>
+      <AcceptInviteContent />
+    </Suspense>
   );
 }

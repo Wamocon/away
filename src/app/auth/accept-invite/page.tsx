@@ -23,34 +23,64 @@ function AcceptInviteContent() {
     const supabase = createClient();
     let mounted = true;
 
+    console.log('AcceptInvite: Component mounted, checking session...');
+
     // Timeout-Fallback: Wenn nach 5 Sekunden keine Session da ist, Fehler anzeigen
     const timeout = setTimeout(() => {
       if (mounted && checkingSession) {
+        console.warn('AcceptInvite: Session detection timed out.');
         setCheckingSession(false);
-        setError('Keine aktive Einladung gefunden oder Link abgelaufen. Bitte stelle sicher, dass du den Link aus der E-Mail geklickt hast.');
+        setError('Keine aktive Einladung gefunden. Bitte stelle sicher, dass du den Link aus der E-Mail geklickt hast.');
       }
     }, 5000);
 
     // Auf Auth-Status-Änderungen hören (wichtig für Hashes/Tokens in der URL)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth Event in AcceptInvite:', event, session ? 'Session found' : 'No session');
+      console.log(`Auth Event in AcceptInvite: ${event}`, session ? 'Session FOUND' : 'NO session');
       
       if (mounted && session) {
         setCheckingSession(false);
-        setError(''); // Eventuellen vorherigen Fehler löschen
+        setError(''); 
       }
     });
 
-    // Initialer Check (für den Fall, dass die Session schon da ist)
-    const checkInitial = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (mounted && session) {
+    // Manueller Check & Fallback für Hashes (falls Supabase-JS sie nicht automatisch pickt)
+    const checkSessionManually = async () => {
+      const { data: { session: existingSession } } = await supabase.auth.getSession();
+      
+      if (mounted && existingSession) {
+        console.log('AcceptInvite: Existing session found via getSession');
         setCheckingSession(false);
         setError('');
+        return;
+      }
+
+      // Fallback: Token manuell aus der URL extrahieren, falls vorhanden (Implicit Flow)
+      if (typeof window !== 'undefined' && window.location.hash) {
+        console.log('AcceptInvite: Hash found in URL, attempting manual extraction...');
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          console.log('AcceptInvite: Extracting tokens from hash manually...');
+          const { data: { session: newSession }, error: setSessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (setSessionError) {
+            console.error('AcceptInvite: Error manually setting session:', setSessionError);
+          } else if (newSession && mounted) {
+            console.log('AcceptInvite: Session manually restored from hash!');
+            setCheckingSession(false);
+            setError('');
+          }
+        }
       }
     };
 
-    checkInitial();
+    checkSessionManually();
 
     return () => {
       mounted = false;

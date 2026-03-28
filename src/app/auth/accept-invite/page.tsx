@@ -20,18 +20,43 @@ function AcceptInviteContent() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        // Falls kein Session-Token im Hash war, ist der Link ungültig oder abgelaufen
-        setError('Ungültiger oder abgelaufener Einladungslink. Bitte fordere eine neue Einladung an.');
+    const supabase = createClient();
+    let mounted = true;
+
+    // Timeout-Fallback: Wenn nach 5 Sekunden keine Session da ist, Fehler anzeigen
+    const timeout = setTimeout(() => {
+      if (mounted && checkingSession) {
+        setCheckingSession(false);
+        setError('Keine aktive Einladung gefunden oder Link abgelaufen. Bitte stelle sicher, dass du den Link aus der E-Mail geklickt hast.');
       }
-      setCheckingSession(false);
+    }, 5000);
+
+    // Auf Auth-Status-Änderungen hören (wichtig für Hashes/Tokens in der URL)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth Event in AcceptInvite:', event, session ? 'Session found' : 'No session');
+      
+      if (mounted && session) {
+        setCheckingSession(false);
+        setError(''); // Eventuellen vorherigen Fehler löschen
+      }
+    });
+
+    // Initialer Check (für den Fall, dass die Session schon da ist)
+    const checkInitial = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted && session) {
+        setCheckingSession(false);
+        setError('');
+      }
     };
 
-    checkSession();
+    checkInitial();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

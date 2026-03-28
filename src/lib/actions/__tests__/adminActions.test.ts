@@ -35,7 +35,9 @@ describe('inviteUserToOrg Logic', () => {
     vi.clearAllMocks();
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'mock-key';
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://mock.supabase.co';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(serverLib.createClient).mockResolvedValue(mockSupabase as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
   });
 

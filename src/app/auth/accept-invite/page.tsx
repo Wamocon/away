@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plane, Eye, EyeOff, Loader, AlertCircle, Lock, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -18,6 +18,11 @@ function AcceptInviteContent() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const checkingSessionRef = useRef(checkingSession);
+
+  useEffect(() => {
+    checkingSessionRef.current = checkingSession;
+  }, [checkingSession]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -27,7 +32,7 @@ function AcceptInviteContent() {
 
     // Timeout-Fallback: Wenn nach 5 Sekunden keine Session da ist, Fehler anzeigen
     const timeout = setTimeout(() => {
-      if (mounted && checkingSession) {
+      if (mounted && checkingSessionRef.current) {
         console.warn('AcceptInvite: Session detection timed out.');
         setCheckingSession(false);
         setError('Keine aktive Einladung gefunden. Bitte stelle sicher, dass du den Link aus der E-Mail geklickt hast.');

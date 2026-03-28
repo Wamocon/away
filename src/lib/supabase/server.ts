@@ -1,9 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getSchema } from './config';
 
 export async function createClient() {
   const cookieStore = await cookies();
-  const schema = process.env.NEXT_PUBLIC_SCHEMA || 'away-dev';
+  const schema = getSchema();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

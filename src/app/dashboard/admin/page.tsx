@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getUserRole, updateUserRole, UserRole, ROLE_LABELS, ROLE_COLORS } from '@/lib/roles';
-import { getOrgMembersWithEmails } from '@/lib/actions/adminActions';
+import { getOrgMembersWithEmails, inviteUserToOrg } from '@/lib/actions/adminActions';
 import {
   Users, ShieldCheck, UserPlus, Loader, CheckCircle,
   Trash2, Send, Building2, AlertCircle, RefreshCw, LayoutGrid, List,
@@ -76,11 +76,13 @@ export default function AdminPage() {
     if (!orgId) return;
     setLoading(true);
     try {
-      // Nutzt die neue Server Action statt clientseitige Admin-Calls (behebt 403)
       const data = await getOrgMembersWithEmails(orgId);
       setMembers(data as OrgMember[]);
     } catch (err) {
       console.error('Fehler beim Laden der Mitglieder:', err);
+      if ((err as Error).message === 'Nicht authentifiziert') {
+        router.push('/auth/login');
+      }
     } finally {
       setLoading(false);
     }
@@ -114,19 +116,19 @@ export default function AdminPage() {
     setInviteSuccess('');
 
     try {
-      const supabase = createClient();
-      // Einladung via Supabase auth (benötigt ggf. ebenfalls Admin-API, hier Client-Fallback)
-      const { error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
-        data: { organization_id: orgId, role: inviteRole },
-        redirectTo: `${window.location.origin}/auth/accept-invite?org=${orgId}&role=${inviteRole}`,
-      });
+      // Nutzt die neue Server Action statt clientseitige Admin-API (behebt 401/403 in Prod)
+      await inviteUserToOrg(inviteEmail, orgId, inviteRole, window.location.origin);
       
-      if (error) throw error;
       setInviteSuccess(`Einladung an ${inviteEmail} gesendet!`);
       setInviteEmail('');
       loadMembers(); // Liste aktualisieren
     } catch (err) {
-      setInviteError(`Supabase Admin-Rechte erforderlich. Einladungs-URL: ${window.location.origin}/invite?org=${orgId}&role=${inviteRole}`);
+      const msg = (err as Error).message;
+      if (msg === 'Nicht authentifiziert') {
+        router.push('/auth/login');
+      } else {
+        setInviteError(msg || 'Fehler beim Senden der Einladung');
+      }
     } finally {
       setInviting(false);
     }

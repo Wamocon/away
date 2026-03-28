@@ -1,6 +1,7 @@
 'use server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getSchema } from '@/lib/supabase/config';
 
 /**
  * Erstellt einen Supabase-Client mit Admin-Rechten (Server-Side only)
@@ -8,7 +9,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 async function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const schema = process.env.NEXT_PUBLIC_SCHEMA || 'away-dev';
+  const schema = getSchema();
   
   if (!supabaseUrl || !supabaseServiceKey) {
     throw new Error('Supabase Credentials fehlen in .env.local');

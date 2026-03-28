@@ -2,15 +2,20 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { UserRole } from '@/lib/roles';
+import { getSchema } from '@/lib/supabase/config';
 
 /**
  * Erstellt einen Supabase-Client mit Admin-Rechten (Server-Side only)
  */
 async function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const schema = process.env.NEXT_PUBLIC_SCHEMA || 'away-dev';
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const schema = getSchema();
   
+  if (!supabaseServiceKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY ist nicht gesetzt.');
+  }
+
   return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
     db: { schema },
     auth: {
@@ -24,11 +29,15 @@ async function createAdminClient() {
  * Holt alle Mitglieder einer Organisation inklusive E-Mails via Admin-API
  */
 export async function getOrgMembersWithEmails(orgId: string) {
-  const supabase = await createServerClient();
-  
-  // 1. Session prüfen
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Nicht authentifiziert');
+  try {
+    const supabase = await createServerClient();
+    
+    // 1. Session prüfen
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      console.error('Session-Fehler in getOrgMembersWithEmails:', sessionError);
+      throw new Error('Nicht authentifiziert');
+    }
 
   // 2. Prüfen, ob der anfragende Nutzer Admin in dieser Org ist
   const { data: roleData } = await supabase
@@ -71,11 +80,55 @@ export async function getOrgMembersWithEmails(orgId: string) {
           user_id: m.user_id,
           role: m.role as UserRole,
           created_at: m.created_at,
-          email: undefined
         };
       }
     })
   );
 
-  return members;
+    return members;
+  } catch (err) {
+    console.error('Kritischer Fehler in getOrgMembersWithEmails:', err);
+    throw err instanceof Error ? err : new Error('Ein unerwarteter Fehler ist aufgetreten');
+  }
+}
+
+/**
+ * Lädt einen Benutzer via Admin-API in eine Organisation ein
+ */
+export async function inviteUserToOrg(email: string, orgId: string, role: UserRole, origin: string) {
+  try {
+    const supabase = await createServerClient();
+    
+    // 1. Session prüfen
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Nicht authentifiziert');
+
+    // 2. Prüfen, ob der anfragende Nutzer Admin in dieser Org ist
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (roleData?.role !== 'admin') {
+      throw new Error('Keine Berechtigung: Nur Administratoren können Personen einladen.');
+    }
+
+    // 3. Admin Client erstellen
+    const adminClient = await createAdminClient();
+
+    // 4. Einladung via Admin-API senden (behebt Client-seitige 403/401 Fehler)
+    const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+      data: { organization_id: orgId, role: role },
+      redirectTo: `${origin}/auth/accept-invite?org=${orgId}&role=${role}`,
+    });
+
+    if (inviteError) throw inviteError;
+
+    return { success: true };
+  } catch (err) {
+    console.error('Fehler bei der Einladung:', err);
+    throw err instanceof Error ? err : new Error('Fehler beim Senden der Einladung');
+  }
 }

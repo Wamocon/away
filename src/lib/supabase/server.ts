@@ -20,6 +20,10 @@ export async function createClient() {
           } catch { /* In Server Components ignorieren */ }
         },
       },
+      cookieOptions: {
+        sameSite: 'none',
+        secure: true,
+      },
     }
   );
 }

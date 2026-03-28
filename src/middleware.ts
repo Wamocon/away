@@ -34,6 +34,10 @@ export async function middleware(request: NextRequest) {
           );
         },
       },
+      cookieOptions: {
+        sameSite: 'none',
+        secure: true,
+      },
     }
   );
 

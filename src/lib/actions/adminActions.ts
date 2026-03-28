@@ -127,3 +127,5 @@ export async function inviteUserToOrg(email: string, orgId: string, role: UserRo
     return { error: `Server-Fehler: ${msg}` };
   }
 }
+
+// Trigger Redeploy: 2026-03-28 (Fix SUPABASE_SERVICE_ROLE_KEY)

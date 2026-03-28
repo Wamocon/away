@@ -35,8 +35,8 @@ describe('inviteUserToOrg Logic', () => {
     vi.clearAllMocks();
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'mock-key';
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://mock.supabase.co';
-    (serverLib.createClient as any).mockResolvedValue(mockSupabase);
-    (createSupabaseClient as any).mockReturnValue(mockAdminClient);
+    vi.mocked(serverLib.createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
   });
 
   it('should translate email rate limit error', async () => {

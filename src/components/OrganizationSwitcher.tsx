@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import CreateOrganization from './CreateOrganization';
 import { Plus } from 'lucide-react';
 
-export default function OrganizationSwitcher({ userId, onOrgChange }: { userId: string, onOrgChange: (orgId: string, role: string) => void }) {
+export default function OrganizationSwitcher({ userId, onOrgChange }: { userId: string, onOrgChange: (orgId: string, role: string, name?: string) => void }) {
   const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<string>('');
   const [showCreate, setShowCreate] = useState(false);
@@ -25,11 +25,12 @@ export default function OrganizationSwitcher({ userId, onOrgChange }: { userId: 
 
   useEffect(() => {
     if (selectedOrg) {
+      const org = orgs.find(o => o.id === selectedOrg);
       getUserRole(userId, selectedOrg).then(role => {
-        onOrgChange(selectedOrg, role);
+        onOrgChange(selectedOrg, role, org?.name);
       });
     }
-  }, [selectedOrg, userId, onOrgChange]);
+  }, [selectedOrg, userId, onOrgChange, orgs]);
 
   const handleOrgCreated = (newOrg: { id: string; name: string }) => {
     setOrgs(prev => [...prev, newOrg]);

@@ -16,10 +16,23 @@ export async function middleware(request: NextRequest) {
 
   let supabaseResponse = NextResponse.next({ request });
 
+  // 1. Schema ermitteln (Logik analog zu src/lib/supabase/config.ts)
+  let schema = 'away-dev';
+  if (process.env.NEXT_PUBLIC_DB_SCHEMA) {
+    schema = process.env.NEXT_PUBLIC_DB_SCHEMA;
+  } else if (process.env.NEXT_PUBLIC_SCHEMA) {
+    schema = process.env.NEXT_PUBLIC_SCHEMA;
+  } else {
+    const env = process.env.NEXT_PUBLIC_VERCEL_ENV || 'development';
+    if (env === 'production') schema = 'away-prod';
+    else if (env === 'preview') schema = 'away-test';
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      db: { schema }, // Wichtig für AWAY Multi-Schema Setup
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -41,17 +54,55 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Session auffrischen
   const { data: { user } } = await supabase.auth.getUser();
 
   // Nicht eingeloggt → zum Login
   if (!user) {
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+    if (pathname !== '/auth/login' && pathname !== '/auth/register' && pathname !== '/auth/accept-invite') {
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+    return supabaseResponse;
+  }
+
+  // Admin-Check für /admin/ oder /dashboard/admin/
+  if (pathname.startsWith('/admin/') || pathname.startsWith('/dashboard/admin/')) {
+    try {
+      // Wir prüfen, ob der User in IRGENDEINER Organisation Admin ist.
+      // Hinweis: Für eine feingranulare Prüfung müsste die orgId aus dem Pfad/Cookie bekannt sein.
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin');
+
+      if (rolesError) {
+        console.error('Middleware: DB Fehler beim Rollen-Check:', rolesError);
+        // Bei einem DB-Fehler lassen wir den Request durch (Fallback)
+        return supabaseResponse;
+      }
+
+      if (!roles || roles.length === 0) {
+        console.warn('Middleware: Zugriff verweigert auf:', pathname, 'für User:', user.email);
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+    } catch (err) {
+      console.error('Middleware: Unerwarteter Fehler im Admin-Check:', err);
+      return supabaseResponse;
+    }
   }
 
   return supabaseResponse;
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|auth|api).*)'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, favicon.png, sitemap.xml, robots.txt, manifest.json (static assets)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|favicon.png|sitemap.xml|robots.txt|manifest.json|auth).*)',
+  ],
 };

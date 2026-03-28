@@ -13,7 +13,8 @@ async function createAdminClient() {
   const schema = getSchema();
   
   if (!supabaseServiceKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY ist nicht gesetzt.');
+    console.error('SERVER-FEHLER: SUPABASE_SERVICE_ROLE_KEY fehlt.');
+    throw new Error('Konfigurationsfehler: Admin-Schlüssel fehlt.');
   }
 
   return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
@@ -32,63 +33,57 @@ export async function getOrgMembersWithEmails(orgId: string) {
   try {
     const supabase = await createServerClient();
     
-    // 1. Session prüfen
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError || !session) {
-      console.error('Session-Fehler in getOrgMembersWithEmails:', sessionError);
-      throw new Error('Nicht authentifiziert');
+      return { error: 'Nicht authentifiziert: Bitte melde dich neu an.' };
     }
 
-  // 2. Prüfen, ob der anfragende Nutzer Admin in dieser Org ist
-  const { data: roleData } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', session.user.id)
-    .eq('organization_id', orgId)
-    .single();
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .eq('organization_id', orgId)
+      .single();
 
-  if (roleData?.role !== 'admin') {
-    throw new Error('Keine Berechtigung: Nur Administratoren können die Benutzerliste einsehen.');
-  }
+    if (roleData?.role !== 'admin') {
+      return { error: 'Keine Berechtigung: Nur Administratoren können die Benutzerliste einsehen.' };
+    }
 
-  // 3. Rollen aus der DB holen
-  const { data: roles, error: rolesError } = await supabase
-    .from('user_roles')
-    .select('user_id, role, created_at')
-    .eq('organization_id', orgId)
-    .order('created_at');
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role, created_at')
+      .eq('organization_id', orgId)
+      .order('created_at');
 
-  if (rolesError) throw rolesError;
-  if (!roles) return [];
+    if (rolesError) throw rolesError;
+    if (!roles) return { data: [] };
 
-  // 4. E-Mails via Admin Client anreichern
-  const adminClient = await createAdminClient();
-  
-  const members = await Promise.all(
-    roles.map(async (m) => {
-      try {
-        const { data: userData } = await adminClient.auth.admin.getUserById(m.user_id);
-        return {
-          user_id: m.user_id,
-          role: m.role as UserRole,
-          created_at: m.created_at,
-          email: userData?.user?.email
-        };
-      } catch (err) {
-        console.error(`Fehler beim Laden der E-Mail für ${m.user_id}:`, err);
-        return {
-          user_id: m.user_id,
-          role: m.role as UserRole,
-          created_at: m.created_at,
-        };
-      }
-    })
-  );
+    const adminClient = await createAdminClient();
+    
+    const members = await Promise.all(
+      roles.map(async (m) => {
+        try {
+          const { data: userData } = await adminClient.auth.admin.getUserById(m.user_id);
+          return {
+            user_id: m.user_id,
+            role: m.role as UserRole,
+            created_at: m.created_at,
+            email: userData?.user?.email
+          };
+        } catch (err) {
+          return {
+            user_id: m.user_id,
+            role: m.role as UserRole,
+            created_at: m.created_at,
+          };
+        }
+      })
+    );
 
-    return members;
+    return { data: members };
   } catch (err) {
     console.error('Kritischer Fehler in getOrgMembersWithEmails:', err);
-    throw err instanceof Error ? err : new Error('Ein unerwarteter Fehler ist aufgetreten');
+    return { error: 'Ein interner Fehler ist beim Laden der Mitglieder aufgetreten.' };
   }
 }
 
@@ -99,11 +94,9 @@ export async function inviteUserToOrg(email: string, orgId: string, role: UserRo
   try {
     const supabase = await createServerClient();
     
-    // 1. Session prüfen
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Nicht authentifiziert');
+    if (!session) return { error: 'Nicht authentifiziert: Bitte melde dich neu an.' };
 
-    // 2. Prüfen, ob der anfragende Nutzer Admin in dieser Org ist
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
@@ -112,23 +105,25 @@ export async function inviteUserToOrg(email: string, orgId: string, role: UserRo
       .single();
 
     if (roleData?.role !== 'admin') {
-      throw new Error('Keine Berechtigung: Nur Administratoren können Personen einladen.');
+      return { error: 'Keine Berechtigung: Nur Administratoren können Personen einladen.' };
     }
 
-    // 3. Admin Client erstellen
     const adminClient = await createAdminClient();
 
-    // 4. Einladung via Admin-API senden (behebt Client-seitige 403/401 Fehler)
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { organization_id: orgId, role: role },
       redirectTo: `${origin}/auth/accept-invite?org=${orgId}&role=${role}`,
     });
 
-    if (inviteError) throw inviteError;
+    if (inviteError) {
+      console.error('Supabase Invite Error:', inviteError);
+      return { error: `Einladungsfehler: ${inviteError.message}` };
+    }
 
     return { success: true };
   } catch (err) {
     console.error('Fehler bei der Einladung:', err);
-    throw err instanceof Error ? err : new Error('Fehler beim Senden der Einladung');
+    const msg = err instanceof Error ? err.message : 'Unbekannter Fehler';
+    return { error: `Server-Fehler: ${msg}` };
   }
 }

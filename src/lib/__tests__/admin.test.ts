@@ -22,18 +22,19 @@ describe('Administration Actions', () => {
         { user_id: '1', role: 'admin', email: 'admin@test.com', created_at: new Date().toISOString() },
         { user_id: '2', role: 'employee', email: 'user@test.com', created_at: new Date().toISOString() }
       ];
-      vi.mocked(getOrgMembersWithEmails).mockResolvedValue(mockMembers as any);
+      vi.mocked(getOrgMembersWithEmails).mockResolvedValue({ data: mockMembers } as any);
 
       const result = await getOrgMembersWithEmails('org-123');
-      expect(result).toHaveLength(2);
-      expect(result[0].email).toBe('admin@test.com');
+      expect(result.data).toHaveLength(2);
+      expect(result.data![0].email).toBe('admin@test.com');
       expect(vi.mocked(getOrgMembersWithEmails)).toHaveBeenCalledWith('org-123');
     });
 
     it('should handle errors when fetching members', async () => {
-      vi.mocked(getOrgMembersWithEmails).mockRejectedValue(new Error('Unauthorized'));
+      vi.mocked(getOrgMembersWithEmails).mockResolvedValue({ error: 'Fehler beim Laden' } as any);
       
-      await expect(getOrgMembersWithEmails('org-123')).rejects.toThrow('Unauthorized');
+      const result = await getOrgMembersWithEmails('org-123');
+      expect(result.error).toBe('Fehler beim Laden');
     });
   });
 
@@ -52,9 +53,10 @@ describe('Administration Actions', () => {
     });
 
     it('should handle invitation errors', async () => {
-      vi.mocked(inviteUserToOrg).mockRejectedValue(new Error('Keine Berechtigung'));
+      vi.mocked(inviteUserToOrg).mockResolvedValue({ error: 'Einladungsfehler' } as any);
       
-      await expect(inviteUserToOrg('new@test.com', 'org-123', 'employee', 'http://localhost:3000')).rejects.toThrow('Keine Berechtigung');
+      const result = await inviteUserToOrg('new@test.com', 'org-123', 'employee', 'http://localhost:3000');
+      expect(result.error).toBe('Einladungsfehler');
     });
   });
 });

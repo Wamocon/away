@@ -76,17 +76,23 @@ export default function AdminPage() {
     if (!orgId) return;
     setLoading(true);
     try {
-      const data = await getOrgMembersWithEmails(orgId);
-      setMembers(data as OrgMember[]);
+      const result = await getOrgMembersWithEmails(orgId);
+      if (result.error) {
+        if (result.error.includes('Nicht authentifiziert')) {
+          router.push('/auth/login');
+        } else {
+          setInviteError(result.error);
+        }
+        return;
+      }
+      setMembers((result.data as OrgMember[]) || []);
     } catch (err) {
       console.error('Fehler beim Laden der Mitglieder:', err);
-      if ((err as Error).message === 'Nicht authentifiziert') {
-        router.push('/auth/login');
-      }
+      setInviteError('Ein interner Fehler ist beim Laden der Mitglieder aufgetreten.');
     } finally {
       setLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, router]);
 
   const loadTemplates = useCallback(async () => {
     if (!orgId) return;
@@ -117,18 +123,23 @@ export default function AdminPage() {
 
     try {
       // Nutzt die neue Server Action statt clientseitige Admin-API (behebt 401/403 in Prod)
-      await inviteUserToOrg(inviteEmail, orgId, inviteRole, window.location.origin);
+      const result = await inviteUserToOrg(inviteEmail, orgId, inviteRole, window.location.origin);
+      
+      if (result.error) {
+        if (result.error.includes('Nicht authentifiziert')) {
+          router.push('/auth/login');
+        } else {
+          setInviteError(result.error);
+        }
+        return;
+      }
       
       setInviteSuccess(`Einladung an ${inviteEmail} gesendet!`);
       setInviteEmail('');
       loadMembers(); // Liste aktualisieren
     } catch (err) {
-      const msg = (err as Error).message;
-      if (msg === 'Nicht authentifiziert') {
-        router.push('/auth/login');
-      } else {
-        setInviteError(msg || 'Fehler beim Senden der Einladung');
-      }
+      console.error('Kritischer Fehler bei Einladung:', err);
+      setInviteError('Ein unerwarteter Server-Fehler ist beim Senden der Einladung aufgetreten.');
     } finally {
       setInviting(false);
     }

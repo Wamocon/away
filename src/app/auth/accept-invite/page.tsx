@@ -69,8 +69,9 @@ export default function AcceptInvitePage() {
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Ein Fehler ist aufgetreten.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten.';
+      setError(msg);
     } finally {
       setLoading(false);
     }

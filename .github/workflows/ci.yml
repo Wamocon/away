@@ -2,27 +2,35 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, "feat/*" ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build-and-test:
+  validate:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Lint
         run: npm run lint
-      - name: Build
+
+      - name: Run Tests
+        run: npm run test
+
+      - name: Build Check
         run: npm run build
-      - name: Run tests
-        run: npm test || echo "No tests found"
-      - name: Healthcheck
-        run: |
-          echo "Healthcheck: Build & Lint erfolgreich"

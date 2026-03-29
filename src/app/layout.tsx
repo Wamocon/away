@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import { ViewModeProvider } from '@/components/ui/ViewModeProvider';
 import { Inter } from 'next/font/google';
+import { DevelopedInGermanyBadge } from '@/components/legal/DevelopedInGermanyBadge';
 import './globals.css';
 
 const inter = Inter({
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ViewModeProvider>
             <AppShell>
               {children}
+              <DevelopedInGermanyBadge />
             </AppShell>
           </ViewModeProvider>
         </ThemeProvider>

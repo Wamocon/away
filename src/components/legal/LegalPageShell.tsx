@@ -47,9 +47,15 @@ export function LegalPageShell({ title, updatedAt, children }: LegalPageShellPro
           {children}
         </div>
 
-        <footer className="mt-20 pt-8 border-t border-[var(--border)] text-center text-sm text-[var(--text-muted)]">
-          <p>&copy; {new Date().getFullYear()} WAMOCON GmbH. Alle Rechte vorbehalten.</p>
-          <p className="mt-1 font-medium">Away – Professionelles Urlaubsmanagement</p>
+        <footer className="mt-20 pt-10 border-t border-[var(--border)] flex flex-col items-center gap-4 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-sm font-medium text-[var(--text-muted)] opacity-80">
+              &copy; {new Date().getFullYear()} WAMOCON GmbH. Alle Rechte vorbehalten.
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-40 font-bold">
+              Away – Professionelles Urlaubsmanagement
+            </span>
+          </div>
         </footer>
       </main>
     </div>

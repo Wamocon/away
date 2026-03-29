@@ -3,6 +3,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plane, Eye, EyeOff, Loader, AlertCircle, Mail, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { LegalConsentFields } from '@/components/legal/LegalConsentFields';
+import { type LegalConsentState, hasAcceptedAllLegalConsents, createLegalConsentMetadata } from '@/lib/legal/consent';
+import { LegalLinks } from '@/components/legal/LegalLinks';
+import { DevelopedInGermanyBadge } from '@/components/legal/DevelopedInGermanyBadge';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,15 +18,36 @@ export default function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState<'microsoft' | 'google' | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
 
+  const [legalConsent, setLegalConsent] = useState<LegalConsentState>({
+    termsAccepted: false,
+    privacyAccepted: false,
+    dsgvoAccepted: false,
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (isSignUp && !hasAcceptedAllLegalConsents(legalConsent)) {
+      setError('Bitte akzeptiere die rechtlichen Bedingungen, um fortzufahren.');
+      return;
+    }
+
     setLoading(true);
     try {
       const supabase = createClient();
       const result = isSignUp
-        ? await supabase.auth.signUp({ email, password })
+        ? await supabase.auth.signUp({ 
+            email, 
+            password,
+            options: {
+              data: {
+                ...createLegalConsentMetadata(legalConsent)
+              }
+            }
+          })
         : await supabase.auth.signInWithPassword({ email, password });
+        
       if (result.error) {
         setError(result.error.message);
       } else {
@@ -102,15 +127,15 @@ export default function LoginPage() {
       </div>
 
       {/* Right – Login form */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-sm">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
+        <div className="w-full max-w-sm py-12">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-8 justify-center">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[#8b5cf6] flex items-center justify-center">
               <Plane size={18} className="text-white" />
             </div>
             <div className="font-black text-xl" style={{ color: 'var(--text-base)' }}>
-              <span style={{ color: 'var(--primary)' }}>Away</span> Urlaubsplaner
+              <span style={{ color: 'var(--primary)' }}>Away</span>
             </div>
           </div>
 
@@ -175,7 +200,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)] transition-all"
                   placeholder="name@firma.de"
                   required
                   autoComplete="email"
@@ -183,7 +208,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div>
+            <div className="mb-4">
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                 Passwort
               </label>
@@ -193,7 +218,7 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-10 py-2.5 rounded-xl border text-sm"
+                  className="w-full pl-9 pr-10 py-2.5 rounded-xl border text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)] transition-all"
                   placeholder="••••••••"
                   minLength={6}
                   required
@@ -210,6 +235,16 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {isSignUp && (
+              <div className="py-2">
+                <LegalConsentFields 
+                  value={legalConsent} 
+                  onChange={setLegalConsent}
+                  disabled={loading}
+                />
+              </div>
+            )}
+
             {error && (
               <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}>
                 <AlertCircle size={13} className="shrink-0 mt-0.5" />
@@ -219,8 +254,8 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="btn-primary w-full justify-center py-3"
+              disabled={loading || (isSignUp && !hasAcceptedAllLegalConsents(legalConsent))}
+              className="btn-primary w-full justify-center py-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
             >
               {loading ? <Loader size={14} className="animate-spin" /> : null}
               {loading ? 'Anmelden...' : isSignUp ? 'Konto erstellen' : 'Anmelden'}
@@ -235,6 +270,11 @@ export default function LoginPage() {
             >
               {isSignUp ? 'Bereits ein Konto? Anmelden' : 'Noch kein Konto? Registrieren'}
             </button>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-[var(--border)] text-center">
+             <LegalLinks />
+             <DevelopedInGermanyBadge />
           </div>
         </div>
       </div>

@@ -4,6 +4,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Plane, Eye, EyeOff, Loader, AlertCircle, Lock, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { completeInvitationAction } from '@/lib/actions/authActions';
+import { LegalConsentFields } from '@/components/legal/LegalConsentFields';
+import { type LegalConsentState, hasAcceptedAllLegalConsents, createLegalConsentMetadata } from '@/lib/legal/consent';
+import { LegalLinks } from '@/components/legal/LegalLinks';
+import { DevelopedInGermanyBadge } from '@/components/legal/DevelopedInGermanyBadge';
 
 function AcceptInviteContent() {
   const router = useRouter();
@@ -19,6 +23,12 @@ function AcceptInviteContent() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const checkingSessionRef = useRef(checkingSession);
+  
+  const [legalConsent, setLegalConsent] = useState<LegalConsentState>({
+    termsAccepted: false,
+    privacyAccepted: false,
+    dsgvoAccepted: false,
+  });
 
   useEffect(() => {
     checkingSessionRef.current = checkingSession;
@@ -113,12 +123,22 @@ function AcceptInviteContent() {
       return;
     }
 
+    if (!hasAcceptedAllLegalConsents(legalConsent)) {
+      setError('Bitte akzeptiere die rechtlichen Bedingungen, um fortzufahren.');
+      return;
+    }
+
     setLoading(true);
     try {
       const supabase = createClient();
       
-      // 1. Passwort setzen
-      const { error: updateError } = await supabase.auth.updateUser({ password });
+      // 1. Passwort und rechtliche Zustimmung (Metadata) setzen
+      const { error: updateError } = await supabase.auth.updateUser({ 
+        password,
+        data: {
+          ...createLegalConsentMetadata(legalConsent)
+        }
+      });
       if (updateError) throw updateError;
 
       // 2. Rolle in DB setzen via Server Action
@@ -186,8 +206,8 @@ function AcceptInviteContent() {
       </div>
 
       {/* Right – Acceptance form */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-sm">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
+        <div className="w-full max-w-sm py-12">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-8 justify-center">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[#8b5cf6] flex items-center justify-center">
@@ -201,8 +221,8 @@ function AcceptInviteContent() {
           <h1 className="text-2xl font-black mb-1" style={{ color: 'var(--text-base)' }}>
             Registrierung abschließen
           </h1>
-          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-            Wähle ein Passwort für deinen Zugang.
+          <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
+            Wähle ein Passwort für deinen Zugang und akzeptiere die Bedingungen.
           </p>
 
           {success ? (
@@ -214,50 +234,58 @@ function AcceptInviteContent() {
               <p className="text-sm text-muted-foreground">Du wirst gleich zum Dashboard weitergeleitet...</p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                  Neues Passwort
-                </label>
-                <div className="relative">
-                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-10 py-2.5 rounded-xl border text-sm"
-                    placeholder="••••••••"
-                    minLength={6}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(s => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 btn-ghost p-0"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                    Neues Passwort
+                  </label>
+                  <div className="relative">
+                    <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="w-full pl-9 pr-10 py-2.5 rounded-xl border text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)] transition-all"
+                      placeholder="••••••••"
+                      minLength={6}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(s => !s)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 btn-ghost p-0"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                    Passwort bestätigen
+                  </label>
+                  <div className="relative">
+                    <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="w-full pl-9 pr-10 py-2.5 rounded-xl border text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)] transition-all"
+                      placeholder="••••••••"
+                      minLength={6}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                  Passwort bestätigen
-                </label>
-                <div className="relative">
-                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    className="w-full pl-9 pr-10 py-2.5 rounded-xl border text-sm"
-                    placeholder="••••••••"
-                    minLength={6}
-                    required
-                  />
-                </div>
-              </div>
+              <LegalConsentFields 
+                value={legalConsent} 
+                onChange={setLegalConsent}
+                disabled={loading}
+              />
 
               {error && (
                 <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}>
@@ -268,14 +296,19 @@ function AcceptInviteContent() {
 
               <button
                 type="submit"
-                disabled={loading || !!error && !password}
-                className="btn-primary w-full justify-center py-3"
+                disabled={loading || !hasAcceptedAllLegalConsents(legalConsent)}
+                className="btn-primary w-full justify-center py-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
               >
                 {loading ? <Loader size={14} className="animate-spin" /> : null}
-                {loading ? 'Wird gespeichert...' : 'Passwort setzen & starten'}
+                {loading ? 'Wird gespeichert...' : 'Konto aktivieren & starten'}
               </button>
             </form>
           )}
+
+          <div className="mt-8 pt-8 border-t border-[var(--border)] text-center">
+             <LegalLinks />
+             <DevelopedInGermanyBadge />
+          </div>
         </div>
       </div>
     </div>

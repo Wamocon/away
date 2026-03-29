@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Away – Produkthandbuch | WAMOCON</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:   #3b82f6;
+      --primary-dark: #1d4ed8;
+      --primary-glow: rgba(59,130,246,0.18);
+      --success:   #10b981;
+      --warning:   #f59e0b;
+      --danger:    #ef4444;
+      --bg-page:   #070b14;
+      --bg-card:   rgba(15,23,42,0.8);
+      --bg-code:   #0f172a;
+      --border:    rgba(255,255,255,0.06);
+      --text:      #f1f5f9;
+      --text-muted:#94a3b8;
+      --text-dim:  rgba(255,255,255,0.3);
+      --wmc-grad:  linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+
+    html { scroll-behavior: smooth; font-size: 15px; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-page);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Header ──────────────────────────────────────────── */
+    .page-header {
+      background: var(--wmc-grad);
+      border-bottom: 2px solid var(--primary);
+      box-shadow: 0 4px 20px rgba(59,130,246,0.1);
+      padding: 0 2rem;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-blur: 10px;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+    .logo-mark {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 900; color: #fff;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+      transform: rotate(-5deg);
+    }
+    .brand-name { color: #fff; font-weight: 800; font-size: 1.1rem; }
+    .brand-sub  { color: var(--text-muted); font-size: 0.7rem; letter-spacing: 0.05em; font-weight: 600; }
+    .header-meta { color: var(--text-dim); font-size: 0.75rem; text-align: right; }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: calc(100vh - 70px);
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* ── Sidebar ────────────────────────────────────────────── */
+    #toc-sidebar {
+      position: sticky;
+      top: 70px;
+      height: calc(100vh - 70px);
+      overflow-y: auto;
+      padding: 2rem 1.5rem;
+      border-right: 1px solid var(--border);
+      background: rgba(15,23,42,0.4);
+    }
+    .toc-title { font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dim); margin-bottom: 1rem; }
+    .toc-link { display: block; padding: 0.5rem 0; color: var(--text-muted); text-decoration: none; font-size: 0.85rem; transition: 0.2s; }
+    .toc-link:hover { color: #fff; transform: translateX(4px); }
+    .toc-link.l1 { font-weight: 700; color: var(--text); border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1rem; }
+    .toc-link.l2 { padding-left: 1rem; font-size: 0.8rem; }
+
+    /* ── Main Content ────────────────────────────────────────── */
+    main { padding: 3rem 4rem 6rem; max-width: 900px; }
+
+    /* ── Cover ──────────────────────────────────────────────── */
+    .cover {
+      background: linear-gradient(160deg, rgba(30,58,138,0.3) 0%, rgba(15,23,42,0.8) 100%);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 24px;
+      padding: 4rem;
+      margin-bottom: 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .doc-type { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: var(--primary); margin-bottom: 1rem; }
+    .cover h1 { font-size: 3rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+    .cover-sub { font-size: 1.2rem; color: var(--text-muted); margin-bottom: 3rem; }
+    .cover-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 2rem; }
+    .meta-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 0.3rem; }
+    .meta-value { font-weight: 700; font-size: 1rem; }
+
+    /* ── Typography ─────────────────────────────────────────── */
+    h2 { font-size: 2rem; font-weight: 900; margin: 4rem 0 1.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.8rem; }
+    h2 .num { color: var(--primary); opacity: 0.5; font-size: 1.2rem; }
+    h3 { font-size: 1.4rem; font-weight: 800; margin: 2.5rem 0 1rem; color: var(--primary); }
+    p { margin-bottom: 1.2rem; }
+    ul, ol { margin-bottom: 1.5rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.52rem; }
+    li::marker { color: var(--primary); }
+
+    /* ── Blocks ─────────────────────────────────────────────── */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin: 1.5rem 0; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+    .badge-success { background: rgba(16,185,129,0.1); color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+    .badge-primary { background: var(--primary-glow); color: var(--primary); border: 1px solid rgba(59,130,246,0.2); }
+
+    .info-box { padding: 1.2rem 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 4px solid var(--primary); background: rgba(59,130,246,0.05); }
+    .info-box-title { font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); margin-bottom: 0.5rem; }
+
+    /* ── Table ───────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin: 2rem 0; border-radius: 12px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; padding: 1rem; background: rgba(255,255,255,0.02); color: var(--text-muted); font-weight: 800; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; }
+    td { padding: 1rem; border-top: 1px solid var(--border); }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 1000px) {
+      .layout { grid-template-columns: 1fr; }
+      #toc-sidebar { display: none; }
+      main { padding: 2rem 1.5rem; }
+      .cover { padding: 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <a class="brand" href="#">
+    <div class="logo-mark">A</div>
+    <div>
+      <div class="brand-name">Away</div>
+      <div class="brand-sub">Urlaubsplanungs-Software</div>
+    </div>
+  </a>
+  <div class="header-meta">
+    Produkthandbuch v1.0 · März 2026<br>
+    <strong>Vertraulich · WAMOCON GmbH</strong>
+  </div>
+</header>
+
+<div class="layout">
+  <nav id="toc-sidebar">
+    <div class="toc-title">Index</div>
+    <a class="toc-link l1" href="#summary">1. Executive Summary</a>
+    <a class="toc-link l1" href="#overview">2. Produktübersicht</a>
+    <a class="toc-link l2" href="#ov-desc">2.1 Beschreibung</a>
+    <a class="toc-link l2" href="#ov-target">2.2 Zielgruppen</a>
+    <a class="toc-link l1" href="#manual">3. Benutzerhandbuch</a>
+    <a class="toc-link l2" href="#mn-auth">3.1 Registrierung</a>
+    <a class="toc-link l2" href="#mn-apply">3.2 Urlaubsantrag</a>
+    <a class="toc-link l1" href="#tech">4. Technik & Architektur</a>
+    <a class="toc-link l1" href="#compliance">5. Compliance & Audit</a>
+    <a class="toc-link l1" href="#framework">6. K6-Synthese</a>
+    <a class="toc-link l1" href="#fazit">7. Fazit</a>
+  </nav>
+
+  <main>
+    <div class="cover">
+      <div class="doc-type">Produkthandbuch · WAMOCON</div>
+      <h1>Away</h1>
+      <div class="cover-sub">Moderne Urlaubs- und Abwesenheitsplanung für performante Teams</div>
+      <div class="cover-meta">
+        <div><div class="meta-label">Version</div><div class="meta-value">1.0.0</div></div>
+        <div><div class="meta-label">Status</div><div class="meta-value"><span class="badge badge-success">Produktiv</span></div></div>
+        <div><div class="meta-label">Basis</div><div class="meta-value">Next.js · Supabase</div></div>
+        <div><div class="meta-label">Autor</div><div class="meta-value">Senior Technical Writer</div></div>
+      </div>
+    </div>
+
+    <section id="summary">
+      <h2><span class="num">01</span> Executive Summary</h2>
+      <p>Away ist die Antwort auf die administrativen Herausforderungen moderner Personalplanung. Durch eine radikale Vereinfachung des Antragswesens und die technische Verankerung komplexer Compliance-Vorgaben schafft die Plattform einen signifikanten Mehrwert für Organisationen jeder Größe.</p>
+      
+      <div class="card">
+         <strong>Kernleistung:</strong> Wegfall manueller Listen, Echtzeit-Transparenz über Kapazitäten und garantierte Einhaltung datenschutzrechtlicher Standards durch technische Sperren.
+      </div>
+    </section>
+
+    <section id="overview">
+      <h2><span class="num">02</span> Produktübersicht</h2>
+      <h3 id="ov-desc">2.1 Produktbeschreibung</h3>
+      <p>Away ist eine webbasierte SaaS-Lösung, die speziell für die Dynamik digitaler Teams entwickelt wurde. Sie stellt sicher, dass Urlaubsplanung nicht zum administrativen Flaschenhals wird, sondern transparent und fair abläuft.</p>
+      
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Attribut</th><th>Wert</th></tr></thead>
+          <tbody>
+            <tr><td>Plattformtyp</td><td>Software-as-a-Service (SaaS)</td></tr>
+            <tr><td>Herausgeber</td><td>WAMOCON GmbH</td></tr>
+            <tr><td>Sicherheit</td><td>DSGVO-konform, EU-Hosting, RLS-Technologie</td></tr>
+            <tr><td>Technologien</td><td>React, Next.js, Supabase, Lucide</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="ov-target">2.2 Zielgruppen</h3>
+      <ul>
+        <li><strong>HR-Management:</strong> Zentrale Steuerung und Compliance-Monitoring.</li>
+        <li><strong>Teamleiter:</strong> Koordination der Verfügbarkeit ohne Excel-Wirrwarr.</li>
+        <li><strong>Mitarbeiter:</strong> Blitzschnelle Beantragung und Status-Updates.</li>
+      </ul>
+    </section>
+
+    <section id="manual">
+      <h2><span class="num">03</span> Benutzerhandbuch</h2>
+      <h3 id="mn-auth">3.1 Registrierung & Compliance-Einstieg</h3>
+      <p>Der Zugang erfolgt über einen sicheren Einladungslink. Da Datenschutz ein Grundpfeiler von Away ist, wird der Zugriff erst freigeschaltet, nachdem der Nutzer die **Pflichtzustimmungen** (AGB, Datenschutz, DSGVO) digital bestätigt hat.</p>
+      
+      <div class="info-box">
+        <div class="info-box-title">Wichtig für Neuregistrierungen</div>
+        <p>Ohne Bestätigung der Checkboxen ist ein Beitritt zur Organisation technisch ausgeschlossen. Dies garantiert eine lückenlose Dokumentation der Einwilligung ab der ersten Sekunde der Nutzung.</p>
+      </div>
+
+      <h3 id="mn-apply">3.2 Erfassung eines Antrags</h3>
+      <p>Der Nutzer wählt das Start- und Enddatum sowie den Grund der Abwesenheit. Das System berechnet automatisch die Netto-Tage und informiert den zuständigen Administrator.</p>
+    </section>
+
+    <section id="tech">
+      <h2><span class="num">04</span> Technische Architektur</h2>
+      <p>Away nutzt eine **Modern-Web-Architektur**, die auf Performance und Datensicherheit optimiert ist:</p>
+      <ul>
+        <li><strong>Frontend:</strong> Next.js mit serverseitigem Rendering für minimale Ladezeiten.</li>
+        <li><strong>Database:</strong> Supabase PostgreSQL mit versionierter Tabelle für Zustimmungsnachweise.</li>
+        <li><strong>Security:</strong> Row Level Security (RLS) verhindert jeden unautorisierenden Datenzugriff auf DB-Ebene.</li>
+      </ul>
+    </section>
+
+    <section id="compliance">
+      <h2><span class="num">05</span> Compliance & Audit</h2>
+      <p>Ein Alleinstellungsmerkmal von Away ist die **Admin-Audit-Schnittstelle**. Administratoren können jederzeit einsehen:</p>
+      <ul>
+        <li>Welcher Nutzer hat wann zugestimmt?</li>
+        <li>Welcher Versionsstand der AGB wurde akzeptiert?</li>
+        <li>Gibt es Bestandskonten mit fehlenden Metadaten (Legacy-Accounts)?</li>
+      </ul>
+      <div class="badge badge-primary">Vollständige Transparenz für Datenschutzbeauftragte</div>
+    </section>
+
+    <section id="framework">
+      <h2><span class="num">06</span> K6-Synthese: Compliance Framework</h2>
+      <p>Wir bewerten den Plattform-Reifegrad von Away als **State-of-the-Art**. Die Integration der Rechtszustimmungen ist nicht nur ein Anhängsel, sondern ein funktionaler Wächter-Prozess (Legal Guard Layer). Dies erhöht die Rechtssicherheit für das Management signifikant.</p>
+    </section>
+
+    <section id="fazit">
+      <h2><span class="num">07</span> Management-Fazit</h2>
+      <p>Mit Away investiert die WAMOCON GmbH in eine Lösung, die Prozessstabilität mit rechtlicher Absicherung verbindet. Die nun implementierten Funktionen schließen alle früheren Lücken im Bereich Governance und machen Away zu einer audit-fähigen Softwarelösung.</p>
+    </section>
+  </main>
+</div>
+
+</body>
+</html>

@@ -18,10 +18,10 @@ export const metadata: Metadata = {
   description: 'EFFIZIENTE URLAUBSPLANUNG FÜR TEAMS – ANTRÄGE, GENEHMIGUNGEN, KALENDER',
   icons: {
     icon: [
-      { url: '/favicon.ico' },
-      { url: '/favicon.png', type: 'image/png' }
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico' }
     ],
-    apple: '/favicon.png',
+    apple: '/icon.svg',
   },
 };
 

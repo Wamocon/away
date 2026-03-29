@@ -1,14 +1,18 @@
-'use client';
-
+import type { Metadata } from "next";
 import React from 'react';
 import { LegalPageShell, LegalSection } from '@/components/legal/LegalPageShell';
+
+export const metadata: Metadata = {
+  title: "Impressum | AWAY",
+  description: "Impressum der AWAY App der WAMOCON GmbH.",
+};
 
 export default function ImpressumPage() {
   return (
     <LegalPageShell title="Impressum" updatedAt="März 2026">
       <LegalSection title="WAMOCON GmbH">
         <div className="space-y-1">
-          <p className="font-bold">Mergenthalerallee 79 – 81</p>
+          <p>Mergenthalerallee 79 – 81</p>
           <p>65760 Eschborn</p>
           <p>Deutschland</p>
         </div>

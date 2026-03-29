@@ -10,7 +10,7 @@ export function DevelopedInGermanyBadge() {
   if (pathname?.startsWith('/api')) return null;
 
   return (
-    <div className="flex flex-col items-center gap-3 py-10 opacity-40 hover:opacity-100 transition-opacity">
+    <div className="flex flex-col items-center gap-3 py-6 opacity-40 hover:opacity-100 transition-opacity">
       <div className="relative group">
         <svg
           width="42"

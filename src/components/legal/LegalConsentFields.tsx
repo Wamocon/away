@@ -37,8 +37,8 @@ export function LegalConsentFields({
           </div>
           <span className="leading-tight group-hover:text-[var(--text-base)] transition-colors">
             Ich akzeptiere die {" "}
-            <Link href="/legal/agb" className="font-semibold text-[var(--primary)] hover:underline decoration-2 underline-offset-4">
-              AGB
+            <Link href="/legal/agb" className="font-bold text-[var(--primary)] hover:underline decoration-2 underline-offset-4 decoration-[var(--primary)]/30 transition-all">
+              Allgemeinen Geschäftsbedingungen (AGB)
             </Link>
             .
           </span>
@@ -56,7 +56,7 @@ export function LegalConsentFields({
           </div>
           <span className="leading-tight group-hover:text-[var(--text-base)] transition-colors">
             Ich akzeptiere die {" "}
-            <Link href="/legal/datenschutz" className="font-semibold text-[var(--primary)] hover:underline decoration-2 underline-offset-4">
+            <Link href="/legal/datenschutz" className="font-bold text-[var(--primary)] hover:underline decoration-2 underline-offset-4 decoration-[var(--primary)]/30 transition-all">
                Datenschutzerklärung
             </Link>
             .

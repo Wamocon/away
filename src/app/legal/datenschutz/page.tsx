@@ -57,7 +57,7 @@ export default function DatenschutzPage() {
 
       <LegalSection title="5. Registrierung und Authentifizierung">
         <p>Für die Nutzung von AWAY ist eine Registrierung erforderlich. Bei der Registrierung und Kontonutzung werden insbesondere folgende Daten verarbeitet:</p>
-        <ul className="list-disc space-y-1 pl-5">
+        <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-[var(--text-muted)]">
           <li>E-Mail-Adresse</li>
           <li>Vor- und Nachname</li>
           <li>Passwort in gehashter Form</li>
@@ -69,7 +69,7 @@ export default function DatenschutzPage() {
 
       <LegalSection title="6. Datenverarbeitung auf der Plattform">
         <p>Im Rahmen der Nutzung von AWAY werden insbesondere folgende Kategorien personenbezogener und organisationsbezogener Daten verarbeitet:</p>
-        <ul className="list-disc space-y-1 pl-5">
+        <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-[var(--text-muted)]">
           <li>Organisations- und Teamdaten</li>
           <li>Urlaubs- und Abwesenheitsdaten (Titel, Zeitraum, Grund, Status)</li>
           <li>Kalender-Synchronisationsdaten</li>
@@ -89,27 +89,24 @@ export default function DatenschutzPage() {
         <p>Wenn Sie uns per E-Mail kontaktieren, werden die von Ihnen mitgeteilten Daten wie Name, E-Mail-Adresse und Nachrichteninhalt verarbeitet, um Ihre Anfrage zu bearbeiten und für Anschlussfragen bereitzuhalten. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.</p>
       </LegalSection>
 
-      <LegalSection title="9. Webanalyse">
-        <p>Derzeit setzt AWAY keine Webanalyse-, Tracking- oder Marketing-Tools ein.</p>
-      </LegalSection>
-
-      <LegalSection title="10. SSL- bzw. TLS-Verschlüsselung">
+      <LegalSection title="9. SSL- bzw. TLS-Verschlüsselung">
         <p>Diese Webanwendung nutzt aus Sicherheitsgründen eine SSL- bzw. TLS-Verschlüsselung. Eine verschlüsselte Verbindung erkennen Sie an der sicheren Browserverbindung über https.</p>
       </LegalSection>
 
-      <LegalSection title="11. Weitergabe von Daten an Dritte">
+      <LegalSection title="10. Weitergabe von Daten an Dritte">
         <p>Eine Übermittlung Ihrer personenbezogenen Daten an Dritte findet grundsätzlich nur statt, wenn Sie Ihre ausdrückliche Einwilligung erteilt haben (Art. 6 Abs. 1 lit. a DSGVO), die Weitergabe zur Vertragserfüllung erforderlich ist (Art. 6 Abs. 1 lit. b DSGVO) oder eine rechtliche Verpflichtung besteht (Art. 6 Abs. 1 lit. c DSGVO).</p>
+        <p>Im Rahmen der Auftragsverarbeitung setzen wir insbesondere Vercel, Supabase und Resend ein.</p>
       </LegalSection>
 
-      <LegalSection title="12. Speicherdauer und Datenlöschung">
+      <LegalSection title="11. Speicherdauer und Datenlöschung">
         <p>Personenbezogene Daten werden nur so lange gespeichert, wie dies für den jeweiligen Verarbeitungszweck erforderlich ist oder gesetzliche Aufbewahrungspflichten bestehen. Kontodaten werden mit Löschung des Benutzerkontos entfernt, sofern keine gesetzlichen Pflichten entgegenstehen.</p>
       </LegalSection>
 
-      <LegalSection title="13. Rechte der betroffenen Personen">
+      <LegalSection title="12. Rechte der betroffenen Personen">
         <p>Ihnen stehen als betroffene Person die Rechte auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16 DSGVO), Löschung (Art. 17 DSGVO), Einschränkung der Verarbeitung (Art. 18 DSGVO), Datenübertragbarkeit (Art. 20 DSGVO) sowie das Recht auf Widerspruch (Art. 21 DSGVO) und Widerruf einer Einwilligung (Art. 7 Abs. 3 DSGVO) zu.</p>
       </LegalSection>
 
-      <LegalSection title="14. Beschwerderecht bei einer Aufsichtsbehörde">
+      <LegalSection title="13. Beschwerderecht bei einer Aufsichtsbehörde">
         <p>Sie haben das Recht auf Beschwerde bei einer Aufsichtsbehörde, wenn Sie der Ansicht sind, dass die Verarbeitung Ihrer personenbezogenen Daten gegen die DSGVO verstößt.</p>
         <div className="space-y-1 pt-1">
           <p className="font-medium text-[var(--text-base)]">Der Hessische Beauftragte für Datenschutz und Informationsfreiheit</p>
@@ -117,7 +114,7 @@ export default function DatenschutzPage() {
         </div>
       </LegalSection>
 
-      <LegalSection title="15. Änderungen dieser Datenschutzerklärung">
+      <LegalSection title="14. Änderungen dieser Datenschutzerklärung">
         <p>Wir behalten uns vor, diese Datenschutzerklärung anzupassen, um sie stets den aktuellen rechtlichen Anforderungen anzupassen. Für Ihren erneuten Besuch gilt dann die jeweils aktuelle Fassung.</p>
       </LegalSection>
     </LegalPageShell>

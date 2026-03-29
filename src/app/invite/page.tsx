@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { joinOrganization, getCurrentOrganization } from '@/lib/organization';
-import { Plane, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import { Plane, CheckCircle, AlertCircle } from 'lucide-react';
 import { saveLegalConsent } from '@/lib/legal';
 import Link from 'next/link';
 

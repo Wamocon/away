@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getOrganizationConsents, ConsentType } from '@/lib/legal';
-import { ShieldCheck, User, CheckCircle, XCircle, Clock, Search, Filter, ShieldAlert } from 'lucide-react';
+import { getOrganizationConsents } from '@/lib/legal';
+import { ShieldCheck, User, CheckCircle, XCircle, Clock, Search, ShieldAlert } from 'lucide-react';
 import { getOrganizationsForUser } from '@/lib/organization';
 
 type UserConsentStatus = {
@@ -20,7 +20,7 @@ type UserConsentStatus = {
 export default function AdminConsentsPage() {
   const [data, setData] = useState<UserConsentStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [org, setOrg] = useState<{ id: string; name: string } | null>(null);
 

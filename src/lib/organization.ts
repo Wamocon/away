@@ -66,7 +66,7 @@ export async function joinOrganization(userId: string, organizationId: string) {
     .insert([{
       user_id: userId,
       organization_id: organizationId,
-      role: 'user'
+      role: 'employee'
     }]);
 
   if (joinError) throw joinError;

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { generatePDF, generateExcel, generateWord, DocumentData } from '@/lib/documentGenerator';
 import { differenceInBusinessDays, parseISO } from 'date-fns';
+import { createVacationRequest } from '@/lib/vacation';
 import Modal from './ui/Modal';
 
 interface WizardProps {
@@ -146,12 +147,19 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
     setSubmitting(true);
     try {
       const supabase = createClient();
-      const { data, error: insertError } = await supabase.from('vacation_requests').insert([{
-        user_id: userId, organization_id: orgId, from, to, reason, status: 'pending',
-        template_fields: { deputy, notes, firstName, lastName, employeeId, documentId, vacationDays, vacationTypes, location, signedAt },
-      }]).select('id').single();
+      if (!orgId) throw new Error('Keine Organisation ausgewählt. Bitte tritt einer Organisation bei.');
 
-      if (insertError) throw insertError;
+      const data = await createVacationRequest({
+        userId,
+        organizationId: orgId,
+        from,
+        to,
+        reason,
+        template_fields: { 
+          deputy, notes, firstName, lastName, employeeId, 
+          documentId, vacationDays, vacationTypes, location, signedAt 
+        },
+      });
 
       // Signatur-Upload
       if (employeeSignature || approverSignature) {

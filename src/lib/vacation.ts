@@ -20,13 +20,24 @@ export interface VacationRequestInput {
   from: string;
   to: string;
   reason: string;
+  template_fields?: Record<string, unknown>;
 }
 
-export async function createVacationRequest({ userId, organizationId, from, to, reason }: VacationRequestInput) {
+export async function createVacationRequest({ userId, organizationId, from, to, reason, template_fields }: VacationRequestInput) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('vacation_requests')
-    .insert([{ user_id: userId, organization_id: organizationId, from, to, reason, status: 'pending' }]);
+    .insert([{ 
+      user_id: userId, 
+      organization_id: organizationId, 
+      from, 
+      to, 
+      reason, 
+      status: 'pending',
+      template_fields: template_fields || {}
+    }])
+    .select('id')
+    .single();
   if (error) throw error;
   return data;
 }

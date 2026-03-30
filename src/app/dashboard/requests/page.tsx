@@ -126,7 +126,8 @@ function RequestsPageContent() {
         <button 
           onClick={() => setShowWizard(true)} 
           className="btn-primary"
-          disabled={!user}
+          disabled={!user || !org}
+          title={!org ? 'Du musst erst einer Organisation beitreten' : ''}
         >
           <Plus size={14} />
           Neuer Antrag
@@ -206,9 +207,17 @@ function RequestsPageContent() {
             <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
               {statusFilter === 'all' ? 'Noch keine Anträge vorhanden' : `Keine ${statusConfig[statusFilter].label.toLowerCase()} Anträge`}
             </p>
-            <button onClick={() => setShowWizard(true)} className="btn-primary mt-4 inline-flex">
-              <Plus size={13} /> Ersten Antrag stellen
-            </button>
+            {org ? (
+              <button onClick={() => setShowWizard(true)} className="btn-primary mt-4 inline-flex">
+                <Plus size={13} /> Ersten Antrag stellen
+              </button>
+            ) : (
+              <div className="mt-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 max-w-md mx-auto">
+                <p className="text-xs font-bold text-amber-600 uppercase tracking-widest mb-2">Keine Organisation</p>
+                <p className="text-sm text-[var(--text-base)] mb-4">Du bist noch keiner Organisation zugeordnet. Bitte tritt einer Organisation bei oder erstelle eine neue, um Anträge zu stellen.</p>
+                <Link href="/settings" className="btn-secondary text-xs">Zu den Einstellungen</Link>
+              </div>
+            )}
           </div>
         ) : viewMode === 'list' ? (
           <table className="data-table">

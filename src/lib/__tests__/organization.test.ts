@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getOrganizationsForUser, getCurrentOrganization, createOrganization } from '../organization';
+import { getOrganizationsForUser, getCurrentOrganization, createOrganization, joinOrganization } from '../organization';
 
 const mockSupabase = {
   from: vi.fn().mockReturnThis(),
@@ -7,6 +7,8 @@ const mockSupabase = {
   eq: vi.fn().mockReturnThis(),
   order: vi.fn().mockReturnThis(),
   single: vi.fn().mockReturnThis(),
+  maybeSingle: vi.fn().mockReturnThis(),
+  insert: vi.fn().mockReturnThis(),
   rpc: vi.fn(),
 };
 
@@ -41,5 +43,21 @@ describe('organization lib', () => {
       org_name: 'New Org',
       creator_id: 'user-1'
     });
+  });
+  
+  it('should join organization as employee', async () => {
+    // Mock existing user_roles check (not found)
+    mockSupabase.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    // Mock insert
+    mockSupabase.insert.mockResolvedValueOnce({ data: null, error: null });
+    
+    const res = await joinOrganization('user-1', 'org-1');
+    expect(res.success).toBe(true);
+    expect(mockSupabase.from).toHaveBeenCalledWith('user_roles');
+    expect(mockSupabase.insert).toHaveBeenCalledWith([{
+      user_id: 'user-1',
+      organization_id: 'org-1',
+      role: 'employee'
+    }]);
   });
 });

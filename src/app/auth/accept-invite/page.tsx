@@ -6,8 +6,6 @@ import { createClient } from '@/lib/supabase/client';
 import { completeInvitationAction } from '@/lib/actions/authActions';
 import { LegalConsentFields } from '@/components/legal/LegalConsentFields';
 import { type LegalConsentState, hasAcceptedAllLegalConsents, createLegalConsentMetadata } from '@/lib/legal/consent';
-import { LegalLinks } from '@/components/legal/LegalLinks';
-import { DevelopedInGermanyBadge } from '@/components/legal/DevelopedInGermanyBadge';
 
 function AcceptInviteContent() {
   const router = useRouter();
@@ -306,8 +304,9 @@ function AcceptInviteContent() {
           )}
 
           <div className="mt-8 pt-8 border-t border-[var(--border)] text-center">
-             <LegalLinks />
-             <DevelopedInGermanyBadge />
+             <p className="text-[10px] text-[var(--text-muted)] opacity-50">
+               Sichere Registrierung via Supabase Auth
+             </p>
           </div>
         </div>
       </div>

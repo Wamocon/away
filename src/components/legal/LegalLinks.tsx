@@ -9,7 +9,7 @@ interface LegalLinksProps {
   variant?: "inline" | "cards";
 }
 
-const items = [
+export const LEGAL_LINK_ITEMS = [
   { href: "/legal/impressum", label: "Impressum", icon: FileText },
   { href: "/legal/datenschutz", label: "Datenschutz", icon: Shield },
   { href: "/legal/agb", label: "AGB", icon: ReceiptText },
@@ -19,7 +19,7 @@ export function LegalLinks({ className, variant = "inline" }: LegalLinksProps) {
   if (variant === "cards") {
     return (
       <div className={cn("grid gap-4 sm:grid-cols-3", className)}>
-        {items.map((item) => (
+        {LEGAL_LINK_ITEMS.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -37,7 +37,7 @@ export function LegalLinks({ className, variant = "inline" }: LegalLinksProps) {
 
   return (
     <div className={cn("flex flex-wrap items-center justify-center gap-x-6 gap-y-3", className)}>
-      {items.map((item) => (
+      {LEGAL_LINK_ITEMS.map((item) => (
         <Link
           key={item.href}
           href={item.href}

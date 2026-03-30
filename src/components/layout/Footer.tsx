@@ -1,7 +1,25 @@
+import { LegalLinks } from '../legal/LegalLinks';
+import { DevelopedInGermanyBadge } from '../legal/DevelopedInGermanyBadge';
+
 export function Footer() {
   return (
-    <footer className="shrink-0 text-center py-3 text-[10px] text-gray-400 dark:text-white/15 border-t border-black/[0.04] dark:border-white/[0.03]">
-      Away &copy; {new Date().getFullYear()}
+    <footer className="mt-auto py-12 px-6 border-t border-[var(--border)] bg-[var(--bg-base)]">
+      <div className="max-w-4xl mx-auto flex flex-col items-center gap-8">
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-sm font-bold tracking-tight text-[var(--text-base)]">
+            AWAY – MODERNE URLAUBSPLANNER
+          </span>
+          <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-50 font-black">
+            Professionelles Urlaubsmanagement &copy; {new Date().getFullYear()} WAMOCON GmbH
+          </span>
+        </div>
+
+        <LegalLinks variant="inline" className="opacity-80 hover:opacity-100 transition-opacity" />
+
+        <div className="scale-90 origin-center -mt-4">
+          <DevelopedInGermanyBadge />
+        </div>
+      </div>
     </footer>
   );
 }

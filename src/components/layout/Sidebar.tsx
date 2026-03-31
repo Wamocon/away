@@ -5,7 +5,7 @@ import { useTheme } from '@/components/ui/ThemeProvider';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState, useCallback } from 'react';
 import { getOrganizationsForUser } from '@/lib/organization';
-import { getUserRole } from '@/lib/roles';
+import { getUserRole, UserRole, ROLE_LABELS } from '@/lib/roles';
 import SchemaRoleSwitcher from '@/components/SchemaRoleSwitcher';
 import {
   LayoutDashboard,
@@ -16,14 +16,18 @@ import {
   Moon,
   ClipboardList,
   ShieldCheck,
-  Mail,
   LogOut,
   Menu,
   Plane,
   Building2,
+  FileBarChart,
+  UserCircle,
+  ToggleLeft,
+  ToggleRight,
+  PlusCircle,
 } from 'lucide-react';
 
-type UserRole = 'admin' | 'approver' | 'employee' | null;
+// Removed local UserRole type in favor of import from @/lib/roles
 
 interface NavItem {
   href: string;
@@ -48,12 +52,22 @@ function SidebarContent({
   const { theme, setTheme } = useTheme();
   const [userEmail, setUserEmail] = useState('');
   const [userInitial, setUserInitial] = useState('?');
-  const [role, setRole] = useState<UserRole>(null);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [orgName, setOrgName] = useState('');
   const [pendingCount, setPendingCount] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [isElevatedMode, setIsElevatedMode] = useState(true);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+    const savedMode = localStorage.getItem('role-mode');
+    if (savedMode === 'employee') setIsElevatedMode(false);
+  }, []);
+
+  const toggleMode = () => {
+    setIsElevatedMode(!isElevatedMode);
+    localStorage.setItem('role-mode', !isElevatedMode ? 'elevated' : 'employee');
+  };
 
   const loadUser = useCallback(async () => {
     try {
@@ -94,14 +108,17 @@ function SidebarContent({
     router.push('/auth/login');
   };
 
-  const navItems: NavItem[] = [
+  const mitarbeiterItems: NavItem[] = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-    { href: '/dashboard/requests', icon: ClipboardList, label: 'Anträge', exact: false,
+    { href: '/dashboard/requests?open=wizard', icon: PlusCircle, label: 'Antragstellung', exact: false },
+    { href: '/dashboard/calendar', icon: CalendarDays, label: 'Kalender', exact: true },
+  ];
+
+  const genehmigerItems: NavItem[] = [
+    { href: '/dashboard/reports', icon: FileBarChart, label: 'Berichte', exact: true },
+    { href: '/dashboard/requests', icon: ClipboardList, label: 'Anträge', exact: true,
       badge: mounted && pendingCount > 0 ? pendingCount : undefined,
     },
-    { href: '/dashboard/calendar', icon: CalendarDays, label: 'Kalender', exact: true },
-    { href: '/dashboard/email', icon: Mail, label: 'E-Mail', exact: true },
-    { href: '/dashboard/organizations', icon: Building2, label: 'Organisationen', exact: true },
   ];
 
   const adminItems: NavItem[] = [
@@ -190,35 +207,64 @@ function SidebarContent({
           {role && (
             <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 badge ${
               role === 'admin' ? 'role-admin' :
+              role === 'cio' ? 'role-cio' :
               role === 'approver' ? 'role-approver' :
               'role-employee'
             }`}>
-              {role === 'admin' ? 'Admin' : role === 'approver' ? 'Genehmiger' : 'Mitarbeiter'}
+              {role ? ROLE_LABELS[role as UserRole] : 'Lade...'}
             </span>
           )}
         </div>
       )}
 
+      {/* ─── Role Mode Toggle (Dual Role Support) ──────────── */}
+      {mounted && (role === 'admin' || role === 'cio' || role === 'approver') && (
+        <div className="px-3 mt-4 mb-2">
+          <button 
+            onClick={toggleMode}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${
+              isElevatedMode 
+                ? 'bg-[var(--primary-light)] border-[var(--primary)] text-[var(--primary)]' 
+                : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-muted)]'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <UserCircle size={14} />
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                {isElevatedMode && role ? ROLE_LABELS[role as UserRole] : 'Mitarbeiter Modus'}
+              </span>
+            </div>
+            {isElevatedMode ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+          </button>
+        </div>
+      )}
+
       {/* ─── Navigation ────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="px-3 mt-4">
-          <p className="section-label px-2 mb-2">Navigation</p>
+        {/* Mitarbeiter Sektion */}
+        <div className="px-3 mt-2">
+          <p className="section-label px-2 mb-2">Mitarbeiter</p>
           <nav className="flex flex-col gap-0.5">
-            {navItems.map(item => <NavLink key={item.href} item={item} />)}
+            {mitarbeiterItems.map(item => <NavLink key={item.href} item={item} />)}
           </nav>
         </div>
 
-        {/* Admin Section */}
-        {(role === 'admin' || role === 'approver') && (
-          <div className="px-3 mt-4">
-            <p className="section-label px-2 mb-2">
-              {role === 'admin' ? 'Administration' : 'Genehmigung'}
-            </p>
+        {/* Genehmiger Sektion */}
+        {(role === 'admin' || role === 'cio' || role === 'approver') && isElevatedMode && (
+          <div className="px-3 mt-6">
+            <p className="section-label px-2 mb-2">Genehmiger</p>
             <nav className="flex flex-col gap-0.5">
-              {role === 'admin' && adminItems.map(item => <NavLink key={item.href} item={item} />)}
-              {role === 'approver' && (
-                <NavLink item={{ href: '/dashboard/requests', icon: ClipboardList, label: 'Antr. genehmigen', exact: false }} />
-              )}
+              {genehmigerItems.map(item => <NavLink key={item.href} item={item} />)}
+            </nav>
+          </div>
+        )}
+
+        {/* Administration Sektion */}
+        {role === 'admin' && isElevatedMode && (
+          <div className="px-3 mt-6">
+            <p className="section-label px-2 mb-2">Administration</p>
+            <nav className="flex flex-col gap-0.5">
+              {adminItems.map(item => <NavLink key={item.href} item={item} />)}
             </nav>
           </div>
         )}

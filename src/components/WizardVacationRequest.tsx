@@ -5,13 +5,13 @@ import { createClient } from '@/lib/supabase/client';
 import {
   X, ChevronRight, ChevronLeft, Upload,
   CheckCircle, Loader, Download, File as FileIcon,
-  Plus, CalendarDays
+  Plus, CalendarDays, RefreshCw
 } from 'lucide-react';
 import { generatePDF, generateExcel, generateWord, DocumentData } from '@/lib/documentGenerator';
 import { differenceInBusinessDays, parseISO } from 'date-fns';
 import { createVacationRequest } from '@/lib/vacation';
 import { getUserSettings } from '@/lib/userSettings';
-import { isDocumentIdUsed, registerDocumentId } from '@/lib/documentNumbers';
+import { isDocumentIdUsed, registerDocumentId, getNextDocumentCounter } from '@/lib/documentNumbers';
 import Modal from './ui/Modal';
 import AlertModal from './ui/AlertModal';
 
@@ -72,6 +72,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [generatingDocId, setGeneratingDocId] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
@@ -100,6 +101,31 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
       } catch { setVacationDays(0); }
     }
   }, [from, to, setVacationDays]);
+
+  const generateBelegnummer = async () => {
+    if (!firstName || !lastName || !orgId) return;
+    setGeneratingDocId(true);
+    try {
+      const firstChar = firstName.charAt(0).toUpperCase();
+      const lastChars = lastName.substring(0, 2).toUpperCase();
+      const year = new Date().getFullYear().toString();
+      const prefix = `${firstChar}${lastChars}${year}`;
+      
+      const nextCounter = await getNextDocumentCounter(orgId, prefix);
+      const suffix = nextCounter.toString().padStart(2, '0');
+      setDocumentId(`${prefix}${suffix}`);
+    } catch (err) {
+      console.error('Error generating Belegnummer:', err);
+    } finally {
+      setGeneratingDocId(false);
+    }
+  };
+
+  useEffect(() => {
+    if (firstName && lastName && !documentId) {
+      generateBelegnummer();
+    }
+  }, [firstName, lastName]);
 
   const addVacationType = () => {
     if (!newTypeName.trim()) return;
@@ -201,7 +227,15 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
 
       setStep(4);
     } catch (err: unknown) { 
-      const msg = err instanceof Error ? err.message : String(err);
+      console.error('Submission error:', err);
+      let msg = 'Ein unbekannter Fehler ist aufgetreten.';
+      if (err instanceof Error) {
+        msg = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        msg = JSON.stringify(err);
+      } else {
+        msg = String(err);
+      }
       setError(msg); 
     } finally { setSubmitting(false); }
   };
@@ -326,7 +360,22 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Belegnummer</label>
-                    <input value={documentId} onChange={e => setDocumentId(e.target.value)} className="form-input-lux" placeholder="UA-2024" />
+                    <div className="relative">
+                      <input 
+                        value={documentId} 
+                        onChange={e => setDocumentId(e.target.value)} 
+                        className="form-input-lux pr-10" 
+                        placeholder="NSC202601" 
+                      />
+                      <button 
+                        onClick={(e) => { e.preventDefault(); generateBelegnummer(); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-indigo-500 hover:bg-indigo-500/10 rounded-lg transition-all"
+                        title="Neu generieren"
+                        disabled={generatingDocId}
+                      >
+                        {generatingDocId ? <Loader size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

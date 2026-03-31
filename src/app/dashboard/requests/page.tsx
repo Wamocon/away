@@ -36,8 +36,14 @@ function RequestsPageContent() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialFilter);
   const [search, setSearch] = useState('');
-  const [showWizard, setShowWizard] = useState(false);
+  const [showWizard, setShowWizard] = useState(initialFilter === 'all' && searchParams.get('open') === 'wizard');
   const [actionId, setActionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('open') === 'wizard') {
+      setShowWizard(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const supabase = createClient();

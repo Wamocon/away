@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client';
 
-export type UserRole = 'admin' | 'approver' | 'employee';
+export type UserRole = 'admin' | 'cio' | 'approver' | 'employee';
 
 export async function getUserRole(userId: string, orgId: string): Promise<UserRole> {
   const supabase = createClient();
@@ -28,12 +28,16 @@ export function isAdmin(role: UserRole | null | undefined): boolean {
   return role === 'admin';
 }
 
+export function isCIO(role: UserRole | null | undefined): boolean {
+  return role === 'cio' || role === 'admin';
+}
+
 export function isApprover(role: UserRole | null | undefined): boolean {
-  return role === 'approver' || role === 'admin';
+  return role === 'approver' || role === 'cio' || role === 'admin';
 }
 
 export function canApprove(role: UserRole | null | undefined): boolean {
-  return role === 'admin' || role === 'approver';
+  return role === 'admin' || role === 'cio' || role === 'approver';
 }
 
 export function canManageUsers(role: UserRole | null | undefined): boolean {
@@ -42,12 +46,14 @@ export function canManageUsers(role: UserRole | null | undefined): boolean {
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrator',
+  cio: 'CIO / GF',
   approver: 'Genehmiger',
   employee: 'Mitarbeiter',
 };
 
 export const ROLE_COLORS: Record<UserRole, string> = {
   admin: 'role-admin',
+  cio: 'role-cio',
   approver: 'role-approver',
   employee: 'role-employee',
 };

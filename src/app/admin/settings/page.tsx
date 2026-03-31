@@ -10,7 +10,7 @@ import OrganizationSwitcher from '@/components/OrganizationSwitcher';
 import {
   Users, ShieldCheck, UserPlus, Loader, CheckCircle,
   Trash2, Send, Building2, AlertCircle, RefreshCw, LayoutGrid, List,
-  FileText, Upload, Files, Settings, Info, Briefcase, Zap, Palette, MapPin
+  FileText, Upload, Files, Settings, Info, Briefcase, Zap, Palette, MapPin, Plus
 } from 'lucide-react';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
 import AlertModal, { AlertType } from '@/components/ui/AlertModal';
@@ -40,7 +40,7 @@ export default function AdminSettingsPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // Tabs
-  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'policies' | 'users' | 'templates'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'policies' | 'users' | 'templates' | 'organizations'>('general');
 
   // New Organization Settings States
   const [logoUrl, setLogoUrl] = useState('');
@@ -301,42 +301,26 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="p-6 md:p-8 w-full max-w-6xl mx-auto animate-fade-in space-y-6 text-[var(--text-base)]">
-      <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-            <ShieldCheck size={22} className="text-[var(--primary)]" /> Administrations-Einstellungen
+            <ShieldCheck size={22} className="text-[var(--primary)]" /> Administration
           </h1>
           <p className="text-sm mt-1 text-[var(--text-muted)]">
-            Verwaltung der Organisation, Richtlinien und Mitglieder
+            Einstellungen & Organisationen
           </p>
         </div>
-        <div className="flex items-center gap-3">
+      </div>
+      {activeTab !== 'organizations' && (
+        <div className="flex items-center gap-3 mb-6">
             <div className="card px-4 py-2 flex items-center gap-2 bg-[var(--bg-elevated)] text-xs font-bold border border-[var(--border)] shadow-sm">
                 <Building2 size={13} className="text-[var(--primary)]" />
-                {orgName || 'Lade...'}
+                {orgName || 'Keine Organisation gewählt'}
             </div>
-            <button onClick={() => { loadMembers(); loadTemplates(); }} className="btn-secondary px-3 py-2">
-                <RefreshCw size={13} />
-            </button>
         </div>
-      </div>
-
-      {currentUserId && (
-        <section className="card p-5 mb-6 border-l-4 border-[var(--primary)] shadow-sm">
-          <h2 className="text-[10px] font-black mb-4 uppercase tracking-widest text-[var(--text-muted)]">Organisation wechseln</h2>
-          <OrganizationSwitcher 
-            userId={currentUserId} 
-            onOrgChange={(id: string, r: string, name?: string) => {
-              if (r !== 'admin') {
-                router.push('/dashboard');
-                return;
-              }
-              setOrgId(id);
-              setOrgName(name || '');
-            }} 
-          />
-        </section>
       )}
+
+      {/* Removed the fixed Organization Switcher Card as it's now in its own tab or the header */}
 
       {orgId && (
         <>
@@ -348,6 +332,7 @@ export default function AdminSettingsPage() {
               { id: 'policies', label: 'Richtlinien', icon: Zap },
               { id: 'users', label: 'Mitarbeiter', icon: Users },
               { id: 'templates', label: 'Vorlagen', icon: Files },
+              { id: 'organizations', label: 'Organisationen', icon: Building2 },
             ] as const).map(tab => (
               <button
                 key={tab.id}
@@ -655,6 +640,46 @@ export default function AdminSettingsPage() {
                         <p className="text-xs font-bold uppercase tracking-widest">Keine Vorlagen vorhanden</p>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: Organisationen (Consolidated Switcher & Creation) */}
+              {activeTab === 'organizations' && currentUserId && (
+                <div className="card animate-in slide-in-from-bottom-2 duration-300 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b" style={{ borderColor: 'var(--border)' }}>
+                    <h2 className="text-base font-bold flex items-center gap-2">
+                       <Building2 size={18} className="text-[var(--primary)]" /> Organisationen verwalten
+                    </h2>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-1 italic">
+                      Wechsle zwischen deinen Organisationen oder erstelle eine neue.
+                    </p>
+                  </div>
+                  
+                  <div className="p-6 space-y-8 bg-[var(--bg-elevated)]/30">
+                    <section>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 text-[var(--text-muted)]">Aktiv anpassen</h3>
+                      <OrganizationSwitcher 
+                        userId={currentUserId!} 
+                        onOrgChange={(id: string, r: string, name?: string) => {
+                          setOrgId(id);
+                          setOrgName(name || '');
+                        }} 
+                      />
+                    </section>
+
+                    <section className="pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 text-[var(--text-muted)]">Organisationen Verlassen / Beitreten</h3>
+                        <p className="text-xs mb-4 text-[var(--text-subtle)]">
+                            Falls du nicht mehr Teil einer Organisation sein möchtest, kannst du diese hier verlassen (demnächst). 
+                            Um einer neuen beizutreten, lass dich von einem Administrator einladen.
+                        </p>
+                        <div className="p-6 rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center opacity-40">
+                             <Plus size={24} className="mb-2" />
+                             <p className="text-[10px] font-black uppercase tracking-widest">Neue Organisation Erstellen</p>
+                             <p className="text-[9px] mt-1 italic">Nutzte das 'Neu' Menü oben oder kontaktiere den CIO.</p>
+                        </div>
+                    </section>
                   </div>
                 </div>
               )}

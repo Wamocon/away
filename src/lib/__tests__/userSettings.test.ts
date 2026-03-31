@@ -43,10 +43,20 @@ describe('userSettings lib', () => {
       // Result of update (then)
       mockResult.error = null;
 
-      await saveUserSettings('user-1', 'org-1', 'new@test.com', { lang: 'de' });
+      await saveUserSettings('user-1', 'org-1', 'new@test.com', { 
+        firstName: 'Max',
+        lastName: 'Mustermann',
+        employeeId: 'P-123'
+      });
 
       expect(mockSupabase.update).toHaveBeenCalledWith({
-        settings: { old: 'val', email: 'new@test.com', lang: 'de' }
+        settings: { 
+          old: 'val', 
+          email: 'new@test.com', 
+          firstName: 'Max',
+          lastName: 'Mustermann',
+          employeeId: 'P-123'
+        }
       });
       expect(mockSupabase.eq).toHaveBeenCalledWith('id', '123');
     });
@@ -56,12 +66,14 @@ describe('userSettings lib', () => {
       // Result of insert (then)
       mockResult.error = null;
 
-      await saveUserSettings('user-1', 'org-1', 'new@test.com', { lang: 'en' });
+      await saveUserSettings('user-1', 'org-1', 'new@test.com', { 
+        firstName: 'Anna'
+      });
 
       expect(mockSupabase.insert).toHaveBeenCalledWith([{
         user_id: 'user-1',
         organization_id: 'org-1',
-        settings: { email: 'new@test.com', lang: 'en' }
+        settings: { email: 'new@test.com', firstName: 'Anna' }
       }]);
     });
   });

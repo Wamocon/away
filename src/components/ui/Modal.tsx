@@ -34,44 +34,48 @@ export default function Modal({ isOpen, onClose, title, subtitle, children, foot
   if (!isOpen || !mounted) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-0 md:p-4 overflow-hidden outline-none">
-      {/* Backdrop - Über das gesamte Fenster */}
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 md:p-6 overflow-hidden outline-none">
+      {/* Backdrop - High-end Glassmorphism */}
       <div 
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300 animate-in fade-in" 
+        className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl transition-opacity duration-300 animate-in fade-in" 
         onClick={onClose} 
       />
       
-      {/* Modal Container */}
-      <div className={`relative w-full ${maxWidth} bg-[var(--bg-surface)] md:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-12 duration-500`} 
-           style={{ maxHeight: '95vh', border: '1px solid var(--border)' }}>
+      {/* Modal Container - Premium Rounded & Extra Dark */}
+      <div className={`relative w-full ${maxWidth} bg-[#070a14] rounded-[32px] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-12 duration-500 ring-1 ring-white/5`} 
+           style={{ maxHeight: '90vh' }}>
         
-        {/* Header - Fixed & Visible */}
-        <div className="shrink-0 p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-surface)] z-10">
-          <div>
-            <h2 className="text-xl font-black tracking-tight" style={{ color: 'var(--text-base)' }}>{title}</h2>
+        {/* Header - Modern & Bold */}
+        <div className="shrink-0 pt-8 px-8 pb-6 flex items-start justify-between bg-transparent z-10">
+          <div className="space-y-1">
+            <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
+              {title}
+            </h2>
             {subtitle && (
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-1 opacity-50 text-[var(--primary)]">{subtitle}</p>
+              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.1em] text-indigo-400 opacity-80">
+                {subtitle}
+              </div>
             )}
           </div>
           <button 
             onClick={onClose} 
-            className="p-2.5 hover:bg-[var(--bg-elevated)] rounded-xl transition-all text-[var(--text-muted)] hover:text-rose-500"
+            className="mt-1 p-2 bg-white/5 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white"
             aria-label="Schließen"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Content Area - Scrollable */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 bg-gradient-to-b from-transparent to-[var(--bg-elevated)]/5">
+        {/* Content Area - Clean & Spaced */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-8 pb-8">
           <div className="animate-in fade-in duration-500">
             {children}
           </div>
         </div>
 
-        {/* Footer - Fixed & Bottom */}
+        {/* Footer - Floating / Glossy if needed */}
         {footer && (
-          <div className="shrink-0 p-6 border-t border-[var(--border)] bg-[var(--bg-surface)]/95 backdrop-blur-md z-10 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)]">
+          <div className="shrink-0 p-8 border-t border-white/5 bg-black/20 backdrop-blur-sm z-10">
             {footer}
           </div>
         )}

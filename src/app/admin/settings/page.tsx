@@ -13,6 +13,7 @@ import {
   FileText, Upload, Files, Settings, Info, Briefcase, Zap, Palette, MapPin
 } from 'lucide-react';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
+import AlertModal, { AlertType } from '@/components/ui/AlertModal';
 
 interface Template {
   id: string;
@@ -64,6 +65,49 @@ export default function AdminSettingsPage() {
   // Role management
   const [updatingRole, setUpdatingRole] = useState<string | null>(null);
   const [isSavingOrg, setIsSavingOrg] = useState(false);
+
+  // Modal control
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: AlertType;
+    title: string;
+    message: string | React.ReactNode;
+    confirmText?: string;
+    onConfirm: () => void;
+    hideCancel?: boolean;
+    loading?: boolean;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (title: string, message: string | React.ReactNode, type: AlertType = 'info') => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      type,
+      hideCancel: true,
+      confirmText: 'Verstanden',
+      onConfirm: () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
+    });
+  };
+
+  const showConfirm = (title: string, message: string | React.ReactNode, onConfirm: () => void, type: 'warning' | 'danger' = 'warning') => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      type,
+      onConfirm: async () => {
+        await onConfirm();
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -151,9 +195,9 @@ export default function AdminSettingsPage() {
         autoApproveLimit
       });
 
-      alert('Einstellungen erfolgreich gespeichert!');
+      showAlert('Gespeichert', 'Die Organisationseinstellungen wurden erfolgreich aktualisiert.', 'success');
     } catch (err) {
-      alert('Fehler beim Speichern: ' + (err as Error).message);
+      showAlert('Fehler', 'Beim Speichern ist ein Problem aufgetreten: ' + (err as Error).message, 'danger');
     } finally {
       setIsSavingOrg(false);
     }
@@ -192,11 +236,18 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleRemoveMember = async (memberId: string) => {
-    if (!orgId || !confirm('Benutzer wirklich entfernen?')) return;
-    const supabase = createClient();
-     await supabase.from('user_roles').delete().eq('user_id', memberId).eq('organization_id', orgId);
-    setMembers(prev => prev.filter(m => m.user_id !== memberId));
+  const handleRemoveMember = (memberId: string) => {
+    if (!orgId) return;
+    showConfirm(
+      'Mitglied entfernen?', 
+      'Möchtest du dieses Mitglied wirklich aus der Organisation entfernen? Der Zugriff wird sofort entzogen.',
+      async () => {
+        const supabase = createClient();
+        await supabase.from('user_roles').delete().eq('user_id', memberId).eq('organization_id', orgId);
+        setMembers(prev => prev.filter(m => m.user_id !== memberId));
+      },
+      'danger'
+    );
   };
 
   const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,12 +283,18 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleRemoveTemplate = async (template: Template) => {
-    if (!confirm(`Vorlage "${template.name}" löschen?`)) return;
-    const supabase = createClient();
-    await supabase.storage.from('templates').remove([template.storage_path]);
-    await supabase.from('document_templates').delete().eq('id', template.id);
-    setTemplates(prev => prev.filter(t => t.id !== template.id));
+  const handleRemoveTemplate = (template: Template) => {
+    showConfirm(
+      'Vorlage löschen?',
+      `Möchtest du die Vorlage "${template.name}" wirklich unwiderruflich löschen?`,
+      async () => {
+        const supabase = createClient();
+        await supabase.storage.from('templates').remove([template.storage_path]);
+        await supabase.from('document_templates').delete().eq('id', template.id);
+        setTemplates(prev => prev.filter(t => t.id !== template.id));
+      },
+      'danger'
+    );
   };
 
   const dayLabels = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -645,6 +702,18 @@ export default function AdminSettingsPage() {
           </div>
         </>
       )}
+
+      <AlertModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+        hideCancel={confirmModal.hideCancel}
+        loading={confirmModal.loading}
+      />
     </div>
   );
 }

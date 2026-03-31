@@ -10,7 +10,10 @@ import {
 import { generatePDF, generateExcel, generateWord, DocumentData } from '@/lib/documentGenerator';
 import { differenceInBusinessDays, parseISO } from 'date-fns';
 import { createVacationRequest } from '@/lib/vacation';
+import { getUserSettings } from '@/lib/userSettings';
+import { isDocumentIdUsed, registerDocumentId } from '@/lib/documentNumbers';
 import Modal from './ui/Modal';
+import AlertModal from './ui/AlertModal';
 
 interface WizardProps {
   userId: string;
@@ -69,20 +72,25 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
     if (orgId) {
       supabase.from('document_templates').select('*').eq('organization_id', orgId)
         .then(({ data }) => setTemplates((data as Template[]) || []));
+      
+      // Fetch profile settings for pre-filling
+      getUserSettings(userId, orgId).then((data) => {
+        if (data && data.settings) {
+          const s = data.settings as Record<string, string | undefined>;
+          if (s.firstName) setFirstName(s.firstName);
+          if (s.lastName) setLastName(s.lastName);
+          if (s.employeeId) setEmployeeId(s.employeeId);
+        }
+      });
     }
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setFirstName(data.user.user_metadata.first_name || '');
-        setLastName(data.user.user_metadata.last_name || '');
-      }
-    });
-  }, [orgId, setFirstName, setLastName, setTemplates]);
+  }, [orgId, userId, setFirstName, setLastName, setTemplates]);
 
   useEffect(() => {
     if (from && to) {
@@ -149,6 +157,14 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
       const supabase = createClient();
       if (!orgId) throw new Error('Keine Organisation ausgewählt. Bitte tritt einer Organisation bei.');
 
+      // Check if Belegnummer is already taken
+      if (documentId.trim()) {
+        const isUsed = await isDocumentIdUsed(orgId, documentId);
+        if (isUsed) {
+          throw new Error(`Die Belegnummer "${documentId}" wurde bereits in dieser Organisation vergeben.`);
+        }
+      }
+
       const data = await createVacationRequest({
         userId,
         organizationId: orgId,
@@ -178,11 +194,26 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
         await supabase.storage.from('vacation-documents').upload(`vacation-${data.id}.pdf`, result.blob, { contentType: 'application/pdf', upsert: true });
       }
 
+      // Register Belegnummer
+      if (documentId.trim()) {
+        await registerDocumentId(orgId, userId, documentId);
+      }
+
       setStep(4);
     } catch (err: unknown) { 
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg); 
     } finally { setSubmitting(false); }
+  };
+
+  const handlePressSubmit = () => {
+    if (!from || !to) { setError('Bitte Von- und Bis-Datum angeben'); return; }
+    setIsConfirmOpen(true);
+  };
+
+  const handleFinalConfirm = () => {
+    setIsConfirmOpen(false);
+    handleSubmit();
   };
 
   const handleDownload = async () => {
@@ -197,16 +228,19 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   };
 
   const footer = step < 4 && (
-    <div className="flex gap-3">
+    <div className="flex justify-end gap-3">
       {step > 1 && (
-        <button onClick={() => setStep((step - 1) as Step)} className="flex-1 py-4 px-6 rounded-2xl bg-[var(--bg-elevated)] text-[var(--text-base)] font-black text-xs uppercase tracking-[0.2em] border-2 border-[var(--border)] flex items-center justify-center gap-2 hover:bg-[var(--bg-surface)]">
+        <button 
+          onClick={() => setStep((step - 1) as Step)} 
+          className="px-6 py-3 rounded-2xl bg-white/5 text-white/70 font-bold text-xs uppercase tracking-widest border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"
+        >
           <ChevronLeft size={16} /> Zurück
         </button>
       )}
       <button 
-        onClick={() => step === 3 ? handleSubmit() : setStep((step + 1) as Step)}
+        onClick={() => step === 3 ? handlePressSubmit() : setStep((step + 1) as Step)}
         disabled={submitting || (step === 1 && !selectedTemplate && !uploadedFile)}
-        className="flex-[2] py-4 px-6 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+        className="px-8 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:hover:scale-100"
       >
         {submitting ? <Loader size={16} className="animate-spin" /> : (step === 3 ? 'Einreichen' : 'Weiter')}
         {step < 3 && <ChevronRight size={16} />}
@@ -217,19 +251,29 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   return (
     <Modal isOpen={true} onClose={onClose} title="Neuer Urlaubsantrag" subtitle={`Schritt ${step} von 4`} footer={footer} maxWidth="max-w-2xl">
       <div className="space-y-8 py-2">
-        {/* Step Indicators */}
-        <div className="flex items-center px-4">
+        {/* Step Indicators - Premium Horizontal Layout */}
+        <div className="flex items-center justify-between px-2 mb-4">
           {[1,2,3,4].map((i) => (
-            <div key={i} className="flex items-center flex-1">
-              <div className="flex flex-col items-center gap-1.5 focus:outline-none">
-                <div className={`wizard-step-dot !w-8 !h-8 !text-[11px] ${step === i ? 'active' : step > i ? 'done' : 'inactive'}`}>
+            <div key={i} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black transition-all duration-500 ${
+                  step === i 
+                    ? 'bg-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-110' 
+                    : step > i 
+                    ? 'bg-emerald-500 text-white' 
+                    : 'bg-white/5 text-white/30 border border-white/10'
+                }`}>
                   {step > i ? '✓' : i}
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
+                <span className={`text-[9px] font-black uppercase tracking-widest transition-opacity duration-500 ${step === i ? 'text-indigo-400 opacity-100' : 'opacity-30'}`}>
                   {['Vorlage', 'Details', 'Überprüfen', 'Fertig'][i-1]}
                 </span>
               </div>
-              {i < 4 && <div className={`flex-1 h-[2px] mx-2 mt-[-16px] transition-all duration-500 ${step > i ? 'bg-[var(--success)] shadow-[0_0_8px_rgba(34,197,94,0.3)]' : 'bg-[var(--border)]'}`} />}
+              {i < 4 && (
+                <div className="flex-1 px-4 mb-6">
+                  <div className={`h-[1px] w-full transition-all duration-700 ${step > i ? 'bg-emerald-500/50' : 'bg-white/10'}`} />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -481,11 +525,18 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
         )}
 
         {step === 4 && (
-          <div className="text-center py-12 animate-in zoom-in-95 duration-500 overflow-hidden">
-             <div className="w-24 h-24 rounded-[32px] bg-emerald-500 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30 rotate-3"><CheckCircle size={48} className="text-white" /></div>
-             <h3 className="text-2xl font-black mb-3">Antrag eingereicht!</h3>
-             <p className="text-sm font-medium opacity-60 mb-10">Dein Urlaubsantrag wurde erfolgreich erstellt.</p>
-             <button onClick={onSuccess} className="w-full py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-[1.02] transition-all">Fertigstellen</button>
+          <div className="text-center py-12 animate-in zoom-in-95 duration-700">
+             <div className="w-24 h-24 rounded-[32px] bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-500/20 rotate-3">
+               <CheckCircle size={48} />
+             </div>
+             <h3 className="text-3xl font-black text-white mb-3 tracking-tight">Antrag eingereicht!</h3>
+             <p className="text-sm font-medium text-white/50 mb-10 max-w-sm mx-auto">Dein Urlaubsantrag wurde erfolgreich erstellt und zur Genehmigung weitergeleitet.</p>
+             <button 
+              onClick={onSuccess} 
+              className="px-12 py-4 rounded-2xl bg-white text-black font-black text-xs uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-xl active:scale-95"
+             >
+               Fenster Schließen
+             </button>
           </div>
         )}
 
@@ -495,6 +546,21 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
           </div>
         )}
       </div>
+      
+      <AlertModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleFinalConfirm}
+        title="Antrag einreichen?"
+        subtitle="Bestätigung erforderlich"
+        message={
+          <>
+            Möchtest du deinen Urlaubsantrag von <span className="text-white font-bold">{from}</span> bis <span className="text-white font-bold">{to}</span> jetzt verbindlich einreichen?
+          </>
+        }
+        confirmText="Ja, Absenden"
+        type="info"
+      />
     </Modal>
   );
 }

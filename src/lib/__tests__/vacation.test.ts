@@ -52,4 +52,37 @@ describe('vacation lib', () => {
     expect(mockSupabase.from).toHaveBeenCalledWith('vacation_requests');
     expect(mockSupabase.eq).toHaveBeenCalledWith('organization_id', 'org-1');
   });
+
+  it('should create a vacation request with full profile and document fields', async () => {
+    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'req-2' }, error: null });
+    
+    const input = {
+      userId: 'user-2',
+      organizationId: 'org-1',
+      from: '2024-06-01',
+      to: '2024-06-03',
+      reason: 'Sonderurlaub',
+      template_fields: { 
+        firstName: 'Max',
+        lastName: 'Mustermann',
+        employeeId: 'EMP-001',
+        documentId: 'DOC-2024-001',
+        vacationDays: 3,
+        location: 'Berlin'
+      }
+    };
+    
+    const res = await createVacationRequest(input);
+    expect(res.id).toBe('req-2');
+    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({
+        user_id: 'user-2',
+        template_fields: expect.objectContaining({
+          firstName: 'Max',
+          lastName: 'Mustermann',
+          documentId: 'DOC-2024-001'
+        })
+      })
+    ]));
+  });
 });

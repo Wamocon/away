@@ -9,6 +9,9 @@ import { useViewMode } from '@/components/ui/ViewModeProvider';
 
 interface UserSettingsData {
   email?: string;
+  firstName?: string;
+  lastName?: string;
+  employeeId?: string;
   language?: string;
   dateFormat?: string;
   workDays?: number[];
@@ -21,6 +24,9 @@ export default function SettingsPage() {
   const [emailInput, setEmailInput] = useState('');
   // New settings states
   const [language, setLanguage] = useState('de');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [dateFormat, setDateFormat] = useState('DD.MM.YYYY');
   const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5]); // 1=Mo, 5=Fr
   
@@ -48,6 +54,9 @@ export default function SettingsPage() {
         const settings = (data?.settings as UserSettingsData) || {};
         
         if (settings.email) setEmailInput(settings.email);
+        if (settings.firstName) setFirstName(settings.firstName);
+        if (settings.lastName) setLastName(settings.lastName);
+        if (settings.employeeId) setEmployeeId(settings.employeeId);
         if (settings.language) setLanguage(settings.language);
         if (settings.dateFormat) setDateFormat(settings.dateFormat);
         if (settings.workDays) setWorkDays(settings.workDays);
@@ -98,6 +107,9 @@ export default function SettingsPage() {
     try {
       // Save all settings including the new ones
       await saveUserSettings(userId, orgId, emailInput, {
+        firstName,
+        lastName,
+        employeeId,
         language,
         dateFormat,
         workDays
@@ -150,19 +162,53 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Benachrichtigungs-E-Mail</label>
-                <input
-                  type="email"
-                  value={emailInput}
-                  onChange={e => setEmailInput(e.target.value)}
-                  placeholder="name@beispiel.de"
-                  className="w-full rounded-xl border px-4 py-3 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
-                />
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Vorname</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    placeholder="Max"
+                    className="w-full rounded-xl border px-4 py-3 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Nachname</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    placeholder="Mustermann"
+                    className="w-full rounded-xl border px-4 py-3 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
+                  />
+                </div>
               </div>
 
-              <div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Personalnummer (HR-ID)</label>
+                  <input
+                    type="text"
+                    value={employeeId}
+                    onChange={e => setEmployeeId(e.target.value)}
+                    placeholder="P-0000"
+                    className="w-full rounded-xl border px-4 py-3 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Benachrichtigungs-E-Mail</label>
+                  <input
+                    type="email"
+                    value={emailInput}
+                    onChange={e => setEmailInput(e.target.value)}
+                    placeholder="name@beispiel.de"
+                    className="w-full rounded-xl border px-4 py-3 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
                 <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Oberfläche (Listenmodus)</label>
                 <div className="flex p-1 rounded-xl w-fit bg-[var(--bg-elevated)] border border-[var(--border)]">
                   <button
@@ -189,7 +235,6 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </div>
-            </div>
           </section>
 
           {/* Region & Language */}

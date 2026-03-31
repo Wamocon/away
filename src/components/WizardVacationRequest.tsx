@@ -81,14 +81,14 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
       // Fetch profile settings for pre-filling
       getUserSettings(userId, orgId).then((data) => {
         if (data && data.settings) {
-          const s = data.settings as any;
+          const s = data.settings as Record<string, string | undefined>;
           if (s.firstName) setFirstName(s.firstName);
           if (s.lastName) setLastName(s.lastName);
           if (s.employeeId) setEmployeeId(s.employeeId);
         }
       });
     }
-  }, [orgId, setFirstName, setLastName, setTemplates]);
+  }, [orgId, userId, setFirstName, setLastName, setTemplates]);
 
   useEffect(() => {
     if (from && to) {

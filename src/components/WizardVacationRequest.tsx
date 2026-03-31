@@ -13,6 +13,7 @@ import { createVacationRequest } from '@/lib/vacation';
 import { getUserSettings } from '@/lib/userSettings';
 import { isDocumentIdUsed, registerDocumentId } from '@/lib/documentNumbers';
 import Modal from './ui/Modal';
+import AlertModal from './ui/AlertModal';
 
 interface WizardProps {
   userId: string;
@@ -71,6 +72,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -204,6 +206,16 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
     } finally { setSubmitting(false); }
   };
 
+  const handlePressSubmit = () => {
+    if (!from || !to) { setError('Bitte Von- und Bis-Datum angeben'); return; }
+    setIsConfirmOpen(true);
+  };
+
+  const handleFinalConfirm = () => {
+    setIsConfirmOpen(false);
+    handleSubmit();
+  };
+
   const handleDownload = async () => {
     const result = await generateDocumentBlob();
     if (result) {
@@ -226,7 +238,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
         </button>
       )}
       <button 
-        onClick={() => step === 3 ? handleSubmit() : setStep((step + 1) as Step)}
+        onClick={() => step === 3 ? handlePressSubmit() : setStep((step + 1) as Step)}
         disabled={submitting || (step === 1 && !selectedTemplate && !uploadedFile)}
         className="px-8 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:hover:scale-100"
       >
@@ -534,6 +546,21 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
           </div>
         )}
       </div>
+      
+      <AlertModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleFinalConfirm}
+        title="Antrag einreichen?"
+        subtitle="Bestätigung erforderlich"
+        message={
+          <>
+            Möchtest du deinen Urlaubsantrag von <span className="text-white font-bold">{from}</span> bis <span className="text-white font-bold">{to}</span> jetzt verbindlich einreichen?
+          </>
+        }
+        confirmText="Ja, Absenden"
+        type="info"
+      />
     </Modal>
   );
 }

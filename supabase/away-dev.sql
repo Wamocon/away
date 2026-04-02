@@ -8,6 +8,7 @@ CREATE SCHEMA IF NOT EXISTS "away-dev";
 CREATE TABLE IF NOT EXISTS "away-dev".organizations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
+  settings JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

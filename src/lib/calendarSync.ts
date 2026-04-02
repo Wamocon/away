@@ -157,47 +157,81 @@ export function getGoogleOAuthUrl(clientId: string, redirectUri: string): string
   return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline`;
 }
 /**
- * Simulate fetching calendar events from an external provider (Outlook/Google)
- * In production, this would call Microsoft Graph or Google Calendar API
+ * Fetch calendar events from the real provider API using a valid OAuth access token.
+ *
+ * Microsoft Graph: token must be an access token with `Calendars.Read` scope.
+ * Google Calendar: token must be an access token with `calendar.readonly` scope.
+ *
+ * These tokens are obtained via OAuth PKCE/redirect flow using Azure App Registration
+ * or Google Cloud Console. Until the OAuth flow is wired up, users can paste
+ * a short-lived access token obtained from https://developer.microsoft.com/en-us/graph/graph-explorer
+ * or https://developers.google.com/oauthplayground/.
  */
 export async function fetchExternalEvents(
   provider: 'outlook' | 'google',
-  token: string
+  token: string,
 ): Promise<ExternalCalendarEvent[]> {
-  // Simulate API latency
-  await new Promise(r => setTimeout(r, 1000));
-
-  // If token is invalid/empty, simulate error
-  if (!token || token.length < 5) {
+  if (!token || token.length < 10) {
     throw new Error(`Ungültiger Token für ${provider}. Bitte prüfen Sie Ihre Einstellungen.`);
   }
 
-  // Generate some realistic mock data based on current date
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const now = new Date().toISOString();
+  const threeMonths = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
-  return [
-    {
-      id: `ext_${provider}_1`,
-      title: `Team Meeting (${provider})`,
-      start: `${year}-${month}-02T10:00:00Z`,
-      end: `${year}-${month}-02T11:00:00Z`,
-      allDay: false
-    },
-    {
-      id: `ext_${provider}_2`,
-      title: `Projekt-Review`,
-      start: `${year}-${month}-05T14:30:00Z`,
-      end: `${year}-${month}-05T15:30:00Z`,
-      allDay: false
-    },
-    {
-      id: `ext_${provider}_3`,
-      title: `Konferenz (${provider === 'google' ? 'Google' : 'MS'})`,
-      start: `${year}-${month}-10T09:00:00Z`,
-      end: `${year}-${month}-12T17:00:00Z`,
-      allDay: true
+  if (provider === 'outlook') {
+    const url =
+      `https://graph.microsoft.com/v1.0/me/calendarView` +
+      `?startDateTime=${encodeURIComponent(now)}` +
+      `&endDateTime=${encodeURIComponent(threeMonths)}` +
+      `&$select=id,subject,start,end,isAllDay` +
+      `&$orderby=start/dateTime` +
+      `&$top=50`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    });
+
+    if (res.status === 401) throw new Error('Microsoft-Token abgelaufen oder ungültig. Bitte neu verbinden.');
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => res.statusText);
+      throw new Error(`Microsoft Graph Fehler (${res.status}): ${errBody}`);
     }
-  ];
+
+    const json: { value?: { id: string; subject?: string; start: { dateTime: string }; end: { dateTime: string }; isAllDay?: boolean }[] } = await res.json();
+    return (json.value ?? []).map(ev => ({
+      id: ev.id,
+      title: ev.subject ?? '(Kein Titel)',
+      start: ev.start.dateTime,
+      end: ev.end.dateTime,
+      allDay: ev.isAllDay ?? false,
+    }));
+  }
+
+  // Google Calendar
+  const url =
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events` +
+    `?maxResults=50` +
+    `&orderBy=startTime` +
+    `&singleEvents=true` +
+    `&timeMin=${encodeURIComponent(now)}` +
+    `&timeMax=${encodeURIComponent(threeMonths)}`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (res.status === 401) throw new Error('Google-Token abgelaufen oder ungültig. Bitte neu verbinden.');
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => res.statusText);
+    throw new Error(`Google Calendar Fehler (${res.status}): ${errBody}`);
+  }
+
+  const json: { items?: { id: string; summary?: string; start: { dateTime?: string; date?: string }; end: { dateTime?: string; date?: string } }[] } = await res.json();
+  return (json.items ?? []).map(ev => ({
+    id: ev.id,
+    title: ev.summary ?? '(Kein Titel)',
+    start: ev.start.dateTime ?? ev.start.date ?? '',
+    end: ev.end.dateTime ?? ev.end.date ?? '',
+    allDay: !ev.start.dateTime,
+  }));
 }

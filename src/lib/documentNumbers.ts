@@ -1,10 +1,14 @@
 import { createClient } from '@/lib/supabase/client';
 
+// Circuit-Breaker: Wenn die Tabelle einmal als fehlend (404) erkannt wurde, 
+// stoppen wir weitere Anfragen in dieser Session, um die Konsole sauber zu halten.
+let isTableAvailable = true;
+
 /**
  * Checks if a specific document ID (Belegnummer) is already taken within an organization.
  */
 export async function isDocumentIdUsed(organizationId: string, documentId: string): Promise<boolean> {
-  if (!documentId.trim()) return false;
+  if (!isTableAvailable || !documentId.trim()) return false;
   
   const supabase = createClient();
   const { count, error } = await supabase
@@ -14,7 +18,10 @@ export async function isDocumentIdUsed(organizationId: string, documentId: strin
     .eq('document_id', documentId.trim());
 
   if (error) {
-    console.error('Error checking document ID usage:', error);
+    if (error.code === 'PGRST') isTableAvailable = false;
+    if (error.code !== 'PGRST') {
+      console.error('Error checking document ID usage:', error);
+    }
     return false;
   }
   
@@ -25,7 +32,7 @@ export async function isDocumentIdUsed(organizationId: string, documentId: strin
  * Registers a new document ID in the database to prevent future duplicates.
  */
 export async function registerDocumentId(organizationId: string, userId: string, documentId: string) {
-  if (!documentId.trim()) return;
+  if (!isTableAvailable || !documentId.trim()) return;
 
   const supabase = createClient();
   const { error } = await supabase
@@ -37,20 +44,26 @@ export async function registerDocumentId(organizationId: string, userId: string,
     }]);
 
   if (error) {
+    if (error.code === 'PGRST') {
+       isTableAvailable = false;
+       return;
+    }
+    if (error.code !== 'PGRST') {
+      console.warn('Could not register document ID (Table missing or permission error):', error);
+    }
     // If it's a unique constraint violation, it was already registered.
     if (error.code === '23505') {
        throw new Error('Diese Belegnummer wurde bereits vergeben.');
     }
-    throw error;
   }
 }
 
 /**
  * Finds the next available counter for a given prefix.
- * Prefix format: [1st letter First][1st 2 letters Last][Year]
- * Full format: PREFIX + [00-99]
  */
 export async function getNextDocumentCounter(organizationId: string, prefix: string): Promise<number> {
+  if (!isTableAvailable) return 0;
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from('document_numbers')
@@ -61,7 +74,10 @@ export async function getNextDocumentCounter(organizationId: string, prefix: str
     .limit(1);
 
   if (error) {
-    console.error('Error fetching latest document ID:', error);
+    if (error.code === 'PGRST') isTableAvailable = false;
+    if (error.code !== 'PGRST') {
+      console.error('Error fetching latest document ID:', error);
+    }
     return 0;
   }
 
@@ -70,7 +86,6 @@ export async function getNextDocumentCounter(organizationId: string, prefix: str
   }
 
   const latestId = data[0].document_id;
-  // Extract trailing digits
   const match = latestId.match(/(\d+)$/);
   if (match) {
     const lastNum = parseInt(match[1], 10);

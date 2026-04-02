@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { VacationRequest, updateVacationStatus } from '@/lib/vacation';
 import { getUserRole, UserRole, canApprove } from '@/lib/roles';
+import { notifyApplicantOfStatusChange } from '@/lib/notifications';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -11,9 +12,10 @@ import { renderFieldValue } from '@/lib/utils/formatters';
 import {
   ArrowLeft, CheckCircle, XCircle, Clock,
   Mail, Calendar, Loader, AlertCircle,
-  ChevronRight
+  ChevronRight, Upload, X
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,13 +50,72 @@ export default function RequestDetailPage() {
     });
   }, [id, router]);
 
+  const [approverSignature, setApproverSignature] = useState<string | null>(null);
+  const [employeeSigUrl, setEmployeeSigUrl] = useState<string | null>(null);
+  const [approverSigUrl, setApproverSigUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (request && request.id) {
+      const fetchSigs = async () => {
+        const supabase = createClient();
+        
+        // Employee signature
+        const { data: empSig, error: empErr } = await supabase.storage
+          .from('signatures')
+          .createSignedUrl(`${request.id}/employee.png`, 3600);
+        
+        if (!empErr && empSig) setEmployeeSigUrl(empSig.signedUrl);
+        
+        // Approver signature
+        if (request.status === 'approved') {
+          const { data: appSig, error: appErr } = await supabase.storage
+            .from('signatures')
+            .createSignedUrl(`${request.id}/approver.png`, 3600);
+          
+          if (!appErr && appSig) setApproverSigUrl(appSig.signedUrl);
+        }
+      };
+      
+      fetchSigs();
+    }
+  }, [request]);
+
   const handleStatus = async (status: 'approved' | 'rejected') => {
     if (!request) return;
+    
+    if (status === 'approved' && !approverSignature) {
+      setError('Bitte laden Sie Ihre Unterschrift hoch, um zu genehmigen.');
+      return;
+    }
+
     setActionLoading(true);
     setError('');
     try {
+      const supabase = createClient();
+      
+      // Upload approver signature if approving
+      if (status === 'approved' && approverSignature) {
+        const res = await fetch(approverSignature);
+        const blob = await res.blob();
+        const { error: sigError } = await supabase.storage
+          .from('signatures')
+          .upload(`${request.id}/approver.png`, blob, { 
+            upsert: true,
+            contentType: 'image/png' 
+          });
+        if (sigError) throw sigError;
+      }
+
       const updated = await updateVacationStatus(request.id, status);
       setRequest(updated);
+
+      // Trigger notification (Async/Non-blocking)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        notifyApplicantOfStatusChange(updated, status, user.id).catch(err => {
+          console.warn('[Notifications] E-Mail-Dienst (Status Change) fehlgeschlagen:', err);
+        });
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -96,12 +157,15 @@ export default function RequestDetailPage() {
 
   if (!request) {
     return (
-      <div className="p-8 text-center">
-        <AlertCircle size={40} className="mx-auto mb-4 opacity-30" />
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Antrag nicht gefunden</p>
-        <Link href="/dashboard/requests" className="btn-primary mt-4 inline-flex">
-          <ArrowLeft size={14} /> Zurück zu Anträgen
-        </Link>
+      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="relative w-full max-w-sm rounded-2xl shadow-2xl p-8 text-center animate-in zoom-in-95 duration-200" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+          <button onClick={() => router.push('/dashboard/requests')} className="absolute top-4 right-4 p-2 rounded-xl btn-ghost"><X size={18} /></button>
+          <AlertCircle size={40} className="mx-auto mb-4 opacity-30" />
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Antrag nicht gefunden</p>
+          <Link href="/dashboard/requests" className="btn-primary mt-4 inline-flex">
+            <ArrowLeft size={14} /> Zurück zu Anträgen
+          </Link>
+        </div>
       </div>
     );
   }
@@ -110,7 +174,20 @@ export default function RequestDetailPage() {
   const days = differenceInCalendarDays(parseISO(request.to), parseISO(request.from)) + 1;
 
   return (
-    <div className="p-6 md:p-8 w-full max-w-3xl animate-fade-in">
+    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 backdrop-blur-sm overflow-y-auto p-4 pt-10">
+      <div
+        className="relative w-full max-w-3xl rounded-2xl shadow-2xl mb-10 animate-in zoom-in-95 duration-200"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        {/* Modal close button */}
+        <button
+          onClick={() => router.push('/dashboard/requests')}
+          className="absolute top-4 right-4 p-2 rounded-xl btn-ghost z-10"
+          aria-label="Schließen"
+        >
+          <X size={18} />
+        </button>
+      <div className="p-6 md:p-8 w-full animate-fade-in">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs mb-6" style={{ color: 'var(--text-muted)' }}>
         <Link href="/dashboard" className="hover:text-[var(--text-base)] transition-colors">Dashboard</Link>
@@ -217,7 +294,6 @@ export default function RequestDetailPage() {
                 {Object.entries(request.template_fields as Record<string, unknown>).map(([k, v]) => {
                   const displayValue = renderFieldValue(v);
                   if (!displayValue) return null;
-
                   return (
                     <p key={k} className="text-xs" style={{ color: 'var(--text-base)' }}>
                       <span style={{ color: 'var(--text-muted)' }}>{k}:</span> {displayValue}
@@ -226,6 +302,65 @@ export default function RequestDetailPage() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Signaturen View */}
+      <div className="card p-5 mb-5 space-y-6">
+        <h2 className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-subtle)' }}>Unterschriften</h2>
+        <div className="grid grid-cols-2 gap-8">
+          {/* Applicant Signature */}
+          <div className="space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Mitarbeiter</p>
+            <div className="aspect-[3/2] rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-elevated)] relative overflow-hidden flex items-center justify-center p-4">
+              {employeeSigUrl ? (
+                <Image src={employeeSigUrl} alt="Employee Signature" className="h-full w-full object-contain" width={300} height={200} unoptimized />
+              ) : (
+                <p className="text-[10px] font-bold opacity-30">Keine Unterschrift</p>
+              )}
+            </div>
+          </div>
+
+          {/* Approver Signature */}
+          <div className="space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Genehmiger</p>
+            <div className="aspect-[3/2] rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-elevated)] relative overflow-hidden flex items-center justify-center">
+              {approverSigUrl ? (
+                <Image src={approverSigUrl} alt="Approver Signature" className="h-full w-full object-contain p-4" width={300} height={200} unoptimized />
+              ) : canApprove(role) && request.status === 'pending' ? (
+                <div className="p-4 w-full h-full flex flex-col items-center justify-center gap-2 group cursor-pointer hover:bg-[var(--primary-light)] transition-all">
+                  {approverSignature ? (
+                    <div className="relative w-full h-full">
+                       <Image src={approverSignature} className="h-full w-full object-contain" alt="Approver Sig Preview" width={300} height={200} unoptimized />
+                       <button onClick={() => setApproverSignature(null)} className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full">
+                         <X size={10} />
+                       </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload size={20} className="opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                      <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Unterschrift hochladen</span>
+                    </>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                    onChange={e => { 
+                      const f = e.target.files?.[0]; 
+                      if (f) { 
+                        const r = new FileReader(); 
+                        r.onload = () => setApproverSignature(r.result as string); 
+                        r.readAsDataURL(f); 
+                      } 
+                    }} 
+                  />
+                </div>
+              ) : (
+                <p className="text-[10px] font-bold opacity-30">Noch nicht genehmigt</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -277,6 +412,8 @@ export default function RequestDetailPage() {
             {error}
           </div>
         )}
+      </div>
+      </div>
       </div>
     </div>
   );

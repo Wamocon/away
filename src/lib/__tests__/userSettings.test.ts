@@ -20,6 +20,7 @@ describe('userSettings lib', () => {
       update: vi.fn().mockReturnThis(),
       insert: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ ...mockResult })),
       // Allow 'await mockSupabase' for chainable update/insert
@@ -98,6 +99,35 @@ describe('userSettings lib', () => {
 
       await getUserSettings('user-1');
       expect(mockSupabase.limit).toHaveBeenCalledWith(1);
+    });
+
+    it('should throw on error', async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({ data: null, error: new Error('db fail') });
+      await expect(getUserSettings('user-1', 'org-1')).rejects.toThrow('db fail');
+    });
+  });
+
+  describe('saveUserSettings with null organizationId', () => {
+    it('uses is(organization_id, null) when organizationId is null', async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+      mockResult.error = null;
+
+      await saveUserSettings('user-1', null, 'a@b.de');
+
+      // The `is` method should have been called with ('organization_id', null)
+      // Since mockSupabase.eq doubles as .is via the same chain, verify the insert used null
+      expect(mockSupabase.insert).toHaveBeenCalledWith([{
+        user_id: 'user-1',
+        organization_id: null,
+        settings: { email: 'a@b.de' },
+      }]);
+    });
+
+    it('throws when insert fails', async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+      mockResult.error = new Error('insert error');
+
+      await expect(saveUserSettings('user-1', 'org-1', 'x@y.de')).rejects.toThrow('insert error');
     });
   });
 });

@@ -137,4 +137,54 @@ export async function inviteUserToOrg(email: string, orgId: string, role: UserRo
   }
 }
 
+/**
+ * Lädt Approver/CIO/Admin einer Organisation für interne Benachrichtigungen.
+ * Verwendet Service-Role-Key – KEIN User-Auth-Check erforderlich.
+ * NUR serverseitig verwenden.
+ */
+export async function getOrgApproversForNotification(
+  orgId: string,
+): Promise<{ user_id: string; role: string; email?: string }[]> {
+  try {
+    const adminClient = await createAdminClient();
+
+    const { data: roles, error } = await adminClient
+      .from('user_roles')
+      .select('user_id, role')
+      .eq('organization_id', orgId)
+      .in('role', ['admin', 'cio', 'approver']);
+
+    if (error || !roles) return [];
+
+    const members = await Promise.all(
+      roles.map(async (m) => {
+        // 1) Versuche E-Mail aus user_settings zu lesen
+        try {
+          const { data: s } = await adminClient
+            .from('user_settings')
+            .select('settings')
+            .eq('user_id', m.user_id)
+            .eq('organization_id', orgId)
+            .maybeSingle();
+          const settingsEmail = (s?.settings as Record<string, string> | undefined)?.email;
+          if (settingsEmail) return { user_id: m.user_id, role: m.role, email: settingsEmail };
+        } catch { /* ignore */ }
+
+        // 2) Fallback: Auth-E-Mail via Admin-API
+        try {
+          const { data: userData } = await adminClient.auth.admin.getUserById(m.user_id);
+          return { user_id: m.user_id, role: m.role, email: userData?.user?.email };
+        } catch { /* ignore */ }
+
+        return { user_id: m.user_id, role: m.role };
+      }),
+    );
+
+    return members;
+  } catch (err) {
+    console.error('[getOrgApproversForNotification] Fehler:', err);
+    return [];
+  }
+}
+
 // Trigger Redeploy: 2026-03-28 (Fix SUPABASE_SERVICE_ROLE_KEY)

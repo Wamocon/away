@@ -15,8 +15,12 @@ describe('Legal UI Constants', () => {
     expect(hrefs).toContain('/legal/agb');
   });
 
-  it('should have exactly three items for the footer', () => {
-    expect(LEGAL_LINK_ITEMS.length).toBe(3);
+  it('should have at least three items in the footer (incl. FAQ and Hilfe)', () => {
+    // 3 legal items + FAQ + Hilfe = 5 total
+    expect(LEGAL_LINK_ITEMS.length).toBeGreaterThanOrEqual(3);
+    const labels = LEGAL_LINK_ITEMS.map(item => item.label);
+    expect(labels).toContain('FAQ');
+    expect(labels).toContain('Hilfe');
   });
 
   it('should have correct case and path structure', () => {

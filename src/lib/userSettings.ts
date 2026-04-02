@@ -3,16 +3,22 @@ import { createClient } from '@/lib/supabase/client';
 /**
  * Speichert die Benutzereinstellungen (z.B. E-Mail) für eine bestimmte Organisation.
  */
-export async function saveUserSettings(userId: string, organizationId: string, email: string, otherSettings: Record<string, unknown> = {}) {
+export async function saveUserSettings(userId: string, organizationId: string | null | undefined, email: string, otherSettings: Record<string, unknown> = {}) {
   const supabase = createClient();
   
   // Hole existierende Einstellungen für diese spezielle Organisation
-  const { data: existing } = await supabase
+  let query = supabase
     .from('user_settings')
     .select('id, settings')
-    .eq('user_id', userId)
-    .eq('organization_id', organizationId)
-    .maybeSingle();
+    .eq('user_id', userId);
+
+  if (organizationId) {
+    query = query.eq('organization_id', organizationId);
+  } else {
+    query = query.is('organization_id', null);
+  }
+
+  const { data: existing } = await query.maybeSingle();
 
   const currentSettings = (existing?.settings as Record<string, unknown>) || {};
   const newSettings: Record<string, unknown> = { ...currentSettings, email, ...otherSettings };
@@ -28,7 +34,7 @@ export async function saveUserSettings(userId: string, organizationId: string, e
       .from('user_settings')
       .insert([{ 
         user_id: userId, 
-        organization_id: organizationId, 
+        organization_id: organizationId || null, 
         settings: newSettings 
       }]);
   }

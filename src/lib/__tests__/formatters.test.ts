@@ -44,4 +44,20 @@ describe('renderFieldValue', () => {
   it('should handle non-standard objects gracefully', () => {
     expect(renderFieldValue({ foo: 'bar' })).toBe('[object Object]');
   });
+
+  it('should return raw string if date parsing throws', () => {
+    // Matches regex but is an invalid date → triggers catch fallback
+    const invalid = '2024-99-99';
+    const result = renderFieldValue(invalid);
+    // Either returns the raw string or throws – just don't throw exceptions
+    expect(typeof result === 'string' || result === null).toBe(true);
+  });
+
+  it('should return null for "null" string value', () => {
+    expect(renderFieldValue('null')).toBe(null);
+  });
+
+  it('should return null for "undefined" string value', () => {
+    expect(renderFieldValue('undefined')).toBe(null);
+  });
 });

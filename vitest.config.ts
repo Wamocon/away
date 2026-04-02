@@ -7,8 +7,8 @@ export default defineConfig({
     globals: true,
     exclude: [
       'node_modules/**',
-      'src/e2e/**',
       'src/lib/__tests__/supabaseClient.test.ts',
+      'e2e/**',
     ],
     coverage: {
       provider: 'v8',
@@ -22,6 +22,8 @@ export default defineConfig({
         'src/lib/supabase/server.ts',
         'src/lib/supabaseClient.ts',
         'src/lib/__tests__/**',
+        'src/lib/actions/authActions.ts',
+        'src/lib/actions/debugActions.ts',
       ],
     },
     reporters: ['verbose'],

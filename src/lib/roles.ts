@@ -3,15 +3,16 @@ import { createClient } from '@/lib/supabase/client';
 export type UserRole = 'admin' | 'cio' | 'approver' | 'employee';
 
 export async function getUserRole(userId: string, orgId: string): Promise<UserRole> {
+  if (!userId || !orgId) return 'employee';
   const supabase = createClient();
   const { data, error } = await supabase
     .from('user_roles')
     .select('role')
     .eq('user_id', userId)
     .eq('organization_id', orgId)
-    .single();
+    .maybeSingle();            // returns null instead of error when row missing
   if (error) throw error;
-  return data.role as UserRole;
+  return (data?.role as UserRole) ?? 'employee';
 }
 
 export async function updateUserRole(userId: string, orgId: string, role: UserRole) {

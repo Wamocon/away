@@ -1,19 +1,51 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/**
+ * AWAY – Playwright GUI Test Configuration
+ * ─────────────────────────────────────────
+ * WICHTIG: Diese Tests sind NUR für die lokale Ausführung!
+ * Sie werden NICHT committed, gepusht oder in CI ausgeführt.
+ *
+ * Ausführung:  npx playwright test
+ * Report:      npx playwright show-report playwright-report
+ */
+
 export default defineConfig({
-  testDir: './src/e2e',
-  timeout: 60 * 1000,
-  expect: {
-    timeout: 5000,
-  },
+  testDir: './e2e',
+  testMatch: '**/*.spec.ts',
+
+  /* Reporter – JSON + HTML */
+  reporter: [
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['json', { outputFile: 'playwright-report/results.json' }],
+    ['list'],
+  ],
+
+  /* Fully parallel */
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'list',
+  retries: 1,
+  workers: 2,
+
+  /* Shared settings for every test */
   use: {
+    baseURL: 'http://localhost:3001',
     trace: 'on-first-retry',
-    baseURL: 'http://localhost:3000',
-    ...devices['Desktop Chrome'],
+    screenshot: 'only-on-failure',
+    video: 'off',
+  },
+
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+
+  /* Start dev server before running tests */
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:3001',
+    reuseExistingServer: true,
+    timeout: 60_000,
   },
 });

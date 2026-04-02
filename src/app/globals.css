@@ -111,25 +111,45 @@ html::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius
 
 /* ── Light Mode Overrides ─────────────────────────────────── */
 html:not(.dark) {
-  --bg-base:      #f4f6fb;
+  /* Backgrounds */
+  --bg-base:      #eef2f9;
   --bg-surface:   #ffffff;
-  --bg-elevated:  #f0f4ff;
-  --bg-input:     #f8fafc;
-  --bg-card:      rgba(255,255,255,0.95);
-  --text-base:    #0f172a;
-  --text-muted:   rgba(15,23,42,0.45);
-  --text-subtle:  rgba(15,23,42,0.20);
-  --border:       rgba(0,0,0,0.12);
-  --border-subtle: rgba(0,0,0,0.06);
-  --primary-light: rgba(99,102,241,0.08);
-  --primary-glow: rgba(99,102,241,0.15);
-  --glow-1:       rgba(99,102,241,0.05);
-  --glow-2:       rgba(16,185,129,0.03);
-  --dot-grid:     rgba(0,0,0,0.025);
-  --ring-focus:   rgba(99,102,241,0.25);
-  --glass:        rgba(255,255,255,0.85);
-  --glass-border: rgba(0,0,0,0.06);
-  --sidebar-bg:   rgba(250,251,255,0.98);
+  --bg-elevated:  #e8eef8;
+  --bg-input:     #f5f7fb;
+  --bg-card:      rgba(255,255,255,1);
+
+  /* Text — high contrast for readability */
+  --text-base:    #0d1424;
+  --text-muted:   rgba(13,20,36,0.60);
+  --text-subtle:  rgba(13,20,36,0.35);
+
+  /* Borders — clearly visible */
+  --border:       rgba(0,0,0,0.18);
+  --border-subtle: rgba(0,0,0,0.10);
+
+  /* Brand */
+  --primary-light: rgba(99,102,241,0.10);
+  --primary-glow:  rgba(99,102,241,0.20);
+
+  /* Status */
+  --success-light: rgba(16,185,129,0.15);
+  --warning-light: rgba(245,158,11,0.15);
+  --danger-light:  rgba(239,68,68,0.15);
+  --info-light:    rgba(139,92,246,0.15);
+
+  /* Effects */
+  --glow-1:       rgba(99,102,241,0.07);
+  --glow-2:       rgba(16,185,129,0.04);
+  --dot-grid:     rgba(0,0,0,0.045);
+  --ring-focus:   rgba(99,102,241,0.30);
+
+  /* Glass — visible card with shadow on light bg */
+  --glass:             rgba(255,255,255,0.95);
+  --glass-border:      rgba(0,0,0,0.12);
+  --glass-highlight:   rgba(255,255,255,0.8);
+
+  /* Sidebar */
+  --sidebar-bg:   rgba(246,248,255,0.99);
 }
 
 /* ── Base ─────────────────────────────────────────────────── */
@@ -208,8 +228,16 @@ input:focus, select:focus, textarea:focus {
   transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
 }
 .card:hover {
-  border-color: rgba(99,102,241,0.2);
-  box-shadow: 0 8px 32px rgba(99,102,241,0.08), 0 2px 8px rgba(0,0,0,0.05);
+  border-color: rgba(99,102,241,0.25);
+  box-shadow: 0 8px 32px rgba(99,102,241,0.10), 0 2px 8px rgba(0,0,0,0.07);
+}
+
+/* Light mode: cards need a drop shadow so they stand out from background */
+html:not(.dark) .card {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05);
+}
+html:not(.dark) .card:hover {
+  box-shadow: 0 6px 24px rgba(99,102,241,0.12), 0 1px 4px rgba(0,0,0,0.08);
 }
 
 .card-glass {
@@ -222,6 +250,11 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 
     inset 0 1px 1px var(--glass-highlight),
     0 10px 30px -10px rgba(0,0,0,0.3);
+}
+html:not(.dark) .card-glass {
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.10),
+    0 1px 3px rgba(0,0,0,0.06);
 }
 .card-glass:hover {
   border-color: rgba(99,102,241,0.3);
@@ -252,8 +285,14 @@ input:focus, select:focus, textarea:focus {
 }
 .kpi-card:hover::before { opacity: 1; }
 .kpi-card:hover {
-  border-color: rgba(99,102,241,0.2);
-  box-shadow: 0 4px 20px rgba(99,102,241,0.08);
+  border-color: rgba(99,102,241,0.25);
+  box-shadow: 0 4px 20px rgba(99,102,241,0.10);
+}
+html:not(.dark) .kpi-card {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+html:not(.dark) .kpi-card:hover {
+  box-shadow: 0 6px 24px rgba(99,102,241,0.12);
 }
 
 /* ── Buttons ─────────────────────────────────────────────── */
@@ -329,6 +368,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Role badges */
 .role-admin    { background: rgba(239,68,68,0.12);   color: #ef4444;  border: 1px solid rgba(239,68,68,0.2); }
+.role-cio      { background: rgba(168,85,247,0.12);  color: #a855f7;  border: 1px solid rgba(168,85,247,0.2); }
 .role-approver { background: rgba(245,158,11,0.12);  color: #f59e0b;  border: 1px solid rgba(245,158,11,0.2); }
 .role-employee { background: rgba(99,102,241,0.10);  color: #6366f1;  border: 1px solid rgba(99,102,241,0.2); }
 

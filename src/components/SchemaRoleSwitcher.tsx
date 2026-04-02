@@ -33,7 +33,11 @@ export default function SchemaRoleSwitcher() {
           .eq('user_id', user.id)
           .order('organization_id', { ascending: true });
         
-        setCurrentRole(orgs?.[0]?.role || 'employee');
+        if (!orgs || orgs.length === 0) {
+          setCurrentRole(''); // No role means no organization
+        } else {
+          setCurrentRole(orgs[0].role);
+        }
       } catch (err) {
         console.error('Debug Role Check failed:', err);
       }
@@ -96,7 +100,21 @@ export default function SchemaRoleSwitcher() {
           <div className="text-[7px] font-mono text-blue-500/30 uppercase opacity-50">{currentSchema}</div>
         </div>
         
-        <div className="grid grid-cols-2 gap-1">
+        {currentRole === '' && (
+          <div className="mt-2 text-center">
+            <p className="text-[9px] text-amber-500 font-bold mb-1 italic">Keine Org verknüpft!</p>
+            <button 
+              onClick={() => handleToggle('admin')}
+              disabled={!!switching}
+              className="w-full py-1 rounded bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1 shadow-sm border-none cursor-pointer"
+            >
+              {switching ? <Loader2 size={10} className="animate-spin" /> : null}
+              In 1. Org einsteigen
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-1 mt-1">
           {roles.map((r) => (
             <button
               key={r.id}

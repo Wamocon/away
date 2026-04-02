@@ -6,6 +6,8 @@ import { saveUserSettings, getUserSettings } from '@/lib/userSettings';
 import { getOAuthSettings, saveOAuthSettings } from '@/lib/calendarSync';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
+import { useLanguage } from '@/components/ui/LanguageProvider';
+import { Locale } from '@/lib/i18n';
 
 interface UserSettingsData {
   email?: string;
@@ -15,20 +17,23 @@ interface UserSettingsData {
   language?: string;
   dateFormat?: string;
   workDays?: number[];
+  state?: string;
 }
 
 export default function SettingsPage() {
   const { viewMode, setViewMode } = useViewMode();
+  const { locale, setLocale, t } = useLanguage();
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [emailInput, setEmailInput] = useState('');
   // New settings states
-  const [language, setLanguage] = useState('de');
+  const [language, setLanguage] = useState<Locale>(locale);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [dateFormat, setDateFormat] = useState('DD.MM.YYYY');
   const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5]); // 1=Mo, 5=Fr
+  const [state, setState] = useState('ALL');
   
   // OAuth states
   const [outlookEmail, setOutlookEmail] = useState('');
@@ -57,9 +62,10 @@ export default function SettingsPage() {
         if (settings.firstName) setFirstName(settings.firstName);
         if (settings.lastName) setLastName(settings.lastName);
         if (settings.employeeId) setEmployeeId(settings.employeeId);
-        if (settings.language) setLanguage(settings.language);
+        if (settings.language) setLanguage(settings.language as Locale);
         if (settings.dateFormat) setDateFormat(settings.dateFormat);
         if (settings.workDays) setWorkDays(settings.workDays);
+        if (settings.state) setState(settings.state);
 
         // OAuth settings
         const outlook = await getOAuthSettings(userId, currentOrgId, 'outlook');
@@ -112,8 +118,12 @@ export default function SettingsPage() {
         employeeId,
         language,
         dateFormat,
-        workDays
+        workDays,
+        state
       });
+
+      // Apply language change immediately
+      setLocale(language as Locale);
       
       // Save OAuth credentials if entered
       if (outlookEmail || outlookToken) {
@@ -125,13 +135,16 @@ export default function SettingsPage() {
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      console.error('Save failed:', err);
+      alert('Fehler beim Speichern: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="p-6 md:p-8 w-full max-w-4xl mx-auto animate-fade-in space-y-6 text-[var(--text-base)]">
+    <div className="p-6 md:p-8 w-full animate-fade-in space-y-6 text-[var(--text-base)]">
       <div className="mb-8">
         <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
           <User size={22} className="text-[var(--primary)]" /> Profil-Einstellungen
@@ -248,7 +261,7 @@ export default function SettingsPage() {
                 <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Bevorzugte Sprache</label>
                 <select 
                   value={language}
-                  onChange={e => setLanguage(e.target.value)}
+                  onChange={e => setLanguage(e.target.value as Locale)}
                   className="w-full rounded-xl border px-4 py-3 text-sm bg-[var(--bg-surface)] border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
                 >
                   <option value="de">Deutsch (Standard)</option>
@@ -265,6 +278,32 @@ export default function SettingsPage() {
                   <option value="DD.MM.YYYY">DD.MM.YYYY (Vorschau: 28.03.2026)</option>
                   <option value="YYYY-MM-DD">YYYY-MM-DD (Vorschau: 2026-03-28)</option>
                   <option value="MM/DD/YYYY">MM/DD/YYYY (Vorschau: 03/28/2026)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Bundesland (für Feiertage)</label>
+                <select 
+                  value={state}
+                  onChange={e => setState(e.target.value)}
+                  className="w-full rounded-xl border px-4 py-3 text-sm bg-[var(--bg-surface)] border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
+                >
+                  <option value="ALL">Alle / Gesamtdeutschland</option>
+                  <option value="BW">Baden-Württemberg</option>
+                  <option value="BY">Bayern</option>
+                  <option value="BE">Berlin</option>
+                  <option value="BB">Brandenburg</option>
+                  <option value="HB">Bremen</option>
+                  <option value="HH">Hamburg</option>
+                  <option value="HE">Hessen</option>
+                  <option value="MV">Mecklenburg-Vorpommern</option>
+                  <option value="NI">Niedersachsen</option>
+                  <option value="NW">Nordrhein-Westfalen</option>
+                  <option value="RP">Rheinland-Pfalz</option>
+                  <option value="SL">Saarland</option>
+                  <option value="SN">Sachsen</option>
+                  <option value="ST">Sachsen-Anhalt</option>
+                  <option value="SH">Schleswig-Holstein</option>
+                  <option value="TH">Thüringen</option>
                 </select>
               </div>
             </div>

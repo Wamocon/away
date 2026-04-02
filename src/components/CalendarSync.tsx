@@ -226,19 +226,31 @@ export default function CalendarSync({ orgId, userId, onClose, onSynced }: Calen
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Sicherer Schlüssel (App-Passwort)</label>
+                <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">OAuth Access Token</label>
                 <input
                   type="password"
                   value={token}
                   onChange={e => setToken(e.target.value)}
-                  placeholder="••••••••••••••••"
+                  placeholder="Paste access token..."
                   className="form-input-lux"
                 />
-                <div className="flex items-center gap-1.5 mt-2 ml-1">
-                  <AlertCircle size={10} className="text-[var(--text-subtle)]" />
-                  <p className="text-[9px] font-medium" style={{ color: 'var(--text-subtle)' }}>
-                    Verwenden Sie kein normales Kontopasswort.
+                <div className="mt-2 p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                  <p className="text-[9px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>
+                    Wie bekommst du deinen Access Token?
                   </p>
+                  {provider === 'outlook' ? (
+                    <p className="text-[9px] leading-relaxed" style={{ color: 'var(--text-subtle)' }}>
+                      Öffne{' '}
+                      <a href="https://developer.microsoft.com/en-us/graph/graph-explorer" target="_blank" rel="noopener noreferrer" className="underline text-[var(--primary)]">Graph Explorer</a>
+                      {' '}→ Anmelden → „Access Token" kopieren. Token ist 60 Min. gültig.
+                    </p>
+                  ) : (
+                    <p className="text-[9px] leading-relaxed" style={{ color: 'var(--text-subtle)' }}>
+                      Öffne{' '}
+                      <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noopener noreferrer" className="underline text-[var(--primary)]">Google OAuth Playground</a>
+                      {' '}→ calendar.readonly wählen → Token generieren und kopieren.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

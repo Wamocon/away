@@ -86,5 +86,17 @@ describe('admin lib - organization settings', () => {
       await expect(getOrganizationSettings('org-123'))
         .rejects.toThrow('Fetch failed');
     });
+
+    it('should warn but continue if initial settings fetch fails in updateOrganizationSettings', async () => {
+      // Simulate fetchError branch: single().error is set (logs warning, then continues with empty settings)
+      mockSupabase.single.mockResolvedValueOnce({ data: null, error: new Error('settings column missing') });
+      // Update succeeds
+      mockResult.error = null;
+
+      const result = await updateOrganizationSettings('org-123', { key: 'val' });
+      expect(result.success).toBe(true);
+      // update called with only new settings (current was {})
+      expect(mockSupabase.update).toHaveBeenCalledWith({ settings: { key: 'val' } });
+    });
   });
 });

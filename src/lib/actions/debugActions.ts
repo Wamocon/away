@@ -48,16 +48,20 @@ export async function toggleUserRoleAction(newRole: string) {
       throw new Error(`Konnte Organisationen des Nutzers nicht laden: ${orgError.message}`);
     }
 
-    const orgIds = userOrgs?.map(o => o.organization_id) || [];
-
+    let orgIds = userOrgs?.map(o => o.organization_id) || [];
+    
+    // Fallback: Falls der User in keiner Org ist, nehmen wir die allererste verfügbare Org im System
     if (orgIds.length === 0) {
-      // Fallback: Erste verfügbare Org im System suchen (für neue Setups)
-      const { data: allOrgs } = await admin.from('organizations').select('id').limit(1);
-      if (allOrgs && allOrgs.length > 0) orgIds.push(allOrgs[0].id);
+      console.log(`[DEBUG] Nutzer ${userId} hat keine Org-Verknüpfung. Suche System-Standard...`);
+      const { data: allOrgs } = await admin.from('organizations').select('id').order('created_at', { ascending: true }).limit(1);
+      if (allOrgs && allOrgs.length > 0) {
+        orgIds = [allOrgs[0].id];
+        console.log(`[DEBUG] Fallback-Org gefunden: ${orgIds[0]}`);
+      }
     }
 
     if (orgIds.length === 0) {
-      throw new Error('Keine Organisation gefunden. Bitte erst eine Organisation anlegen.');
+      throw new Error('Keine Organisation im System gefunden. Bitte erstelle erst eine Organisation im Admin-Bereich (als Admin).');
     }
 
     console.log(`[DEBUG] Nutzer ${userId} wechselt zu Rolle "${newRole}" in ${orgIds.length} Orgs`);

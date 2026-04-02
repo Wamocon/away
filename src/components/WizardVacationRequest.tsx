@@ -12,8 +12,11 @@ import { differenceInBusinessDays, parseISO } from 'date-fns';
 import { createVacationRequest } from '@/lib/vacation';
 import { getUserSettings } from '@/lib/userSettings';
 import { isDocumentIdUsed, registerDocumentId, getNextDocumentCounter } from '@/lib/documentNumbers';
+import { calculateVacationDays, GermanState, GERMAN_STATES } from '@/lib/holidays';
 import Modal from './ui/Modal';
 import AlertModal from './ui/AlertModal';
+import { notifyApproversOfSubmission } from '@/lib/notifications';
+import { VacationRequest } from '@/lib/vacation';
 
 interface WizardProps {
   userId: string;
@@ -65,6 +68,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   const [signedAt, setSignedAt] = useState(new Date().toISOString().split('T')[0]);
   const [employeeSignature, setEmployeeSignature] = useState<string | null>(null);
   const [approverSignature, setApproverSignature] = useState<string | null>(null);
+  const [selectedState, setSelectedState] = useState<GermanState>('ALL');
 
   // Hilfsfelder
   const deputy = '';
@@ -88,6 +92,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
           if (s.firstName) setFirstName(s.firstName);
           if (s.lastName) setLastName(s.lastName);
           if (s.employeeId) setEmployeeId(s.employeeId);
+          if (s.state) setSelectedState(s.state as GermanState);
         }
       });
     }
@@ -96,11 +101,11 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   useEffect(() => {
     if (from && to) {
       try {
-        const days = differenceInBusinessDays(parseISO(to), parseISO(from)) + 1;
-        setVacationDays(days > 0 ? days : 0);
+        const days = calculateVacationDays(parseISO(from), parseISO(to), selectedState);
+        setVacationDays(days >= 0 ? days : 0);
       } catch { setVacationDays(0); }
     }
-  }, [from, to, setVacationDays]);
+  }, [from, to, selectedState, setVacationDays]);
 
   const generateBelegnummer = async () => {
     if (!firstName || !lastName || !orgId) return;
@@ -203,15 +208,33 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
         },
       });
 
-      // Signatur-Upload
-      if (employeeSignature || approverSignature) {
-        const uploadSig = async (sig: string, t: string) => {
-          const res = await fetch(sig);
+      // Try sending notification (Async/Non-blocking)
+      const applicantName = `${firstName} ${lastName}`;
+      notifyApproversOfSubmission(data as unknown as VacationRequest, applicantName).catch(err => {
+          console.warn('[Notifications] E-Mail-Dienst (Submission) fehlgeschlagen:', err);
+      });
+
+      // Signatur-Upload (Nur Mitarbeiter-Unterschrift beim Erstellen)
+      if (employeeSignature) {
+        try {
+          const res = await fetch(employeeSignature);
           const blob = await res.blob();
-          await supabase.storage.from('signatures').upload(`${data.id}/${t}.png`, blob, { upsert: true });
-        };
-        if (employeeSignature) await uploadSig(employeeSignature, 'employee');
-        if (approverSignature) await uploadSig(approverSignature, 'approver');
+          const { error: sigError } = await supabase.storage
+            .from('signatures')
+            .upload(`${data.id}/employee.png`, blob, { 
+              upsert: true,
+              cacheControl: '3600',
+              contentType: 'image/png' 
+            });
+          
+          if (sigError) {
+            console.error('Signature upload error:', sigError);
+            // Wir werfen hier keinen Fehler, damit der Antrag trotzdem erstellt wird, 
+            // zeigen aber eine Warnung oder loggen es.
+          }
+        } catch (sigErr) {
+          console.error('Fetch signature error:', sigErr);
+        }
       }
 
       // Dokumenten-Upload
@@ -226,16 +249,20 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
       }
 
       setStep(4);
-    } catch (err: unknown) { 
+    } catch (err: any) { 
       console.error('Submission error:', err);
       let msg = 'Ein unbekannter Fehler ist aufgetreten.';
-      if (err instanceof Error) {
+      
+      if (err.message && typeof err.message === 'string') {
         msg = err.message;
+      } else if (err.code === 'PGRST') {
+        msg = 'Datenbank-Fehler: Die Tabelle "document_numbers" konnte nicht gefunden werden. Bitte führen Sie die SQL-Migration aus.';
       } else if (typeof err === 'object' && err !== null) {
-        msg = JSON.stringify(err);
+        msg = err.message || JSON.stringify(err);
       } else {
         msg = String(err);
       }
+      
       setError(msg); 
     } finally { setSubmitting(false); }
   };
@@ -460,6 +487,27 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black mb-1.5 text-white/50 uppercase tracking-widest">Bundesland (Feiertage)</label>
+                    <select
+                      value={selectedState}
+                      onChange={(e) => setSelectedState(e.target.value as GermanState)}
+                      className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl px-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all appearance-none"
+                    >
+                      {GERMAN_STATES.map(s => (
+                        <option key={s.code} value={s.code} className="bg-slate-900">{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col justify-end">
+                    <div className="h-12 flex items-center px-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
+                       <CalendarDays size={14} className="text-indigo-400 mr-2" />
+                       <span className="text-xs font-bold text-indigo-100">{vacationDays} Netto-Urlaubstage</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5 border-t border-[var(--border-subtle)] pt-4">
                   <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">Grund (optional)</label>
                   <textarea 
@@ -490,7 +538,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6 pt-2">
+                <div className="grid grid-cols-1 gap-6 pt-2">
                   <div className="space-y-3">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-60 text-center block">Unterschrift (Mitarbeiter)</label>
                     <div className="aspect-[3/2] rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center bg-[var(--bg-elevated)] relative overflow-hidden transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] group">
@@ -522,37 +570,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
                       )}
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[9px] font-black uppercase tracking-widest opacity-60 text-center block">Unterschrift (Genehmiger)</label>
-                    <div className="aspect-[3/2] rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center bg-[var(--bg-elevated)] relative overflow-hidden transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] group">
-                      {approverSignature ? (
-                        <Image src={approverSignature} className="h-full w-full object-contain p-4" alt="Signature Gen" width={300} height={200} unoptimized />
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-70 group-hover:scale-110 transition-all">
-                          <Upload size={24} />
-                          <span className="text-[8px] font-black uppercase tracking-widest">PNG Hochladen</span>
-                        </div>
-                      )}
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="absolute inset-0 opacity-0 cursor-pointer" 
-                        onChange={e => { 
-                          const f = e.target.files?.[0]; 
-                          if (f) { 
-                            const r = new FileReader(); 
-                            r.onload = () => setApproverSignature(r.result as string); 
-                            r.readAsDataURL(f); 
-                          } 
-                        }} 
-                      />
-                      {approverSignature && (
-                        <button onClick={() => setApproverSignature(null)} className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg shadow-lg hover:shadow-rose-500/40 transition-all">
-                          <X size={10} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  {/* Genehmiger signature removed for applicant view */}
                 </div>
               </div>
             </div>

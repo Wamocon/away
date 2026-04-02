@@ -1,0 +1,46 @@
+# =============================================================================
+# PR Pipeline – Caller Workflow
+# =============================================================================
+# Calls the shared workflows from the central github_workflow repository.
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  To update to a new version of the shared workflows, change the `@ref` │
+# │  value below (e.g. @main, @v1.2.0, @feat/new-lint).                    │
+# │  Variable: SHARED_WORKFLOWS_REF (set once, applied to all uses: lines) │
+# └─────────────────────────────────────────────────────────────────────────┘
+#
+# Shared repo: wamocon/github_workflow
+# =============================================================================
+
+name: PR Pipeline
+
+on:
+  pull_request:
+    branches: [main, master]
+    types: [opened, synchronize, reopened]
+
+# Cancel redundant runs on the same PR
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # ────────────────────────────────────────────────────────────────────────
+  # Change this single value to switch to a different tag, branch, or SHA
+  # of the shared workflow repository.
+  # ────────────────────────────────────────────────────────────────────────
+  SHARED_WORKFLOWS_REF: "main"
+
+jobs:
+  # ─── Step 1: Auto-fix lint & format errors ───────────────────────────
+  autofix:
+    name: Auto-Fix
+    uses: wamocon/github_workflow/.github/workflows/pr-autofix.yml@main
+    permissions:
+      contents: write
+
+  # ─── Step 2: Validate code (typecheck + lint) ─────────────────────
+  validate:
+    name: PR Checks
+    needs: autofix
+    uses: wamocon/github_workflow/.github/workflows/pr-checks.yml@main

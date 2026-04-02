@@ -32,8 +32,6 @@
   ],
   "exclude": [
     "node_modules",
-    "src/e2e/**",
-    "playwright.config.ts",
     "supabase/**"
   ]
 }

@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Footer } from './Footer';
+import { Breadcrumbs } from './Breadcrumbs';
+import { NotificationCenter } from './NotificationCenter';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -41,7 +43,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onMobileToggle={() => setMobileMenuOpen(o => !o)}
         />
 
-        <div className="main-with-sidebar flex-1 flex flex-col">
+        <div className="main-with-sidebar flex-1 flex flex-col min-w-0">
+          {/* Top bar: Breadcrumbs left, NotificationCenter right */}
+          <div
+            className="shrink-0 flex items-center justify-between border-b px-4"
+            style={{ borderColor: 'var(--border)', minHeight: '40px' }}
+          >
+            <Breadcrumbs />
+            <div className="shrink-0 pl-2">
+              <NotificationCenter />
+            </div>
+          </div>
           <main className="main-content flex-1">
             {children}
           </main>

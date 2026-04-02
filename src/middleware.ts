@@ -67,17 +67,14 @@ export async function middleware(request: NextRequest) {
   // Admin-Check für /admin/ oder /dashboard/admin/
   if (pathname.startsWith('/admin/') || pathname.startsWith('/dashboard/admin/')) {
     try {
-      // Wir prüfen, ob der User in IRGENDEINER Organisation Admin ist.
-      // Hinweis: Für eine feingranulare Prüfung müsste die orgId aus dem Pfad/Cookie bekannt sein.
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .eq('role', 'admin');
+        .in('role', ['admin', 'cio']); // CIO hat ebenfalls Zugriff
 
       if (rolesError) {
         console.error('Middleware: DB Fehler beim Rollen-Check:', rolesError);
-        // Bei einem DB-Fehler lassen wir den Request durch (Fallback)
         return supabaseResponse;
       }
 

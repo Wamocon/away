@@ -110,15 +110,19 @@ function SidebarContent({
 
   const mitarbeiterItems: NavItem[] = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-    { href: '/dashboard/requests?open=wizard', icon: PlusCircle, label: 'Antragstellung', exact: false },
+    { href: '/dashboard/requests', icon: ClipboardList, label: 'Antrag', exact: true },
     { href: '/dashboard/calendar', icon: CalendarDays, label: 'Kalender', exact: true },
   ];
 
   const genehmigerItems: NavItem[] = [
-    { href: '/dashboard/reports', icon: FileBarChart, label: 'Berichte', exact: true },
-    { href: '/dashboard/requests', icon: ClipboardList, label: 'Anträge', exact: true,
+    {
+      href: '/dashboard/requests',
+      icon: ClipboardList,
+      label: 'Antragsübersicht',
+      exact: true,
       badge: mounted && pendingCount > 0 ? pendingCount : undefined,
     },
+    { href: '/dashboard/reports', icon: FileBarChart, label: 'Berichte', exact: true },
   ];
 
   const adminItems: NavItem[] = [
@@ -260,7 +264,7 @@ function SidebarContent({
         )}
 
         {/* Administration Sektion */}
-        {role === 'admin' && isElevatedMode && (
+        {(role === 'admin') && isElevatedMode && (
           <div className="px-3 mt-6">
             <p className="section-label px-2 mb-2">Administration</p>
             <nav className="flex flex-col gap-0.5">

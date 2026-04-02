@@ -1,0 +1,67 @@
+# =============================================================================
+# Deploy – Caller Workflow (Preview + Production)
+# =============================================================================
+# Calls the shared deploy workflow from the central github_workflow repository.
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  To update to a new version of the shared workflows, change the @ref   │
+# │  in the `uses:` lines below (e.g. @main, @v1.2.0, @feat/new-deploy).  │
+# └─────────────────────────────────────────────────────────────────────────┘
+#
+# Trigger:
+#   pull_request → main/master  →  Vercel *preview* deployment
+#   push         → main/master  →  Vercel *production* deployment
+#
+# Required Secrets (repo-level):
+#   VERCEL_TOKEN       – Vercel personal access token
+#   VERCEL_PROJECT_ID  – Project ID from `.vercel/project.json`
+# Required at organisation level (org secret or variable):
+#   VERCEL_ORG_ID      – Organisation ID from `.vercel/project.json`
+#
+# Shared repo: wamocon/github_workflow
+# =============================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# Cancel in-progress preview deploys on new commits; never cancel production
+concurrency:
+  group: deploy-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ─── Resolve deployment parameters ────────────────────────────────────
+  set-vars:
+    name: Resolve deployment variables
+    runs-on: ubuntu-latest
+    outputs:
+      vercel_env: ${{ steps.resolve.outputs.vercel_env }}
+      vercel_args: ${{ steps.resolve.outputs.vercel_args }}
+    steps:
+      - name: Resolve vercel_env and vercel_args
+        id: resolve
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "vercel_env=production" >> $GITHUB_OUTPUT
+            echo "vercel_args=--prod" >> $GITHUB_OUTPUT
+          else
+            echo "vercel_env=preview" >> $GITHUB_OUTPUT
+            echo "vercel_args=" >> $GITHUB_OUTPUT
+          fi
+
+  # ─── Deploy via shared reusable workflow ──────────────────────────────
+  # To use a different version: change @main to @v1.2.0 or @your-branch
+  deploy:
+    name: Deploy to Vercel
+    needs: set-vars
+    uses: wamocon/github_workflow/.github/workflows/deploy-preview.yml@main
+    with:
+      vercel_env: ${{ needs.set-vars.outputs.vercel_env }}
+      vercel_args: ${{ needs.set-vars.outputs.vercel_args }}
+      # db_schema: ""   # leave empty to use the value from Vercel env vars
+    secrets: inherit

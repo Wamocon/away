@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { AppShell } from '@/components/layout/AppShell';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import { ViewModeProvider } from '@/components/ui/ViewModeProvider';
+import { LanguageProvider } from '@/components/ui/LanguageProvider';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
@@ -30,11 +31,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head />
       <body className="min-h-screen" style={{ background: 'var(--bg-base)', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif' }}>
         <ThemeProvider>
-          <ViewModeProvider>
-            <AppShell>
-              {children}
-            </AppShell>
-          </ViewModeProvider>
+          <LanguageProvider>
+            <ViewModeProvider>
+              <AppShell>
+                {children}
+              </AppShell>
+            </ViewModeProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

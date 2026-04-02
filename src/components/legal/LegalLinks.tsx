@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, ReceiptText, Shield } from "lucide-react";
+import { FileText, ReceiptText, Shield, HelpCircle, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LegalLinksProps {
@@ -13,6 +13,8 @@ export const LEGAL_LINK_ITEMS = [
   { href: "/legal/impressum", label: "Impressum", icon: FileText },
   { href: "/legal/datenschutz", label: "Datenschutz", icon: Shield },
   { href: "/legal/agb", label: "AGB", icon: ReceiptText },
+  { href: "/legal/faq", label: "FAQ", icon: HelpCircle },
+  { href: "/legal/help", label: "Hilfe", icon: BookOpen },
 ] as const;
 
 export function LegalLinks({ className, variant = "inline" }: LegalLinksProps) {

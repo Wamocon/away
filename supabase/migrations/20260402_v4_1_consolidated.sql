@@ -9,9 +9,12 @@
 -- sofern sie in der Datenbank vorhanden sind.
 -- ============================================================
 
--- ── 1. Public-Hilfsfunktionen (idempotent via CREATE OR REPLACE) ──
+-- ── 1. Public-Hilfsfunktionen (idempotent) ──────────────────────
+-- DROP vor CREATE nötig, da PostgreSQL bei CREATE OR REPLACE keine
+-- Umbenennung von Parametern erlaubt (ERROR 42P13).
 
-CREATE OR REPLACE FUNCTION public.is_admin_in_org(schema_name text, org_id uuid)
+DROP FUNCTION IF EXISTS public.is_admin_in_org(text, uuid);
+CREATE FUNCTION public.is_admin_in_org(schema_name text, org_id uuid)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE result boolean;
 BEGIN
@@ -23,7 +26,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.is_approver_in_org(schema_name text, org_id uuid)
+DROP FUNCTION IF EXISTS public.is_approver_in_org(text, uuid);
+CREATE FUNCTION public.is_approver_in_org(schema_name text, org_id uuid)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE result boolean;
 BEGIN
@@ -36,7 +40,8 @@ END;
 $$;
 
 -- Trigger-Funktion für Standardwerte in user_settings (einmalig in public)
-CREATE OR REPLACE FUNCTION public.set_default_user_settings()
+DROP FUNCTION IF EXISTS public.set_default_user_settings() CASCADE;
+CREATE FUNCTION public.set_default_user_settings()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
   -- Standardwerte werden nur gesetzt, wenn der Key noch nicht im JSONB vorhanden ist.

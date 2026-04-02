@@ -86,9 +86,9 @@ export async function getNextDocumentCounter(organizationId: string, prefix: str
   }
 
   const latestId = data[0].document_id;
-  const match = latestId.match(/(\d+)$/);
-  if (match) {
-    const lastNum = parseInt(match[1], 10);
+  const suffix = latestId.slice(prefix.length);
+  const lastNum = parseInt(suffix, 10);
+  if (!isNaN(lastNum)) {
     return lastNum + 1;
   }
 

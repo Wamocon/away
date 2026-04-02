@@ -77,4 +77,47 @@ describe('i18n – getTranslations', () => {
     expect(de.settings.languageOptions.de).toBe('Deutsch');
     expect(en.settings.languageOptions.de).toBe('German');
   });
+
+  // v4.1 – nav keys used in Sidebar
+  it('nav keys used in Sidebar are present in both languages', () => {
+    const de = getTranslations('de');
+    const en = getTranslations('en');
+    const sidebarKeys: Array<keyof typeof de.nav> = ['dashboard', 'calendar', 'approvals', 'reports', 'admin', 'settings'];
+    for (const key of sidebarKeys) {
+      expect(de.nav[key]).toBeTruthy();
+      expect(en.nav[key]).toBeTruthy();
+    }
+  });
+
+  it('dashboard.myRequests is translated in both languages', () => {
+    const de = getTranslations('de');
+    const en = getTranslations('en');
+    expect(de.dashboard.myRequests).toBe('Meine Anträge');
+    expect(en.dashboard.myRequests).toBe('My Requests');
+  });
+
+  it('dashboard.welcome is translated in both languages', () => {
+    const de = getTranslations('de');
+    const en = getTranslations('en');
+    expect(de.dashboard.welcome).toBe('Willkommen zurück');
+    expect(en.dashboard.welcome).toBe('Welcome back');
+  });
+
+  it('notifications keys used in NotificationCenter are present', () => {
+    const de = getTranslations('de');
+    const en = getTranslations('en');
+    expect(de.notifications.title).toBe('Benachrichtigungen');
+    expect(en.notifications.title).toBe('Notifications');
+    expect(de.notifications.noNotifications).toBeTruthy();
+    expect(en.notifications.noNotifications).toBeTruthy();
+  });
+
+  it('settings.themeOptions are present in both languages', () => {
+    const de = getTranslations('de');
+    const en = getTranslations('en');
+    expect(de.settings.themeOptions.dark).toBe('Dunkel');
+    expect(de.settings.themeOptions.light).toBe('Hell');
+    expect(en.settings.themeOptions.dark).toBe('Dark');
+    expect(en.settings.themeOptions.light).toBe('Light');
+  });
 });

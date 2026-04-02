@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from '@/components/ui/ThemeProvider';
+import { useLanguage } from '@/components/ui/LanguageProvider';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState, useCallback } from 'react';
 import { getOrganizationsForUser } from '@/lib/organization';
@@ -50,6 +51,7 @@ function SidebarContent({
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const { t } = useLanguage();
   const [userEmail, setUserEmail] = useState('');
   const [userInitial, setUserInitial] = useState('?');
   const [role, setRole] = useState<UserRole | null>(null);
@@ -112,24 +114,24 @@ function SidebarContent({
   };
 
   const mitarbeiterItems: NavItem[] = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-    { href: '/dashboard/requests', icon: ClipboardList, label: 'Meine Anträge', exact: true },
-    { href: '/dashboard/calendar', icon: CalendarDays, label: 'Kalender', exact: true },
+    { href: '/dashboard', icon: LayoutDashboard, label: t.nav.dashboard, exact: true },
+    { href: '/dashboard/requests', icon: ClipboardList, label: t.dashboard.myRequests, exact: true },
+    { href: '/dashboard/calendar', icon: CalendarDays, label: t.nav.calendar, exact: true },
   ];
 
   const genehmigerItems: NavItem[] = [
     {
       href: '/dashboard/admin-requests',
       icon: ClipboardList,
-      label: 'Anträge',
+      label: t.nav.approvals,
       exact: true,
       badge: mounted && pendingCount > 0 ? pendingCount : undefined,
     },
-    { href: '/dashboard/reports', icon: FileBarChart, label: 'Berichte', exact: true },
+    { href: '/dashboard/reports', icon: FileBarChart, label: t.nav.reports, exact: true },
   ];
 
   const adminItems: NavItem[] = [
-    { href: '/admin/settings', icon: ShieldCheck, label: 'Administration', exact: true },
+    { href: '/admin/settings', icon: ShieldCheck, label: t.nav.admin, exact: true },
   ];
 
   const isActive = (href: string, exact?: boolean) =>
@@ -297,7 +299,7 @@ function SidebarContent({
               }`}
             >
               <Sun size={11} />
-              <span>Hell</span>
+              <span>{t.settings.themeOptions.light}</span>
             </button>
             <button
               onClick={() => setTheme('dark')}
@@ -308,7 +310,7 @@ function SidebarContent({
               }`}
             >
               <Moon size={11} />
-              <span>Dunkel</span>
+              <span>{t.settings.themeOptions.dark}</span>
             </button>
           </div>
         </div>

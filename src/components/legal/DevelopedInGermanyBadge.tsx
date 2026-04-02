@@ -10,7 +10,7 @@ export function DevelopedInGermanyBadge() {
   if (pathname?.startsWith('/api')) return null;
 
   return (
-    <div className="flex flex-col items-center gap-3 py-6 opacity-20 dark:opacity-50 hover:opacity-100 transition-opacity">
+    <div className="flex flex-col items-center gap-3 py-6 opacity-30 dark:opacity-55 hover:opacity-90 transition-opacity duration-300 group">
       <div className="relative group">
         <svg
           width="42"
@@ -66,7 +66,7 @@ export function DevelopedInGermanyBadge() {
         </svg>
       </div>
       
-      <span className="text-[14px] font-medium tracking-wide text-[var(--text-muted)]">
+      <span className="text-[13px] font-bold tracking-wide" style={{ color: 'var(--text-base)', opacity: 0.7 }}>
         Entwickelt in Deutschland
       </span>
     </div>

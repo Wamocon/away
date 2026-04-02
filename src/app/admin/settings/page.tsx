@@ -7,10 +7,12 @@ import { updateUserRole, UserRole, ROLE_LABELS, ROLE_COLORS } from '@/lib/roles'
 import { getOrgMembersWithEmails, inviteUserToOrg } from '@/lib/actions/adminActions';
 import { getOrganizationSettings, updateOrganizationSettings } from '@/lib/admin';
 import OrganizationSwitcher from '@/components/OrganizationSwitcher';
+import { SystemTab } from '@/components/admin/SystemTab';
 import {
   Users, ShieldCheck, UserPlus, Loader, CheckCircle,
   Trash2, Send, Building2, AlertCircle, RefreshCw, LayoutGrid, List,
-  FileText, Upload, Files, Settings, Info, Briefcase, Zap, Palette, MapPin, Plus
+  FileText, Upload, Files, Settings, Info, Briefcase, Zap, Palette, MapPin, Plus,
+  Monitor, Activity, Database, Server, Clock, Globe
 } from 'lucide-react';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
 import AlertModal, { AlertType } from '@/components/ui/AlertModal';
@@ -40,7 +42,7 @@ export default function AdminSettingsPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // Tabs
-  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'policies' | 'users' | 'templates' | 'organizations' | 'integrations'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'policies' | 'users' | 'templates' | 'organizations' | 'integrations' | 'system'>('general');
 
   // New Organization Settings States
   const [logoUrl, setLogoUrl] = useState('');
@@ -338,6 +340,7 @@ export default function AdminSettingsPage() {
           { id: 'templates', label: 'Vorlagen', icon: Files },
           { id: 'organizations', label: 'Organisationen', icon: Building2 },
           { id: 'integrations', label: 'Integrationen', icon: Plus },
+          { id: 'system', label: 'System', icon: Monitor },
         ] as const).map(tab => {
           const isDisabled = tab.id !== 'organizations' && !orgId;
           return (
@@ -775,6 +778,10 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'system' && (
+            <SystemTab orgId={orgId} />
           )}
 
         </div>

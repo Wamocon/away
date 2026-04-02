@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { User, Loader, CheckCircle, Calendar, Info, LayoutGrid, List } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { User, Loader, CheckCircle, Calendar, Info, LayoutGrid, List, Bell, Shield, UserCheck, Upload, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { saveUserSettings, getUserSettings } from '@/lib/userSettings';
 import { getOAuthSettings, saveOAuthSettings } from '@/lib/calendarSync';
@@ -18,6 +18,13 @@ interface UserSettingsData {
   dateFormat?: string;
   workDays?: number[];
   state?: string;
+  vacationQuota?: number;
+  carryOver?: number;
+  deputyName?: string;
+  deputyEmail?: string;
+  notifyOnApproval?: boolean;
+  notifyOnRejection?: boolean;
+  notifyOnReminder?: boolean;
 }
 
 export default function SettingsPage() {
@@ -44,6 +51,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [orgId, setOrgId] = useState<string>('');
+  // Extended settings
+  const [vacationQuota, setVacationQuota] = useState(30);
+  const [carryOver, setCarryOver] = useState(0);
+  const [deputyName, setDeputyName] = useState('');
+  const [deputyEmail, setDeputyEmail] = useState('');
+  const [notifyOnApproval, setNotifyOnApproval] = useState(true);
+  const [notifyOnRejection, setNotifyOnRejection] = useState(true);
+  const [notifyOnReminder, setNotifyOnReminder] = useState(false);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+  const [signatureUploading, setSignatureUploading] = useState(false);
+  const sigInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     if (!userId) return;
@@ -66,6 +84,13 @@ export default function SettingsPage() {
         if (settings.dateFormat) setDateFormat(settings.dateFormat);
         if (settings.workDays) setWorkDays(settings.workDays);
         if (settings.state) setState(settings.state);
+        if (settings.vacationQuota !== undefined) setVacationQuota(settings.vacationQuota);
+        if (settings.carryOver !== undefined) setCarryOver(settings.carryOver);
+        if (settings.deputyName) setDeputyName(settings.deputyName);
+        if (settings.deputyEmail) setDeputyEmail(settings.deputyEmail);
+        if (settings.notifyOnApproval !== undefined) setNotifyOnApproval(settings.notifyOnApproval);
+        if (settings.notifyOnRejection !== undefined) setNotifyOnRejection(settings.notifyOnRejection);
+        if (settings.notifyOnReminder !== undefined) setNotifyOnReminder(settings.notifyOnReminder);
 
         // OAuth settings
         const outlook = await getOAuthSettings(userId, currentOrgId, 'outlook');
@@ -119,7 +144,14 @@ export default function SettingsPage() {
         language,
         dateFormat,
         workDays,
-        state
+        state,
+        vacationQuota,
+        carryOver,
+        deputyName,
+        deputyEmail,
+        notifyOnApproval,
+        notifyOnRejection,
+        notifyOnReminder,
       });
 
       // Apply language change immediately
@@ -409,6 +441,179 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Vacation Quota */}
+          <section className="card p-5 space-y-4">
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <Calendar size={16} className="text-[var(--primary)]" /> Urlaubskontingent
+            </h2>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Dein persönliches Jahres-Urlaubskontingent. Individuelle Regelungen gelten laut Arbeitsvertrag.
+            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">
+                  Jahresurlaub (Tage)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={15}
+                    max={45}
+                    step={1}
+                    value={vacationQuota}
+                    onChange={e => setVacationQuota(Number(e.target.value))}
+                    className="flex-1 accent-[var(--primary)]"
+                  />
+                  <span className="text-sm font-black w-8 text-center" style={{ color: 'var(--primary)' }}>
+                    {vacationQuota}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">
+                  Übertrag Vorjahr (Tage)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  value={carryOver}
+                  onChange={e => setCarryOver(Number(e.target.value))}
+                  className="w-full rounded-xl border px-4 py-3 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-3 rounded-xl" style={{ background: 'var(--bg-elevated)' }}>
+              <div className="flex-1 text-xs" style={{ color: 'var(--text-muted)' }}>Verfügbare Tage gesamt</div>
+              <div className="text-xl font-black" style={{ color: 'var(--success)' }}>{vacationQuota + carryOver}</div>
+            </div>
+          </section>
+
+          {/* Deputy Settings */}
+          <section className="card p-5 space-y-4">
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <UserCheck size={16} className="text-[var(--primary)]" /> Stellvertretung
+            </h2>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Wer vertritt dich während deines Urlaubs? Wird in genehmigten Anträgen vermerkt.
+            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">Name des Stellvertreters</label>
+                <input
+                  type="text"
+                  value={deputyName}
+                  onChange={e => setDeputyName(e.target.value)}
+                  placeholder="Max Mustermann"
+                  className="w-full rounded-xl border px-4 py-3 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">E-Mail Stellvertreter</label>
+                <input
+                  type="email"
+                  value={deputyEmail}
+                  onChange={e => setDeputyEmail(e.target.value)}
+                  placeholder="kollege@firma.de"
+                  className="w-full rounded-xl border px-4 py-3 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Notification Preferences */}
+          <section className="card p-5 space-y-4">
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <Bell size={16} className="text-[var(--primary)]" /> Benachrichtigungen
+            </h2>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Wähle, wann du per E-Mail benachrichtigt werden möchtest.
+            </p>
+            <div className="space-y-3">
+              {[
+                { key: 'notifyOnApproval', value: notifyOnApproval, setter: setNotifyOnApproval, label: 'Antrag genehmigt', desc: 'E-Mail wenn dein Antrag genehmigt wurde' },
+                { key: 'notifyOnRejection', value: notifyOnRejection, setter: setNotifyOnRejection, label: 'Antrag abgelehnt', desc: 'E-Mail wenn dein Antrag abgelehnt wurde' },
+                { key: 'notifyOnReminder', value: notifyOnReminder, setter: setNotifyOnReminder, label: 'Erinnerung', desc: 'E-Mail 3 Tage vor Urlaubsbeginn' },
+              ].map(({ key, value, setter, label, desc }) => (
+                <label key={key} className="flex items-center justify-between p-3 rounded-xl cursor-pointer hover:bg-[var(--bg-elevated)] transition-colors">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-base)' }}>{label}</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{desc}</p>
+                  </div>
+                  <div
+                    className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${value ? 'bg-[var(--primary)]' : 'bg-[var(--border)]'}`}
+                    onClick={() => setter(!value)}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${value ? 'left-5' : 'left-0.5'}`} />
+                  </div>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          {/* Signature */}
+          <section className="card p-5 space-y-4">
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <Shield size={16} className="text-[var(--primary)]" /> Meine Unterschrift
+            </h2>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Lade deine digitale Unterschrift hoch (PNG/JPG, max. 500KB). Sie wird automatisch in Urlaubsanträgen verwendet.
+            </p>
+            <div className="flex items-start gap-4">
+              {signaturePreview ? (
+                <div className="relative border rounded-xl p-3" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={signaturePreview} alt="Unterschrift" className="h-16 max-w-[200px] object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => setSignaturePreview(null)}
+                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px]"
+                  >
+                    <Trash2 size={10} />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => sigInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center w-40 h-16 border-2 border-dashed rounded-xl cursor-pointer hover:border-[var(--primary)] transition-colors"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  {signatureUploading ? (
+                    <Loader size={16} className="animate-spin" style={{ color: 'var(--primary)' }} />
+                  ) : (
+                    <>
+                      <Upload size={14} style={{ color: 'var(--text-muted)' }} />
+                      <span className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Unterschrift hochladen</span>
+                    </>
+                  )}
+                </div>
+              )}
+              <input
+                ref={sigInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 512 * 1024) { alert('Max. 500KB erlaubt.'); return; }
+                  const reader = new FileReader();
+                  reader.onload = ev => setSignaturePreview(ev.target?.result as string);
+                  reader.readAsDataURL(file);
+                }}
+              />
+              <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                <p className="font-semibold mb-1">Anforderungen:</p>
+                <ul className="space-y-0.5 list-disc ml-3">
+                  <li>Format: PNG oder JPG</li>
+                  <li>Max. Größe: 500 KB</li>
+                  <li>Weißer oder transparenter Hintergrund</li>
+                  <li>Querformat empfohlen</li>
+                </ul>
               </div>
             </div>
           </section>

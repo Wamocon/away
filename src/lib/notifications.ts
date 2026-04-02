@@ -39,7 +39,10 @@ async function sendEmail({
     if (error) throw error;
     return { success: true };
   } catch (err) {
-    console.error('[Notifications] Fehler beim E-Mail-Versand:', err);
+    // In dev mode, Edge Functions are often unavailable – suppress to avoid overlay noise
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[Notifications] Edge Function nicht verfügbar (dev):', (err as Error)?.message ?? err);
+    }
     return { success: false, error: err };
   }
 }

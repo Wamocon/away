@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getUserRole, canApprove } from '@/lib/roles';
+import { useLanguage } from '@/components/ui/LanguageProvider';
 
 export interface AppNotification {
   id: string;
@@ -49,21 +50,25 @@ export function NotificationCenter() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { t } = useLanguage();
 
   const buildNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return;
+      // Use getSession() instead of getUser() to avoid auth-token lock contention
+      // when multiple components simultaneously try to refresh the session.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (!userId) return;
 
-      const orgs = await getOrganizationsForUser(authData.user.id);
+      const orgs = await getOrganizationsForUser(userId);
       if (orgs.length === 0) return;
       const org = orgs[0] as { id: string; name: string };
 
       let role: string;
       try {
-        role = await getUserRole(authData.user.id, org.id);
+        role = await getUserRole(userId, org.id);
       } catch {
         role = 'employee';
       }
@@ -98,7 +103,7 @@ export function NotificationCenter() {
       const { data: myChanges } = await supabase
         .from('vacation_requests')
         .select('id, from, to, status, updated_at')
-        .eq('user_id', authData.user.id)
+        .eq('user_id', userId)
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
         .limit(10);
@@ -184,8 +189,8 @@ export function NotificationCenter() {
         ref={buttonRef}
         onClick={handleToggle}
         className="relative flex items-center justify-center w-8 h-8 rounded-xl transition-all btn-ghost"
-        title="Benachrichtigungen"
-        aria-label="Benachrichtigungen öffnen"
+        title={t.notifications.title}
+        aria-label={t.notifications.title}
       >
         <Bell size={15} />
         {unread > 0 && (
@@ -214,7 +219,7 @@ export function NotificationCenter() {
             style={{ borderColor: 'var(--border)' }}
           >
             <span className="text-sm font-bold" style={{ color: 'var(--text-base)' }}>
-              Benachrichtigungen
+              {t.notifications.title}
               {unread > 0 && (
                 <span
                   className="ml-2 text-[10px] font-black px-1.5 py-0.5 rounded-full"
@@ -230,7 +235,7 @@ export function NotificationCenter() {
                   onClick={handleReadAll}
                   className="text-[10px] font-semibold px-2 py-1 rounded-lg transition-all"
                   style={{ color: 'var(--primary)' }}
-                  title="Alle als gelesen markieren"
+                  title={t.notifications.markAllRead}
                 >
                   <Check size={12} />
                 </button>
@@ -248,13 +253,13 @@ export function NotificationCenter() {
           <div className="overflow-y-auto max-h-80 custom-scrollbar">
             {loading && (
               <div className="p-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-                Lade...
+              Lade...{/* {t.common.loading} */}
               </div>
             )}
             {!loading && notifications.length === 0 && (
               <div className="p-6 text-center">
                 <Bell size={24} className="mx-auto mb-2 opacity-20" style={{ color: 'var(--text-subtle)' }} />
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Keine Benachrichtigungen</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.notifications.noNotifications}</p>
               </div>
             )}
             {!loading && notifications.map((n) => (

@@ -130,4 +130,91 @@ describe('userSettings lib', () => {
       await expect(saveUserSettings('user-1', 'org-1', 'x@y.de')).rejects.toThrow('insert error');
     });
   });
+
+  describe('saveUserSettings – v4.1 extended fields', () => {
+    it('persists vacationQuota and carryOver', async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: { id: 'id-1', settings: {} },
+        error: null,
+      });
+      mockResult.error = null;
+
+      await saveUserSettings('user-1', 'org-1', 'a@b.de', {
+        vacationQuota: 28,
+        carryOver: 3,
+      });
+
+      expect(mockSupabase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({ vacationQuota: 28, carryOver: 3 }),
+        })
+      );
+    });
+
+    it('persists deputyName and deputyEmail', async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: { id: 'id-2', settings: {} },
+        error: null,
+      });
+      mockResult.error = null;
+
+      await saveUserSettings('user-1', 'org-1', 'a@b.de', {
+        deputyName: 'Lisa Müller',
+        deputyEmail: 'lisa@example.de',
+      });
+
+      expect(mockSupabase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            deputyName: 'Lisa Müller',
+            deputyEmail: 'lisa@example.de',
+          }),
+        })
+      );
+    });
+
+    it('persists notification preferences', async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: { id: 'id-3', settings: { notifyOnApproval: true } },
+        error: null,
+      });
+      mockResult.error = null;
+
+      await saveUserSettings('user-1', 'org-1', 'a@b.de', {
+        notifyOnApproval: false,
+        notifyOnRejection: true,
+        notifyOnReminder: true,
+      });
+
+      expect(mockSupabase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            notifyOnApproval: false,
+            notifyOnRejection: true,
+            notifyOnReminder: true,
+          }),
+        })
+      );
+    });
+
+    it('merges new fields with existing settings without overwriting unrelated keys', async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: { id: 'id-4', settings: { theme: 'dark', language: 'de' } },
+        error: null,
+      });
+      mockResult.error = null;
+
+      await saveUserSettings('user-1', 'org-1', 'a@b.de', { vacationQuota: 30 });
+
+      expect(mockSupabase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            theme: 'dark',
+            language: 'de',
+            vacationQuota: 30,
+          }),
+        })
+      );
+    });
+  });
 });

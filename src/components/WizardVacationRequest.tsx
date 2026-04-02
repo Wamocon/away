@@ -112,15 +112,16 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
     setGeneratingDocId(true);
     try {
       const firstChar = firstName.charAt(0).toUpperCase();
+      // First 2 letters of last name, upper-cased
       const lastChars = lastName.substring(0, 2).toUpperCase();
       const year = new Date().getFullYear().toString();
       const prefix = `${firstChar}${lastChars}${year}`;
       
       const nextCounter = await getNextDocumentCounter(orgId, prefix);
-      const suffix = nextCounter.toString().padStart(2, '0');
-      setDocumentId(`${prefix}${suffix}`);
+      // Format: NSC20260, NSC20261, NSC20262, ... (no zero-padding)
+      setDocumentId(`${prefix}${nextCounter}`);
     } catch (err) {
-      console.error('Error generating Belegnummer:', err);
+      console.warn('Belegnummer konnte nicht generiert werden:', err);
     } finally {
       setGeneratingDocId(false);
     }

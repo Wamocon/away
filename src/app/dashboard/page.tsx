@@ -14,16 +14,20 @@ import {
   ShieldCheck, LayoutGrid, List
 } from 'lucide-react';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
+import { useLanguage } from '@/components/ui/LanguageProvider';
 import WizardVacationRequest from '@/components/WizardVacationRequest';
 
 export default function Dashboard() {
   const { viewMode, setViewMode } = useViewMode();
+  const { t } = useLanguage();
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [org, setOrg] = useState<{ id: string; name: string } | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
+  // Mirror the sidebar's elevated-mode state (admin/approver/cio can toggle to employee view)
+  const [isElevatedMode, setIsElevatedMode] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -32,6 +36,9 @@ export default function Dashboard() {
       if (!data.user) { router.push('/auth/login'); return; }
       setUser({ id: data.user.id, email: data.user.email ?? '' });
     }).catch(() => router.push('/auth/login'));
+    // Read initial elevated mode from localStorage
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('role-mode') : null;
+    setIsElevatedMode(saved !== 'employee');
   }, [router]);
 
   const loadData = useCallback(async () => {
@@ -57,25 +64,33 @@ export default function Dashboard() {
 
   // Re-load when role mode changes (sidebar toggle)
   useEffect(() => {
-    const handler = () => loadData();
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ elevated: boolean }>).detail;
+      if (detail !== undefined) setIsElevatedMode(detail.elevated);
+      loadData();
+    };
     window.addEventListener('role-mode-change', handler);
     return () => window.removeEventListener('role-mode-change', handler);
   }, [loadData]);
 
   // Stats
   const myRequests = requests.filter(r => r.user_id === user?.id);
-  const pending  = requests.filter(r => r.status === 'pending');
-  const approved = requests.filter(r => r.status === 'approved' &&
-    (role === 'admin' || role === 'approver' || r.user_id === user?.id));
+  // isAdminView = user has elevated role AND has chosen the elevated mode
+  const isAdminView = isElevatedMode && canApprove(role);
+  const displayRequests = isAdminView ? requests : myRequests;
+  const pending  = isAdminView ? requests.filter(r => r.status === 'pending') : myRequests.filter(r => r.status === 'pending');
+  const approved = isAdminView
+    ? requests.filter(r => r.status === 'approved')
+    : myRequests.filter(r => r.status === 'approved');
   const upcoming = approved.filter(r => isFuture(parseISO(r.from)));
 
-  // Approved days this year
+  // Approved days this year (always own days)
   const thisYear = new Date().getFullYear();
   const approvedDaysThisYear = myRequests
     .filter(r => r.status === 'approved' && parseISO(r.from).getFullYear() === thisYear)
     .reduce((sum, r) => sum + differenceInCalendarDays(parseISO(r.to), parseISO(r.from)) + 1, 0);
 
-  const recentRequests = (canApprove(role) ? requests : myRequests).slice(0, 5);
+  const recentRequests = displayRequests.slice(0, 5);
 
   const statusConfig = {
     pending:  { label: 'Ausstehend', color: 'badge-pending',  Icon: Clock },
@@ -97,7 +112,7 @@ export default function Dashboard() {
       <div className="flex items-start justify-between mb-8 flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--text-base)' }}>
-            Willkommen zurück 👋
+            {t.dashboard.welcome} 👋
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             {org ? (
@@ -133,7 +148,7 @@ export default function Dashboard() {
           </Link>
           <button onClick={() => setShowWizard(true)} className="btn-primary">
             <Plus size={14} />
-            Neuer Antrag
+            {t.vacation.newRequest}
           </button>
         </div>
       </div>
@@ -156,7 +171,7 @@ export default function Dashboard() {
             {pending.length}
           </p>
           <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-            {canApprove(role) ? 'Ausstehende Anträge' : 'Meine ausstehenden'}
+            {isAdminView ? 'Ausstehende Anträge' : 'Meine ausstehenden'}
           </p>
         </div>
 
@@ -213,10 +228,10 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-bold" style={{ color: 'var(--text-base)' }}>
-                {canApprove(role) ? 'Alle Anträge' : 'Meine Anträge'}
+                {isAdminView ? 'Anträge der Berater' : t.dashboard.myRequests}
               </h2>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Aktuelle Urlaubsanträge
+                {isAdminView ? 'Alle Urlaubsanträge der Organisation' : 'Aktuelle Urlaubsanträge'}
               </p>
             </div>
             <Link href="/dashboard/requests" className="btn-ghost text-xs">
@@ -318,12 +333,12 @@ export default function Dashboard() {
               <Link href="/dashboard/email" className="btn-secondary w-full justify-center">
                 <Mail size={14} /> E-Mail verbinden
               </Link>
-              {canApprove(role) && (
+              {canApprove(role) && isAdminView && (
                 <Link href="/dashboard/requests?filter=pending" className="btn-secondary w-full justify-center" style={{ borderColor: 'rgba(245,158,11,0.3)', color: 'var(--warning)' }}>
                   <Clock size={14} /> Anträge genehmigen
                 </Link>
               )}
-              {role === 'admin' && (
+              {role === 'admin' && isAdminView && (
                 <Link href="/admin/settings" className="btn-secondary w-full justify-center" style={{ borderColor: 'rgba(239,68,68,0.2)', color: 'var(--danger)' }}>
                   <ShieldCheck size={14} /> Administration
                 </Link>
@@ -354,8 +369,8 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Admin-Badge */}
-          {role === 'admin' && (
+          {/* Admin-Badge – nur im elevated mode */}
+          {role === 'admin' && isAdminView && (
             <div className="card p-5 animate-fade-in-d5" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <ShieldCheck size={14} style={{ color: 'var(--primary)' }} />

@@ -1,11 +1,15 @@
 # =============================================================================
-# PR Pipeline – Inlined (Auto-Fix + Validation)
+# PR Pipeline – Validation (Typecheck + Lint + Tests)
 # =============================================================================
-# Inspired by the shared workflow templates from github_workflow.
-# Inlined directly to avoid dependency on a private external repository.
+# Läuft bei jedem Push auf einen Pull Request gegen main/master.
 #
-# Step 1 (autofix): ESLint --fix + prettier, commits fixes back to PR branch.
-# Step 2 (validate): TypeScript typecheck + ESLint + Vitest tests.
+# Aufbau:
+#   Job 1 (validate): TypeScript, ESLint, Vitest – blockiert Merge bei Fehler
+#
+# Hinweis: Auto-Fix (prettier/eslint --fix) ist bewusst entfernt.
+# Ein Auto-Commit-Job würde einen neuen synchronize-Event auslösen, der
+# diesen Workflow per concurrency cancel-in-progress abbricht – Endlosschleife.
+# Entwickler sollen Fehler lokal per `npm run lint` und `npx prettier` fixen.
 # =============================================================================
 
 name: PR Pipeline
@@ -15,57 +19,17 @@ on:
     branches: [main, master]
     types: [opened, synchronize, reopened]
 
-# Cancel redundant runs on the same PR
+# Nur einen Run pro PR gleichzeitig – abbrechnen wenn neuer Push kommt
 concurrency:
-  group: pr-${{ github.event.pull_request.number }}
+  group: pr-validate-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  # ─── Step 1: Auto-fix lint & format errors ───────────────────────────
-  autofix:
-    name: Auto-Fix Lint & Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Fix lint errors
-        run: npm run lint -- --fix
-        continue-on-error: true
-
-      - name: Fix formatting
-        run: npx prettier --write "src/**/*.{ts,tsx,js,jsx,json,css}" "*.{js,ts,mjs,json}"
-        continue-on-error: true
-
-      - name: Commit auto-fixed changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        continue-on-error: true
-        with:
-          commit_message: "style: auto-fix lint and formatting issues"
-          branch: ${{ github.head_ref }}
-
-  # ─── Step 2: Validate code (typecheck + lint + tests) ─────────────────
   validate:
     name: Typecheck, Lint & Tests
-    needs: autofix
-    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

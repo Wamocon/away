@@ -1,22 +1,23 @@
 # =============================================================================
-# Deploy – Production only (push to main/master)
+# Deploy – Production (push to main/master ODER GitHub Release)
 # =============================================================================
-# Runs ONLY after merge to main/master, not on pull requests.
-# Vercel Hobby plan cannot deploy private GitHub Organization repositories
-# via pull_request events.
+# Triggered by:
+#   push → main/master    → Production deploy (nach PR-Merge)
+#   release → published   → Production deploy (per GitHub Release)
 #
-# Required Secrets (repo-level):
-#   VERCEL_TOKEN       – Vercel personal access token
-#   VERCEL_PROJECT_ID  – Project ID from `.vercel/project.json`
-# Required at organisation level (org secret or variable):
-#   VERCEL_ORG_ID      – Organisation ID from `.vercel/project.json`
+# Required Secrets (Repository Settings → Secrets → Actions):
+#   VERCEL_TOKEN       – Vercel Personal Access Token (WMCNiko)
+#   VERCEL_PROJECT_ID  – Project ID aus `.vercel/project.json`
+#   VERCEL_ORG_ID      – Team/Personal Scope ID aus `.vercel/project.json`
 # =============================================================================
 
-name: Deploy
+name: Deploy Production
 
 on:
   push:
     branches: [main, master]
+  release:
+    types: [published]
 
 concurrency:
   group: deploy-production
@@ -24,54 +25,37 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy to Vercel
+    name: Deploy to Vercel (Production)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
     steps:
-      # ── 1. Checkout code ────────────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── 2. Setup Node.js ────────────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # ── 3. Install Vercel CLI ────────────────────────────────────────────
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # ── 4. Resolve deployment target ────────────────────────────────────
-      - name: Set deployment variables
-        id: vars
-        run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "vercel_env=production" >> $GITHUB_OUTPUT
-            echo "vercel_args=--prod" >> $GITHUB_OUTPUT
-          else
-            echo "vercel_env=preview" >> $GITHUB_OUTPUT
-            echo "vercel_args=" >> $GITHUB_OUTPUT
-          fi
+      - name: Pull Vercel environment (production)
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      # ── 5. Pull Vercel environment ───────────────────────────────────────
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=${{ steps.vars.outputs.vercel_env }} --token=${{ secrets.VERCEL_TOKEN }}
-
-      # ── 6. Build ─────────────────────────────────────────────────────────
       - name: Build project
-        run: vercel build ${{ steps.vars.outputs.vercel_args }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-      # ── 7. Deploy ────────────────────────────────────────────────────────
-      - name: Deploy to Vercel
+      - name: Deploy to Vercel (production)
         id: deploy
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt ${{ steps.vars.outputs.vercel_args }} --token=${{ secrets.VERCEL_TOKEN }})
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
           echo "deploy_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
-          echo "### Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "### Production Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "Trigger: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "URL: $DEPLOY_URL" >> $GITHUB_STEP_SUMMARY

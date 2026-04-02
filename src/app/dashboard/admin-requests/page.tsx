@@ -28,7 +28,7 @@ export default function AdminRequestsPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [org, setOrg] = useState<{ id: string; name: string } | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
+  const [, setRole] = useState<UserRole | null>(null);
   const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');

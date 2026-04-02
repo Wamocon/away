@@ -1,12 +1,8 @@
 # =============================================================================
-# Deploy – Caller Workflow (Preview + Production)
+# Deploy – Inlined (Preview + Production)
 # =============================================================================
-# Calls the shared deploy workflow from the central github_workflow repository.
-#
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │  To update to a new version of the shared workflows, change the @ref   │
-# │  in the `uses:` lines below (e.g. @main, @v1.2.0, @feat/new-deploy).  │
-# └─────────────────────────────────────────────────────────────────────────┘
+# Inspired by the shared workflow templates from github_workflow.
+# Inlined directly to avoid dependency on a private external repository.
 #
 # Trigger:
 #   pull_request → main/master  →  Vercel *preview* deployment
@@ -17,8 +13,6 @@
 #   VERCEL_PROJECT_ID  – Project ID from `.vercel/project.json`
 # Required at organisation level (org secret or variable):
 #   VERCEL_ORG_ID      – Organisation ID from `.vercel/project.json`
-#
-# Shared repo: wamocon/github_workflow
 # =============================================================================
 
 name: Deploy
@@ -35,16 +29,33 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # ─── Resolve deployment parameters ────────────────────────────────────
-  set-vars:
-    name: Resolve deployment variables
+  deploy:
+    name: Deploy to Vercel
     runs-on: ubuntu-latest
-    outputs:
-      vercel_env: ${{ steps.resolve.outputs.vercel_env }}
-      vercel_args: ${{ steps.resolve.outputs.vercel_args }}
+    timeout-minutes: 20
+
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
     steps:
-      - name: Resolve vercel_env and vercel_args
-        id: resolve
+      # ── 1. Checkout code ────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Setup Node.js ────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # ── 3. Install Vercel CLI ────────────────────────────────────────────
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # ── 4. Resolve deployment target ────────────────────────────────────
+      - name: Set deployment variables
+        id: vars
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
             echo "vercel_env=production" >> $GITHUB_OUTPUT
@@ -54,14 +65,19 @@ jobs:
             echo "vercel_args=" >> $GITHUB_OUTPUT
           fi
 
-  # ─── Deploy via shared reusable workflow ──────────────────────────────
-  # To use a different version: change @main to @v1.2.0 or @your-branch
-  deploy:
-    name: Deploy to Vercel
-    needs: set-vars
-    uses: wamocon/github_workflow/.github/workflows/deploy-preview.yml@main
-    with:
-      vercel_env: ${{ needs.set-vars.outputs.vercel_env }}
-      vercel_args: ${{ needs.set-vars.outputs.vercel_args }}
-      # db_schema: ""   # leave empty to use the value from Vercel env vars
-    secrets: inherit
+      # ── 5. Pull Vercel environment ───────────────────────────────────────
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=${{ steps.vars.outputs.vercel_env }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      # ── 6. Build ─────────────────────────────────────────────────────────
+      - name: Build project
+        run: vercel build ${{ steps.vars.outputs.vercel_args }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      # ── 7. Deploy ────────────────────────────────────────────────────────
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt ${{ steps.vars.outputs.vercel_args }} --token=${{ secrets.VERCEL_TOKEN }})
+          echo "deploy_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "### Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "URL: $DEPLOY_URL" >> $GITHUB_STEP_SUMMARY

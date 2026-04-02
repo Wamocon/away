@@ -29,7 +29,7 @@ interface UserSettingsData {
 
 export default function SettingsPage() {
   const { viewMode, setViewMode } = useViewMode();
-  const { locale, setLocale, t } = useLanguage();
+  const { locale, setLocale } = useLanguage();
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [emailInput, setEmailInput] = useState('');
@@ -60,7 +60,7 @@ export default function SettingsPage() {
   const [notifyOnRejection, setNotifyOnRejection] = useState(true);
   const [notifyOnReminder, setNotifyOnReminder] = useState(false);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
-  const [signatureUploading, setSignatureUploading] = useState(false);
+  const [signatureUploading] = useState(false);
   const sigInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {

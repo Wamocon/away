@@ -1,15 +1,11 @@
 # =============================================================================
-# PR Pipeline – Caller Workflow
+# PR Pipeline – Inlined (Auto-Fix + Validation)
 # =============================================================================
-# Calls the shared workflows from the central github_workflow repository.
+# Inspired by the shared workflow templates from github_workflow.
+# Inlined directly to avoid dependency on a private external repository.
 #
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │  To update to a new version of the shared workflows, change the `@ref` │
-# │  value below (e.g. @main, @v1.2.0, @feat/new-lint).                    │
-# │  Variable: SHARED_WORKFLOWS_REF (set once, applied to all uses: lines) │
-# └─────────────────────────────────────────────────────────────────────────┘
-#
-# Shared repo: wamocon/github_workflow
+# Step 1 (autofix): ESLint --fix + prettier, commits fixes back to PR branch.
+# Step 2 (validate): TypeScript typecheck + ESLint + Vitest tests.
 # =============================================================================
 
 name: PR Pipeline
@@ -24,23 +20,68 @@ concurrency:
   group: pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-env:
-  # ────────────────────────────────────────────────────────────────────────
-  # Change this single value to switch to a different tag, branch, or SHA
-  # of the shared workflow repository.
-  # ────────────────────────────────────────────────────────────────────────
-  SHARED_WORKFLOWS_REF: "main"
-
 jobs:
   # ─── Step 1: Auto-fix lint & format errors ───────────────────────────
   autofix:
-    name: Auto-Fix
-    uses: wamocon/github_workflow/.github/workflows/pr-autofix.yml@main
+    name: Auto-Fix Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-  # ─── Step 2: Validate code (typecheck + lint) ─────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fix lint errors
+        run: npm run lint -- --fix
+        continue-on-error: true
+
+      - name: Fix formatting
+        run: npx prettier --write .
+        continue-on-error: true
+
+      - name: Commit auto-fixed changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-fix lint and formatting issues"
+          branch: ${{ github.head_ref }}
+
+  # ─── Step 2: Validate code (typecheck + lint + tests) ─────────────────
   validate:
-    name: PR Checks
+    name: Typecheck, Lint & Tests
     needs: autofix
-    uses: wamocon/github_workflow/.github/workflows/pr-checks.yml@main
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm run test

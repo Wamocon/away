@@ -8,7 +8,7 @@ import {
   Plus, CalendarDays, RefreshCw
 } from 'lucide-react';
 import { generatePDF, generateExcel, generateWord, DocumentData } from '@/lib/documentGenerator';
-import { differenceInBusinessDays, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
 import { createVacationRequest } from '@/lib/vacation';
 import { getUserSettings } from '@/lib/userSettings';
 import { isDocumentIdUsed, registerDocumentId, getNextDocumentCounter } from '@/lib/documentNumbers';
@@ -67,7 +67,6 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
   const [location, setLocation] = useState('');
   const [signedAt, setSignedAt] = useState(new Date().toISOString().split('T')[0]);
   const [employeeSignature, setEmployeeSignature] = useState<string | null>(null);
-  const [approverSignature, setApproverSignature] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<GermanState>('ALL');
 
   // Hilfsfelder
@@ -131,7 +130,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
     if (firstName && lastName && !documentId) {
       generateBelegnummer();
     }
-  }, [firstName, lastName]);
+  }, [firstName, lastName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addVacationType = () => {
     if (!newTypeName.trim()) return;
@@ -250,13 +249,13 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
       }
 
       setStep(4);
-    } catch (err: any) { 
+    } catch (err: unknown) { 
       console.error('Submission error:', err);
       let msg = 'Ein unbekannter Fehler ist aufgetreten.';
-      
-      if (err.message && typeof err.message === 'string') {
-        msg = err.message;
-      } else if (err.code === 'PGRST') {
+      const e = err as { message?: string; code?: string };
+      if (e.message && typeof e.message === 'string') {
+        msg = e.message;
+      } else if (e.code === 'PGRST') {
         msg = 'Datenbank-Fehler: Die Tabelle "document_numbers" konnte nicht gefunden werden. Bitte führen Sie die SQL-Migration aus.';
       } else if (typeof err === 'object' && err !== null) {
         msg = err.message || JSON.stringify(err);

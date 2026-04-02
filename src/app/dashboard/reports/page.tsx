@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getOrganizationsForUser } from '@/lib/organization';
 import { getVacationRequestsForOrg, VacationRequest } from '@/lib/vacation';
-import { differenceInCalendarDays, parseISO, format, getMonth, getYear, isWithinInterval, startOfYear, endOfYear, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { differenceInCalendarDays, parseISO, format, getMonth, getYear, isWithinInterval, startOfYear, endOfYear, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ClipboardList, FileBarChart, TrendingUp, Calendar, Users, Clock, CheckCircle, XCircle, Download, Loader, ChevronDown, BarChart2, FileText } from 'lucide-react';
 

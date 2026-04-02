@@ -1,11 +1,8 @@
 import { 
   addDays, 
   getYear, 
-  getMonth, 
-  getDate, 
   isWeekend, 
   eachDayOfInterval, 
-  format,
   isSameDay
 } from 'date-fns';
 

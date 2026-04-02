@@ -25,7 +25,6 @@ import {
   UserCircle,
   ToggleLeft,
   ToggleRight,
-  PlusCircle,
 } from 'lucide-react';
 
 // Removed local UserRole type in favor of import from @/lib/roles

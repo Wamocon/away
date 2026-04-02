@@ -10,11 +10,10 @@ import OrganizationSwitcher from '@/components/OrganizationSwitcher';
 import { SystemTab } from '@/components/admin/SystemTab';
 import {
   Users, ShieldCheck, UserPlus, Loader, CheckCircle,
-  Trash2, Send, Building2, AlertCircle, RefreshCw, LayoutGrid, List,
-  FileText, Upload, Files, Settings, Info, Briefcase, Zap, Palette, MapPin, Plus,
-  Monitor, Activity, Database, Server, Clock, Globe
+  Trash2, Send, Building2, AlertCircle,
+  FileText, Files, Settings, Info, Briefcase, Zap, Palette, MapPin, Plus,
+  Monitor
 } from 'lucide-react';
-import { useViewMode } from '@/components/ui/ViewModeProvider';
 import AlertModal, { AlertType } from '@/components/ui/AlertModal';
 
 interface Template {
@@ -32,13 +31,12 @@ interface OrgMember {
 }
 
 export default function AdminSettingsPage() {
-  const { viewMode, setViewMode } = useViewMode();
   const router = useRouter();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState('');
   const [newName, setNewName] = useState('');
   const [members, setMembers] = useState<OrgMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // Tabs
@@ -65,7 +63,7 @@ export default function AdminSettingsPage() {
   const [uploadError, setUploadError] = useState('');
 
   // Role management
-  const [updatingRole, setUpdatingRole] = useState<string | null>(null);
+  const [, setUpdatingRole] = useState<string | null>(null);
   const [isSavingOrg, setIsSavingOrg] = useState(false);
 
   // Modal control
@@ -243,20 +241,6 @@ export default function AdminSettingsPage() {
     } finally {
       setUpdatingRole(null);
     }
-  };
-
-  const handleRemoveMember = (memberId: string) => {
-    if (!orgId) return;
-    showConfirm(
-      'Mitglied entfernen?', 
-      'Möchtest du dieses Mitglied wirklich aus der Organisation entfernen? Der Zugriff wird sofort entzogen.',
-      async () => {
-        const supabase = createClient();
-        await supabase.from('user_roles').delete().eq('user_id', memberId).eq('organization_id', orgId);
-        setMembers(prev => prev.filter(m => m.user_id !== memberId));
-      },
-      'danger'
-    );
   };
 
   const handleUploadTemplate = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,5 +1,6 @@
 ﻿'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { Bell, CheckCircle, Clock, XCircle, X, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -296,14 +297,14 @@ export function NotificationCenter() {
 
           {notifications.length > 0 && (
             <div className="px-4 py-2 border-t" style={{ borderColor: 'var(--border)' }}>
-              <a
+              <Link
                 href="/dashboard/requests"
                 className="block text-center text-xs font-semibold py-1 rounded-lg transition-all hover:bg-[var(--bg-elevated)]"
                 style={{ color: 'var(--primary)' }}
                 onClick={() => setOpen(false)}
               >
                 Alle Anträge anzeigen →
-              </a>
+              </Link>
             </div>
           )}
         </div>

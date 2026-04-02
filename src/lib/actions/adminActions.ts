@@ -1,8 +1,8 @@
-'use server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
-import { UserRole } from '@/lib/roles';
-import { getSchema } from '@/lib/supabase/config';
+"use server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import { UserRole } from "@/lib/roles";
+import { getSchema } from "@/lib/supabase/config";
 
 /**
  * Erstellt einen Supabase-Client mit Admin-Rechten (Server-Side only)
@@ -11,18 +11,18 @@ async function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const schema = getSchema();
-  
+
   if (!supabaseServiceKey) {
-    console.error('SERVER-FEHLER: SUPABASE_SERVICE_ROLE_KEY fehlt.');
-    throw new Error('Konfigurationsfehler: Admin-Schlüssel fehlt.');
+    console.error("SERVER-FEHLER: SUPABASE_SERVICE_ROLE_KEY fehlt.");
+    throw new Error("Konfigurationsfehler: Admin-Schlüssel fehlt.");
   }
 
   return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
     db: { schema },
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   });
 }
 
@@ -32,43 +32,51 @@ async function createAdminClient() {
 export async function getOrgMembersWithEmails(orgId: string) {
   try {
     const supabase = await createServerClient();
-    
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
     if (sessionError || !session) {
-      return { error: 'Nicht authentifiziert: Bitte melde dich neu an.' };
+      return { error: "Nicht authentifiziert: Bitte melde dich neu an." };
     }
 
     const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .eq('organization_id', orgId)
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== 'admin') {
-      return { error: 'Keine Berechtigung: Nur Administratoren können die Benutzerliste einsehen.' };
+    if (roleData?.role !== "admin") {
+      return {
+        error:
+          "Keine Berechtigung: Nur Administratoren können die Benutzerliste einsehen.",
+      };
     }
 
     const { data: roles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role, created_at')
-      .eq('organization_id', orgId)
-      .order('created_at');
+      .from("user_roles")
+      .select("user_id, role, created_at")
+      .eq("organization_id", orgId)
+      .order("created_at");
 
     if (rolesError) throw rolesError;
     if (!roles) return { data: [] };
 
     const adminClient = await createAdminClient();
-    
+
     const members = await Promise.all(
       roles.map(async (m) => {
         try {
-          const { data: userData } = await adminClient.auth.admin.getUserById(m.user_id);
+          const { data: userData } = await adminClient.auth.admin.getUserById(
+            m.user_id,
+          );
           return {
             user_id: m.user_id,
             role: m.role as UserRole,
             created_at: m.created_at,
-            email: userData?.user?.email
+            email: userData?.user?.email,
           };
         } catch (err) {
           return {
@@ -77,51 +85,66 @@ export async function getOrgMembersWithEmails(orgId: string) {
             created_at: m.created_at,
           };
         }
-      })
+      }),
     );
 
     return { data: members };
   } catch (err) {
-    console.error('Kritischer Fehler in getOrgMembersWithEmails:', err);
-    return { error: 'Ein interner Fehler ist beim Laden der Mitglieder aufgetreten.' };
+    console.error("Kritischer Fehler in getOrgMembersWithEmails:", err);
+    return {
+      error: "Ein interner Fehler ist beim Laden der Mitglieder aufgetreten.",
+    };
   }
 }
 
 /**
  * Lädt einen Benutzer via Admin-API in eine Organisation ein
  */
-export async function inviteUserToOrg(email: string, orgId: string, role: UserRole, origin: string) {
+export async function inviteUserToOrg(
+  email: string,
+  orgId: string,
+  role: UserRole,
+  origin: string,
+) {
   try {
     const supabase = await createServerClient();
-    
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return { error: 'Nicht authentifiziert: Bitte melde dich neu an.' };
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session)
+      return { error: "Nicht authentifiziert: Bitte melde dich neu an." };
 
     const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .eq('organization_id', orgId)
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== 'admin') {
-      return { error: 'Keine Berechtigung: Nur Administratoren können Personen einladen.' };
+    if (roleData?.role !== "admin") {
+      return {
+        error:
+          "Keine Berechtigung: Nur Administratoren können Personen einladen.",
+      };
     }
 
     const adminClient = await createAdminClient();
 
-    const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { organization_id: orgId, role: role },
-      redirectTo: `${origin}/auth/accept-invite?org=${orgId}&role=${role}`,
-    });
+    const { error: inviteError } =
+      await adminClient.auth.admin.inviteUserByEmail(email, {
+        data: { organization_id: orgId, role: role },
+        redirectTo: `${origin}/auth/accept-invite?org=${orgId}&role=${role}`,
+      });
 
     if (inviteError) {
-      console.error('Supabase Invite Error:', inviteError);
+      console.error("Supabase Invite Error:", inviteError);
       let msg = inviteError.message;
-      if (msg.includes('email rate limit exceeded')) {
-        msg = 'E-Mail-Limit überschritten. Bitte warte eine Stunde, bevor du weitere Einladungen verschickst.';
-      } else if (msg.includes('User already registered')) {
-        msg = 'Dieser Benutzer ist bereits registriert.';
+      if (msg.includes("email rate limit exceeded")) {
+        msg =
+          "E-Mail-Limit überschritten. Bitte warte eine Stunde, bevor du weitere Einladungen verschickst.";
+      } else if (msg.includes("User already registered")) {
+        msg = "Dieser Benutzer ist bereits registriert.";
       } else {
         // Allgemeine Übersetzung für unbekannte Fehler (optional)
         msg = `Einladungsfehler: ${msg}`;
@@ -131,8 +154,8 @@ export async function inviteUserToOrg(email: string, orgId: string, role: UserRo
 
     return { success: true };
   } catch (err) {
-    console.error('Fehler bei der Einladung:', err);
-    const msg = err instanceof Error ? err.message : 'Unbekannter Fehler';
+    console.error("Fehler bei der Einladung:", err);
+    const msg = err instanceof Error ? err.message : "Unbekannter Fehler";
     return { error: `Server-Fehler: ${msg}` };
   }
 }
@@ -149,10 +172,10 @@ export async function getOrgApproversForNotification(
     const adminClient = await createAdminClient();
 
     const { data: roles, error } = await adminClient
-      .from('user_roles')
-      .select('user_id, role')
-      .eq('organization_id', orgId)
-      .in('role', ['admin', 'cio', 'approver']);
+      .from("user_roles")
+      .select("user_id, role")
+      .eq("organization_id", orgId)
+      .in("role", ["admin", "cio", "approver"]);
 
     if (error || !roles) return [];
 
@@ -161,20 +184,33 @@ export async function getOrgApproversForNotification(
         // 1) Versuche E-Mail aus user_settings zu lesen
         try {
           const { data: s } = await adminClient
-            .from('user_settings')
-            .select('settings')
-            .eq('user_id', m.user_id)
-            .eq('organization_id', orgId)
+            .from("user_settings")
+            .select("settings")
+            .eq("user_id", m.user_id)
+            .eq("organization_id", orgId)
             .maybeSingle();
-          const settingsEmail = (s?.settings as Record<string, string> | undefined)?.email;
-          if (settingsEmail) return { user_id: m.user_id, role: m.role, email: settingsEmail };
-        } catch { /* ignore */ }
+          const settingsEmail = (
+            s?.settings as Record<string, string> | undefined
+          )?.email;
+          if (settingsEmail)
+            return { user_id: m.user_id, role: m.role, email: settingsEmail };
+        } catch {
+          /* ignore */
+        }
 
         // 2) Fallback: Auth-E-Mail via Admin-API
         try {
-          const { data: userData } = await adminClient.auth.admin.getUserById(m.user_id);
-          return { user_id: m.user_id, role: m.role, email: userData?.user?.email };
-        } catch { /* ignore */ }
+          const { data: userData } = await adminClient.auth.admin.getUserById(
+            m.user_id,
+          );
+          return {
+            user_id: m.user_id,
+            role: m.role,
+            email: userData?.user?.email,
+          };
+        } catch {
+          /* ignore */
+        }
 
         return { user_id: m.user_id, role: m.role };
       }),
@@ -182,7 +218,7 @@ export async function getOrgApproversForNotification(
 
     return members;
   } catch (err) {
-    console.error('[getOrgApproversForNotification] Fehler:', err);
+    console.error("[getOrgApproversForNotification] Fehler:", err);
     return [];
   }
 }

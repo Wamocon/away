@@ -1,12 +1,29 @@
-import { 
-  addDays, 
-  getYear, 
-  isWeekend, 
-  eachDayOfInterval, 
-  isSameDay
-} from 'date-fns';
+import {
+  addDays,
+  getYear,
+  isWeekend,
+  eachDayOfInterval,
+  isSameDay,
+} from "date-fns";
 
-export type GermanState = 'BW' | 'BY' | 'BE' | 'BB' | 'HB' | 'HH' | 'HE' | 'MV' | 'NI' | 'NW' | 'RP' | 'SL' | 'SN' | 'ST' | 'SH' | 'TH' | 'ALL';
+export type GermanState =
+  | "BW"
+  | "BY"
+  | "BE"
+  | "BB"
+  | "HB"
+  | "HH"
+  | "HE"
+  | "MV"
+  | "NI"
+  | "NW"
+  | "RP"
+  | "SL"
+  | "SN"
+  | "ST"
+  | "SH"
+  | "TH"
+  | "ALL";
 
 /**
  * Calculates Easter Sunday for a given year.
@@ -33,95 +50,115 @@ export function getEasterSunday(year: number): Date {
 /**
  * Returns a list of public holidays for a given year and state.
  */
-export function getHolidays(year: number, state: GermanState = 'ALL'): { date: Date; name: string }[] {
+export function getHolidays(
+  year: number,
+  state: GermanState = "ALL",
+): { date: Date; name: string }[] {
   const easter = getEasterSunday(year);
   const holidays: { date: Date; name: string }[] = [];
 
   // --- Fixed dates (Nationwide) ---
-  holidays.push({ date: new Date(year, 0, 1), name: 'Neujahr' });
-  holidays.push({ date: new Date(year, 4, 1), name: 'Tag der Arbeit' });
-  holidays.push({ date: new Date(year, 9, 3), name: 'Tag der Deutschen Einheit' });
-  holidays.push({ date: new Date(year, 11, 25), name: '1. Weihnachtstag' });
-  holidays.push({ date: new Date(year, 11, 26), name: '2. Weihnachtstag' });
+  holidays.push({ date: new Date(year, 0, 1), name: "Neujahr" });
+  holidays.push({ date: new Date(year, 4, 1), name: "Tag der Arbeit" });
+  holidays.push({
+    date: new Date(year, 9, 3),
+    name: "Tag der Deutschen Einheit",
+  });
+  holidays.push({ date: new Date(year, 11, 25), name: "1. Weihnachtstag" });
+  holidays.push({ date: new Date(year, 11, 26), name: "2. Weihnachtstag" });
 
   // --- Movable dates (Easter based - Nationwide) ---
-  holidays.push({ date: addDays(easter, -2), name: 'Karfreitag' });
-  holidays.push({ date: addDays(easter, 1), name: 'Ostermontag' });
-  holidays.push({ date: addDays(easter, 39), name: 'Christi Himmelfahrt' });
-  holidays.push({ date: addDays(easter, 50), name: 'Pfingstmontag' });
+  holidays.push({ date: addDays(easter, -2), name: "Karfreitag" });
+  holidays.push({ date: addDays(easter, 1), name: "Ostermontag" });
+  holidays.push({ date: addDays(easter, 39), name: "Christi Himmelfahrt" });
+  holidays.push({ date: addDays(easter, 50), name: "Pfingstmontag" });
 
   // --- State-specific holidays ---
 
   // Heilige Drei Könige
-  if (['BW', 'BY', 'ST', 'ALL'].includes(state)) {
-    holidays.push({ date: new Date(year, 0, 6), name: 'Heilige Drei Könige' });
+  if (["BW", "BY", "ST", "ALL"].includes(state)) {
+    holidays.push({ date: new Date(year, 0, 6), name: "Heilige Drei Könige" });
   }
 
   // Internationaler Frauentag
-  if (['BE', 'MV', 'ALL'].includes(state)) {
-    holidays.push({ date: new Date(year, 2, 8), name: 'Internationaler Frauentag' });
+  if (["BE", "MV", "ALL"].includes(state)) {
+    holidays.push({
+      date: new Date(year, 2, 8),
+      name: "Internationaler Frauentag",
+    });
   }
 
   // Fronleichnam
-  if (['BW', 'BY', 'HE', 'NW', 'RP', 'SL', 'ALL'].includes(state)) {
-    holidays.push({ date: addDays(easter, 60), name: 'Fronleichnam' });
+  if (["BW", "BY", "HE", "NW", "RP", "SL", "ALL"].includes(state)) {
+    holidays.push({ date: addDays(easter, 60), name: "Fronleichnam" });
   }
 
   // Mariä Himmelfahrt
-  if (['SL', 'BY', 'ALL'].includes(state)) {
-    holidays.push({ date: new Date(year, 7, 15), name: 'Mariä Himmelfahrt' });
+  if (["SL", "BY", "ALL"].includes(state)) {
+    holidays.push({ date: new Date(year, 7, 15), name: "Mariä Himmelfahrt" });
   }
 
   // Weltkindertag
-  if (['TH', 'ALL'].includes(state)) {
-    holidays.push({ date: new Date(year, 8, 20), name: 'Weltkindertag' });
+  if (["TH", "ALL"].includes(state)) {
+    holidays.push({ date: new Date(year, 8, 20), name: "Weltkindertag" });
   }
 
   // Reformationstag
-  if (['BB', 'HB', 'HH', 'MV', 'NI', 'SN', 'ST', 'SH', 'TH', 'ALL'].includes(state)) {
-    holidays.push({ date: new Date(year, 9, 31), name: 'Reformationstag' });
+  if (
+    ["BB", "HB", "HH", "MV", "NI", "SN", "ST", "SH", "TH", "ALL"].includes(
+      state,
+    )
+  ) {
+    holidays.push({ date: new Date(year, 9, 31), name: "Reformationstag" });
   }
 
   // Allerheiligen
-  if (['BW', 'BY', 'NW', 'RP', 'SL', 'ALL'].includes(state)) {
-    holidays.push({ date: new Date(year, 10, 1), name: 'Allerheiligen' });
+  if (["BW", "BY", "NW", "RP", "SL", "ALL"].includes(state)) {
+    holidays.push({ date: new Date(year, 10, 1), name: "Allerheiligen" });
   }
 
   // Buß- und Bettag (Always Wednesday before Nov 23)
-  if (['SN', 'ALL'].includes(state)) {
+  if (["SN", "ALL"].includes(state)) {
     const nov23 = new Date(year, 10, 23);
     const dayOfWeek = nov23.getDay(); // 0=Sun, 3=Wed
     let offset = dayOfWeek - 3;
     if (offset <= 0) offset += 7;
-    holidays.push({ date: addDays(nov23, -offset), name: 'Buß- und Bettag' });
+    holidays.push({ date: addDays(nov23, -offset), name: "Buß- und Bettag" });
   }
 
   return holidays;
 }
 
 /**
- * Calculates the number of vacation days between two dates, 
+ * Calculates the number of vacation days between two dates,
  * excluding weekends and public holidays for the given state.
  */
-export function calculateVacationDays(from: Date, to: Date, state: GermanState): number {
+export function calculateVacationDays(
+  from: Date,
+  to: Date,
+  state: GermanState,
+): number {
   if (from > to) return 0;
-  
+
   const days = eachDayOfInterval({ start: from, end: to });
   const yearFrom = getYear(from);
   const yearTo = getYear(to);
-  
+
   // Get holidays for all years involved
-  let allHolidays: Date[] = getHolidays(yearFrom, state).map(h => h.date);
+  let allHolidays: Date[] = getHolidays(yearFrom, state).map((h) => h.date);
   if (yearTo !== yearFrom) {
-    allHolidays = [...allHolidays, ...getHolidays(yearTo, state).map(h => h.date)];
+    allHolidays = [
+      ...allHolidays,
+      ...getHolidays(yearTo, state).map((h) => h.date),
+    ];
   }
 
-  const workdays = days.filter(day => {
+  const workdays = days.filter((day) => {
     // 1. Is it a weekend?
     if (isWeekend(day)) return false;
-    
+
     // 2. Is it a public holiday?
-    const isHoliday = allHolidays.some(h => isSameDay(h, day));
+    const isHoliday = allHolidays.some((h) => isSameDay(h, day));
     if (isHoliday) return false;
 
     return true;
@@ -131,21 +168,21 @@ export function calculateVacationDays(from: Date, to: Date, state: GermanState):
 }
 
 export const GERMAN_STATES: { code: GermanState; name: string }[] = [
-  { code: 'ALL', name: 'Alle (Gesamtdeutschland)' },
-  { code: 'BW', name: 'Baden-Württemberg' },
-  { code: 'BY', name: 'Bayern' },
-  { code: 'BE', name: 'Berlin' },
-  { code: 'BB', name: 'Brandenburg' },
-  { code: 'HB', name: 'Bremen' },
-  { code: 'HH', name: 'Hamburg' },
-  { code: 'HE', name: 'Hessen' },
-  { code: 'MV', name: 'Mecklenburg-Vorpommern' },
-  { code: 'NI', name: 'Niedersachsen' },
-  { code: 'NW', name: 'Nordrhein-Westfalen' },
-  { code: 'RP', name: 'Rheinland-Pfalz' },
-  { code: 'SL', name: 'Saarland' },
-  { code: 'SN', name: 'Sachsen' },
-  { code: 'ST', name: 'Sachsen-Anhalt' },
-  { code: 'SH', name: 'Schleswig-Holstein' },
-  { code: 'TH', name: 'Thüringen' },
+  { code: "ALL", name: "Alle (Gesamtdeutschland)" },
+  { code: "BW", name: "Baden-Württemberg" },
+  { code: "BY", name: "Bayern" },
+  { code: "BE", name: "Berlin" },
+  { code: "BB", name: "Brandenburg" },
+  { code: "HB", name: "Bremen" },
+  { code: "HH", name: "Hamburg" },
+  { code: "HE", name: "Hessen" },
+  { code: "MV", name: "Mecklenburg-Vorpommern" },
+  { code: "NI", name: "Niedersachsen" },
+  { code: "NW", name: "Nordrhein-Westfalen" },
+  { code: "RP", name: "Rheinland-Pfalz" },
+  { code: "SL", name: "Saarland" },
+  { code: "SN", name: "Sachsen" },
+  { code: "ST", name: "Sachsen-Anhalt" },
+  { code: "SH", name: "Schleswig-Holstein" },
+  { code: "TH", name: "Thüringen" },
 ];

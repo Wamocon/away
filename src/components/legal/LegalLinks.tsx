@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, ReceiptText, Shield, HelpCircle, BookOpen } from "lucide-react";
+import {
+  FileText,
+  ReceiptText,
+  Shield,
+  HelpCircle,
+  BookOpen,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LegalLinksProps {
@@ -38,7 +44,12 @@ export function LegalLinks({ className, variant = "inline" }: LegalLinksProps) {
   }
 
   return (
-    <div className={cn("flex flex-wrap items-center justify-center gap-x-6 gap-y-3", className)}>
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-center gap-x-6 gap-y-3",
+        className,
+      )}
+    >
       {LEGAL_LINK_ITEMS.map((item) => (
         <Link
           key={item.href}

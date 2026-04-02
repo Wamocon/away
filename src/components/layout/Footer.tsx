@@ -1,5 +1,5 @@
-import { LegalLinks } from '../legal/LegalLinks';
-import { DevelopedInGermanyBadge } from '../legal/DevelopedInGermanyBadge';
+import { LegalLinks } from "../legal/LegalLinks";
+import { DevelopedInGermanyBadge } from "../legal/DevelopedInGermanyBadge";
 
 export function Footer() {
   return (
@@ -10,11 +10,15 @@ export function Footer() {
             AWAY – MODERNE URLAUBSPLANNER
           </span>
           <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-50 font-black">
-            Professionelles Urlaubsmanagement &copy; {new Date().getFullYear()} WAMOCON GmbH
+            Professionelles Urlaubsmanagement &copy; {new Date().getFullYear()}{" "}
+            WAMOCON GmbH
           </span>
         </div>
 
-        <LegalLinks variant="inline" className="opacity-80 hover:opacity-100 transition-opacity" />
+        <LegalLinks
+          variant="inline"
+          className="opacity-80 hover:opacity-100 transition-opacity"
+        />
 
         <div className="scale-90 origin-center -mt-4">
           <DevelopedInGermanyBadge />

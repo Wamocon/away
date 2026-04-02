@@ -1,12 +1,12 @@
-'use client';
+"use client";
 import {
   createContext,
   useContext,
   useEffect,
   useState,
   useCallback,
-} from 'react';
-import { getTranslations, Locale, TranslationKey } from '@/lib/i18n';
+} from "react";
+import { getTranslations, Locale, TranslationKey } from "@/lib/i18n";
 
 interface LanguageContextValue {
   locale: Locale;
@@ -15,24 +15,24 @@ interface LanguageContextValue {
 }
 
 const LanguageContext = createContext<LanguageContextValue>({
-  locale: 'de',
+  locale: "de",
   setLocale: () => {},
-  t: getTranslations('de'),
+  t: getTranslations("de"),
 });
 
 export function useLanguage() {
   return useContext(LanguageContext);
 }
 
-const STORAGE_KEY = 'away-locale';
+const STORAGE_KEY = "away-locale";
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('de');
+  const [locale, setLocaleState] = useState<Locale>("de");
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as Locale | null;
-      if (stored === 'en' || stored === 'de') {
+      if (stored === "en" || stored === "de") {
         setLocaleState(stored);
         document.documentElement.lang = stored;
       }

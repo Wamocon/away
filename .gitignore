@@ -42,9 +42,10 @@ next-env.d.ts
 
 
 away.code-workspace
-# -- GUI Tests (LOCAL ONLY – do NOT commit or push) ------------
+# -- GUI Tests (LOCAL ONLY ï¿½ do NOT commit or push) ------------
 /e2e/
 /playwright-report/
 /playwright/.cache/
 playwright.config.ts
+
 

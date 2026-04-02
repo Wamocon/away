@@ -216,9 +216,10 @@ export default function RequestDetailPage() {
         <h2 className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--text-subtle)' }}>Status-Verlauf</h2>
         <div className="flex items-center gap-0">
           {[
-            { label: 'Eingereicht', done: true, active: false },
-            { label: 'In Prüfung', done: request.status !== 'pending', active: request.status === 'pending' },
+            { label: 'Eingereicht', date: request.created_at, done: true, active: false },
+            { label: 'In Prüfung', date: request.status !== 'pending' ? request.updated_at : null, done: request.status !== 'pending', active: request.status === 'pending' },
             { label: request.status === 'rejected' ? 'Abgelehnt' : 'Genehmigt',
+              date: request.status !== 'pending' ? request.updated_at : null,
               done: request.status !== 'pending',
               active: false,
               color: request.status === 'rejected' ? 'var(--danger)' : 'var(--success)'
@@ -239,8 +240,13 @@ export default function RequestDetailPage() {
                 <span className="text-[10px] font-semibold text-center whitespace-nowrap" style={{ color: s.done || s.active ? 'var(--text-base)' : 'var(--text-subtle)' }}>
                   {s.label}
                 </span>
+                {s.date && (
+                  <span className="text-[9px] text-center whitespace-nowrap" style={{ color: 'var(--text-subtle)' }}>
+                    {format(parseISO(s.date), 'dd.MM.yy HH:mm', { locale: de })}
+                  </span>
+                )}
               </div>
-              {i < 2 && <div className={`flex-1 h-0.5 mt-[-14px] ${s.done ? 'bg-[var(--success)]' : 'bg-[var(--border)]'}`} />}
+              {i < 2 && <div className={`flex-1 h-0.5 mt-[-24px] ${s.done ? 'bg-[var(--success)]' : 'bg-[var(--border)]'}`} />}
             </div>
           ))}
         </div>

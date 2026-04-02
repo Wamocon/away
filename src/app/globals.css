@@ -112,44 +112,56 @@ html::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius
 /* ── Light Mode Overrides ─────────────────────────────────── */
 html:not(.dark) {
   /* Backgrounds */
-  --bg-base:      #eef2f9;
+  --bg-base:      #dde3f0;
   --bg-surface:   #ffffff;
-  --bg-elevated:  #e8eef8;
-  --bg-input:     #f5f7fb;
+  --bg-elevated:  #edf1fa;
+  --bg-input:     #f8f9fd;
   --bg-card:      rgba(255,255,255,1);
 
   /* Text — high contrast for readability */
-  --text-base:    #0d1424;
-  --text-muted:   rgba(13,20,36,0.60);
-  --text-subtle:  rgba(13,20,36,0.35);
+  --text-base:    #0a1020;
+  --text-muted:   rgba(10,16,32,0.70);
+  --text-subtle:  rgba(10,16,32,0.45);
 
   /* Borders — clearly visible */
-  --border:       rgba(0,0,0,0.18);
-  --border-subtle: rgba(0,0,0,0.10);
+  --border:       rgba(0,0,0,0.22);
+  --border-subtle: rgba(0,0,0,0.12);
 
   /* Brand */
-  --primary-light: rgba(99,102,241,0.10);
-  --primary-glow:  rgba(99,102,241,0.20);
+  --primary-light: rgba(99,102,241,0.14);
+  --primary-glow:  rgba(99,102,241,0.25);
 
   /* Status */
-  --success-light: rgba(16,185,129,0.15);
-  --warning-light: rgba(245,158,11,0.15);
-  --danger-light:  rgba(239,68,68,0.15);
-  --info-light:    rgba(139,92,246,0.15);
+  --success-light: rgba(16,185,129,0.18);
+  --warning-light: rgba(245,158,11,0.18);
+  --danger-light:  rgba(239,68,68,0.18);
+  --info-light:    rgba(139,92,246,0.18);
 
   /* Effects */
-  --glow-1:       rgba(99,102,241,0.07);
-  --glow-2:       rgba(16,185,129,0.04);
-  --dot-grid:     rgba(0,0,0,0.045);
-  --ring-focus:   rgba(99,102,241,0.30);
+  --glow-1:       rgba(99,102,241,0.08);
+  --glow-2:       rgba(16,185,129,0.05);
+  --dot-grid:     rgba(0,0,0,0.055);
+  --ring-focus:   rgba(99,102,241,0.35);
 
   /* Glass — visible card with shadow on light bg */
-  --glass:             rgba(255,255,255,0.95);
-  --glass-border:      rgba(0,0,0,0.12);
-  --glass-highlight:   rgba(255,255,255,0.8);
+  --glass:             rgba(255,255,255,0.97);
+  --glass-border:      rgba(0,0,0,0.15);
+  --glass-highlight:   rgba(255,255,255,0.9);
 
   /* Sidebar */
-  --sidebar-bg:   rgba(246,248,255,0.99);
+  --sidebar-bg:   rgba(240,244,255,0.99);
+}
+
+/* ── Dark Mode: erhöhter Kontrast (+30%) ─────────────────── */
+html.dark {
+  --text-base:    #f4f8ff;
+  --text-muted:   rgba(244,248,255,0.55);
+  --text-subtle:  rgba(244,248,255,0.30);
+  --bg-surface:   #111827;
+  --bg-elevated:  #1a2235;
+  --bg-input:     #0f1628;
+  --border:       rgba(255,255,255,0.16);
+  --border-subtle: rgba(255,255,255,0.09);
 }
 
 /* ── Base ─────────────────────────────────────────────────── */
@@ -583,3 +595,48 @@ html:not(.dark) .kpi-card:hover {
 /* ── Light mode card fix ─────────────────────────────────── */
 html:not(.dark) .kpi-card { background: #ffffff; }
 html:not(.dark) .card     { background: #ffffff; }
+
+/* ── Modal / Dialog Overrides ────────────────────────────── */
+/* Ensure modals/overlays always use correct surface bg in both modes */
+[role="dialog"], .modal-overlay > div, .modal-panel {
+  background: var(--bg-surface) !important;
+  color: var(--text-base) !important;
+}
+
+/* Light mode: force all fixed/absolute overlay panels to white */
+html:not(.dark) [class*="fixed"][class*="inset"],
+html:not(.dark) [class*="fixed"][class*="z-50"],
+html:not(.dark) [class*="absolute"][class*="z-50"],
+html:not(.dark) [class*="absolute"][class*="z-40"] {
+  --modal-bg: var(--bg-surface);
+}
+html:not(.dark) .card-glass {
+  background: rgba(255,255,255,0.98) !important;
+  color: var(--text-base) !important;
+}
+
+/* Dark mode: slightly lighter overlap panels */
+html.dark [class*="bg-gray-800"],
+html.dark [class*="bg-gray-900"],
+html.dark [class*="bg-slate-800"],
+html.dark [class*="bg-slate-900"] {
+  --tw-bg-opacity: 1;
+}
+
+/* ── Input fields: explicit light mode brightness ─────────── */
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background: #ffffff !important;
+  color: #0a1020 !important;
+  border-color: rgba(0,0,0,0.22) !important;
+}
+
+/* Dark mode: make inputs more readable */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background: #0f1628 !important;
+  color: #f4f8ff !important;
+  border-color: rgba(255,255,255,0.18) !important;
+}

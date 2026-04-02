@@ -247,7 +247,7 @@ export default function AdminSettingsPage() {
     if (!orgId) return;
     showConfirm(
       'Mitglied entfernen?', 
-      'MÃ¶chtest du dieses Mitglied wirklich aus der Organisation entfernen? Der Zugriff wird sofort entzogen.',
+      'Möchtest du dieses Mitglied wirklich aus der Organisation entfernen? Der Zugriff wird sofort entzogen.',
       async () => {
         const supabase = createClient();
         await supabase.from('user_roles').delete().eq('user_id', memberId).eq('organization_id', orgId);
@@ -262,7 +262,7 @@ export default function AdminSettingsPage() {
     if (!file || !orgId) return;
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!['pdf', 'docx', 'xlsx'].includes(ext || '')) {
-      setUploadError('Nur PDF, DOCX und XLSX unterstÃ¼tzt.');
+      setUploadError('Nur PDF, DOCX und XLSX unterstützt.');
       return;
     }
     setUploading(true);
@@ -292,8 +292,8 @@ export default function AdminSettingsPage() {
 
   const handleRemoveTemplate = (template: Template) => {
     showConfirm(
-      'Vorlage lÃ¶schen?',
-      `MÃ¶chtest du die Vorlage "${template.name}" wirklich unwiderruflich lÃ¶schen?`,
+      'Vorlage löschen?',
+      `Möchtest du die Vorlage "${template.name}" wirklich unwiderruflich löschen?`,
       async () => {
         const supabase = createClient();
         await supabase.storage.from('templates').remove([template.storage_path]);
@@ -323,7 +323,7 @@ export default function AdminSettingsPage() {
         <div className="flex items-center gap-3 mb-6">
             <div className="card px-4 py-2 flex items-center gap-2 bg-[var(--bg-elevated)] text-xs font-bold border border-[var(--border)] shadow-sm">
                 <Building2 size={13} className="text-[var(--primary)]" />
-                {orgName || 'Keine Organisation gewÃ¤hlt'}
+                {orgName || 'Keine Organisation gewählt'}
             </div>
         </div>
       )}
@@ -365,9 +365,9 @@ export default function AdminSettingsPage() {
           {!orgId && activeTab !== 'organizations' && (
             <div className="card p-12 text-center space-y-4 animate-in fade-in duration-500">
               <Building2 size={48} className="mx-auto text-[var(--text-muted)] opacity-20" />
-              <h2 className="text-lg font-bold">Keine Organisation ausgewÃ¤hlt</h2>
+              <h2 className="text-lg font-bold">Keine Organisation ausgewählt</h2>
               <p className="text-sm text-[var(--text-muted)] max-w-sm mx-auto">
-                Bitte wÃ¤hle eine Organisation aus oder erstelle eine neue, um die Einstellungen zu verwalten.
+                Bitte wähle eine Organisation aus oder erstelle eine neue, um die Einstellungen zu verwalten.
               </p>
               <button onClick={() => setActiveTab('organizations')} className="btn-primary mx-auto">
                 Zur Organisationsverwaltung
@@ -395,7 +395,7 @@ export default function AdminSettingsPage() {
                     </div>
                     <button type="submit" disabled={isSavingOrg} className="btn-primary min-w-[160px] justify-center shadow-lg">
                       {isSavingOrg ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                      Ã„nderungen speichern
+                      Änderungen speichern
                     </button>
                   </form>
                 </div>
@@ -421,7 +421,7 @@ export default function AdminSettingsPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black mb-2 text-[var(--text-muted)] uppercase tracking-wider">PrimÃ¤rfarbe (Hex)</label>
+                          <label className="block text-[10px] font-black mb-2 text-[var(--text-muted)] uppercase tracking-wider">Primärfarbe (Hex)</label>
                           <div className="flex gap-3">
                              <input
                               type="color"
@@ -443,7 +443,7 @@ export default function AdminSettingsPage() {
                         <textarea
                           value={address}
                           onChange={e => setAddress(e.target.value)}
-                          placeholder="MusterstraÃŸe 1&#10;12345 Berlin"
+                          placeholder="Musterstraße 1&#10;12345 Berlin"
                           rows={4}
                           className="w-full rounded-xl border px-4 py-3 text-sm bg-[var(--bg-elevated)] border-[var(--border)] outline-none resize-none"
                         />
@@ -496,7 +496,7 @@ export default function AdminSettingsPage() {
                           onChange={e => setHolidayRegion(e.target.value)}
                           className="w-full rounded-xl border px-4 py-3 text-sm bg-[var(--bg-elevated)] border-[var(--border)] outline-none"
                         >
-                          <option value="BW">Baden-WÃ¼rttemberg</option>
+                          <option value="BW">Baden-Württemberg</option>
                           <option value="BY">Bayern</option>
                           <option value="BE">Berlin</option>
                           <option value="BB">Brandenburg</option>
@@ -511,7 +511,7 @@ export default function AdminSettingsPage() {
                           <option value="SN">Sachsen</option>
                           <option value="ST">Sachsen-Anhalt</option>
                           <option value="SH">Schleswig-Holstein</option>
-                          <option value="TH">ThÃ¼ringen</option>
+                          <option value="TH">Thüringen</option>
                         </select>
                       </div>
 
@@ -581,7 +581,7 @@ export default function AdminSettingsPage() {
                                   >
                                     <option value="employee">Mitarbeiter</option>
                                     <option value="approver">Genehmiger</option>
-                                    <option value="cio">CIO (GeschÃ¤ftsfÃ¼hrer)</option>
+                                    <option value="cio">CIO (Geschäftsführer)</option>
                                     <option value="admin">Admin</option>
                                   </select>
                                </div>
@@ -674,13 +674,13 @@ export default function AdminSettingsPage() {
                 <section className="pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
                     <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 text-[var(--text-muted)]">Organisationen Verlassen / Beitreten</h3>
                     <p className="text-xs mb-4 text-[var(--text-subtle)]">
-                        Falls du nicht mehr Teil einer Organisation sein mÃ¶chtest, kannst du diese hier verlassen (demnÃ¤chst). 
+                        Falls du nicht mehr Teil einer Organisation sein möchtest, kannst du diese hier verlassen (demnächst). 
                         Um einer neuen beizutreten, lass dich von einem Administrator einladen.
                     </p>
                     <div className="p-6 rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center opacity-40">
                          <Plus size={24} className="mb-2" />
                          <p className="text-[10px] font-black uppercase tracking-widest">Neue Organisation Erstellen</p>
-                         <p className="text-[9px] mt-1 italic">Nutzte das 'Neu' MenÃ¼ oben oder kontaktiere den CIO.</p>
+                         <p className="text-[9px] mt-1 italic">Nutzte das 'Neu' Menü oben oder kontaktiere den CIO.</p>
                     </div>
                 </section>
               </div>
@@ -694,7 +694,7 @@ export default function AdminSettingsPage() {
                   <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center"><Send size={16} /></div>
                   <div>
                     <h2 className="text-base font-bold">E-Mail-Integration</h2>
-                    <p className="text-[11px] text-[var(--text-muted)]">OAuth-Verbindungen fÃ¼r automatischen E-Mail-Versand</p>
+                    <p className="text-[11px] text-[var(--text-muted)]">OAuth-Verbindungen für automatischen E-Mail-Versand</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -748,8 +748,8 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
                 <p className="text-[11px] text-[var(--text-muted)]">
-                  Mitarbeiter kÃ¶nnen ihre Outlook- oder Google-Kalender verbinden ({' '}
-                  <a href="/settings" className="text-[var(--primary)] underline">PersÃ¶nliche Einstellungen</a>
+                  Mitarbeiter können ihre Outlook- oder Google-Kalender verbinden ({' '}
+                  <a href="/settings" className="text-[var(--primary)] underline">Persönliche Einstellungen</a>
                   {' '}â†’ Kalender). Die Verbindung verwendet OAuth-Access-Token.
                 </p>
               </div>
@@ -797,7 +797,7 @@ export default function AdminSettingsPage() {
                    <select value={inviteRole} onChange={e => setInviteRole(e.target.value as UserRole)} className="w-full rounded-xl border px-4 py-3 text-sm bg-white dark:bg-gray-800 border-[var(--border)]">
                       <option value="employee">Mitarbeiter</option>
                       <option value="approver">Genehmiger</option>
-                      <option value="cio">CIO (GeschÃ¤ftsfÃ¼hrer)</option>
+                      <option value="cio">CIO (Geschäftsführer)</option>
                       <option value="admin">Administrator</option>
                    </select>
                 </div>
@@ -817,7 +817,7 @@ export default function AdminSettingsPage() {
               <h3 className="text-xs font-black uppercase tracking-wider">Info</h3>
             </div>
             <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
-              Diese Einstellungen gelten fÃ¼r die gesamte Organisation. Als Administrator hast du vollen Zugriff auf alle Daten und Exporte.
+              Diese Einstellungen gelten für die gesamte Organisation. Als Administrator hast du vollen Zugriff auf alle Daten und Exporte.
             </p>
           </div>
         </div>

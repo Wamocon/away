@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   X, RefreshCw, CheckCircle,
-  AlertCircle, ChevronRight
+  AlertCircle, ChevronRight, BookOpen
 } from 'lucide-react';
 
 import { saveOAuthSettings, getOAuthSettings, fetchExternalEvents, importCalendarEvents } from '@/lib/calendarSync';
@@ -26,6 +26,7 @@ export default function CalendarSync({ orgId, userId, onClose, onSynced }: Calen
   const [error, setError] = useState('');
   const [importAll, setImportAll] = useState(true);
   const [events, setEvents] = useState<{ id: string; title: string; start: string; end: string; selected: boolean }[]>([]);
+  const [showGuide, setShowGuide] = useState<Provider | null>(null);
 
   const handleChooseProvider = (p: Provider) => {
     setProvider(p);
@@ -192,6 +193,95 @@ export default function CalendarSync({ orgId, userId, onClose, onSynced }: Calen
                 Diesen kannst du in deinen Account-Einstellungen unter "Sicherheit" generieren.
               </p>
             </div>
+
+            {/* Setup Guide Buttons */}
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setShowGuide('outlook')}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[10px] font-bold border border-[var(--border)] hover:bg-[var(--bg-elevated)] transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <BookOpen size={12} />
+                Outlook-Anleitung
+              </button>
+              <button
+                onClick={() => setShowGuide('google')}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[10px] font-bold border border-[var(--border)] hover:bg-[var(--bg-elevated)] transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <BookOpen size={12} />
+                Google-Anleitung
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Setup Guide Overlay */}
+        {showGuide && (
+          <div className="absolute inset-0 z-10 rounded-2xl overflow-y-auto p-8 animate-in fade-in slide-in-from-bottom-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-base font-black" style={{ color: 'var(--text-base)' }}>
+                  {showGuide === 'outlook' ? '📘 Outlook verbinden' : '📗 Google Kalender verbinden'}
+                </h3>
+                <p className="text-[10px] opacity-50 mt-0.5">Schritt-für-Schritt Anleitung</p>
+              </div>
+              <button onClick={() => setShowGuide(null)} className="p-2 rounded-xl hover:bg-[var(--bg-elevated)] transition-colors">
+                <X size={16} style={{ color: 'var(--text-muted)' }} />
+              </button>
+            </div>
+
+            {showGuide === 'outlook' ? (
+              <ol className="space-y-4">
+                {[
+                  { n: 1, title: 'Graph Explorer öffnen', desc: <>Gehe zu <a href="https://developer.microsoft.com/en-us/graph/graph-explorer" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline">developer.microsoft.com/graph/graph-explorer</a></> },
+                  { n: 2, title: 'Anmelden', desc: 'Klicke oben rechts auf "Sign in to Graph Explorer" und melde dich mit deinem Microsoft-Konto an.' },
+                  { n: 3, title: 'Berechtigungen erteilen', desc: 'Klicke auf "Modify Permissions" und aktiviere: Calendars.Read, Calendars.ReadWrite, Mail.Send' },
+                  { n: 4, title: 'Access Token kopieren', desc: 'Klicke auf den Tab "Access token" – dort siehst du einen langen Schlüssel. Diesen vollständig kopieren.' },
+                  { n: 5, title: 'Hier einfügen', desc: 'Zurück in AWAY: "Outlook" wählen, deine E-Mail + den kopierten Token einfügen und auf Verbinden klicken.' },
+                ].map(step => (
+                  <li key={step.n} className="flex gap-3">
+                    <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-[#0078d4]">{step.n}</div>
+                    <div>
+                      <p className="text-xs font-bold mb-0.5" style={{ color: 'var(--text-base)' }}>{step.title}</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>{step.desc}</p>
+                    </div>
+                  </li>
+                ))}
+                <li className="mt-4 p-3 rounded-xl text-[10px]" style={{ background: 'rgba(0,120,212,0.08)', color: 'var(--text-muted)' }}>
+                  ⏱ Der Access Token ist <strong>60 Minuten</strong> gültig. Danach muss ein neuer Token generiert werden.
+                </li>
+              </ol>
+            ) : (
+              <ol className="space-y-4">
+                {[
+                  { n: 1, title: 'OAuth Playground öffnen', desc: <>Gehe zu <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline">developers.google.com/oauthplayground</a></> },
+                  { n: 2, title: 'Calendar API auswählen', desc: 'Links unter Schritt 1: "Google Calendar API v3" aufklappen → "https://www.googleapis.com/auth/calendar.readonly" anklicken → "Authorize APIs"' },
+                  { n: 3, title: 'Google-Konto auswählen', desc: 'Wähle dein Google-Konto und erteile die angefragten Berechtigungen.' },
+                  { n: 4, title: 'Token tauschen', desc: 'Klicke in Schritt 2 auf "Exchange authorization code for tokens". Du siehst dann das "Access token" Feld.' },
+                  { n: 5, title: 'Token kopieren + einfügen', desc: 'Das "Access token" vollständig kopieren. Zurück in AWAY: "Google" wählen, E-Mail + Token einfügen und verbinden.' },
+                ].map(step => (
+                  <li key={step.n} className="flex gap-3">
+                    <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-[#4285F4]">{step.n}</div>
+                    <div>
+                      <p className="text-xs font-bold mb-0.5" style={{ color: 'var(--text-base)' }}>{step.title}</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>{step.desc}</p>
+                    </div>
+                  </li>
+                ))}
+                <li className="mt-4 p-3 rounded-xl text-[10px]" style={{ background: 'rgba(66,133,244,0.08)', color: 'var(--text-muted)' }}>
+                  ⏱ Der Access Token ist <strong>60 Minuten</strong> gültig. Für dauerhaften Sync empfehlen wir die OAuth-App-Einrichtung.
+                </li>
+              </ol>
+            )}
+
+            <button
+              onClick={() => { setShowGuide(null); handleChooseProvider(showGuide); }}
+              className="w-full mt-6 py-3 rounded-xl bg-[var(--primary)] text-white font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+            >
+              <ChevronRight size={14} />
+              {showGuide === 'outlook' ? 'Outlook verbinden' : 'Google verbinden'}
+            </button>
           </div>
         )}
 
@@ -231,6 +321,7 @@ export default function CalendarSync({ orgId, userId, onClose, onSynced }: Calen
                   type="password"
                   value={token}
                   onChange={e => setToken(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !syncing && handleConnect()}
                   placeholder="Paste access token..."
                   className="form-input-lux"
                 />

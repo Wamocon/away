@@ -65,8 +65,11 @@ function SidebarContent({
   }, []);
 
   const toggleMode = () => {
-    setIsElevatedMode(!isElevatedMode);
-    localStorage.setItem('role-mode', !isElevatedMode ? 'elevated' : 'employee');
+    const next = !isElevatedMode;
+    setIsElevatedMode(next);
+    localStorage.setItem('role-mode', next ? 'elevated' : 'employee');
+    // Notify all pages to re-render navigation
+    window.dispatchEvent(new CustomEvent('role-mode-change', { detail: { elevated: next } }));
   };
 
   const loadUser = useCallback(async () => {
@@ -110,15 +113,15 @@ function SidebarContent({
 
   const mitarbeiterItems: NavItem[] = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-    { href: '/dashboard/requests', icon: ClipboardList, label: 'Antrag', exact: true },
+    { href: '/dashboard/requests', icon: ClipboardList, label: 'Meine Anträge', exact: true },
     { href: '/dashboard/calendar', icon: CalendarDays, label: 'Kalender', exact: true },
   ];
 
   const genehmigerItems: NavItem[] = [
     {
-      href: '/dashboard/requests',
+      href: '/dashboard/admin-requests',
       icon: ClipboardList,
-      label: 'Antragsübersicht',
+      label: 'Anträge',
       exact: true,
       badge: mounted && pendingCount > 0 ? pendingCount : undefined,
     },

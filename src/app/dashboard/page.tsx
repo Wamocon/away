@@ -14,6 +14,7 @@ import {
   ShieldCheck, LayoutGrid, List
 } from 'lucide-react';
 import { useViewMode } from '@/components/ui/ViewModeProvider';
+import WizardVacationRequest from '@/components/WizardVacationRequest';
 
 export default function Dashboard() {
   const { viewMode, setViewMode } = useViewMode();
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [role, setRole] = useState<UserRole | null>(null);
   const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showWizard, setShowWizard] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -52,6 +54,13 @@ export default function Dashboard() {
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Re-load when role mode changes (sidebar toggle)
+  useEffect(() => {
+    const handler = () => loadData();
+    window.addEventListener('role-mode-change', handler);
+    return () => window.removeEventListener('role-mode-change', handler);
+  }, [loadData]);
 
   // Stats
   const myRequests = requests.filter(r => r.user_id === user?.id);
@@ -122,10 +131,10 @@ export default function Dashboard() {
             <CalendarDays size={14} />
             Kalender
           </Link>
-          <Link href="/dashboard/requests" className="btn-primary">
+          <button onClick={() => setShowWizard(true)} className="btn-primary">
             <Plus size={14} />
             Neuer Antrag
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -300,7 +309,7 @@ export default function Dashboard() {
               Schnellzugriff
             </h2>
             <div className="flex flex-col gap-2">
-              <Link href="/dashboard/requests" className="btn-primary w-full justify-center">
+          <Link href="/dashboard/requests" className="btn-primary w-full justify-center">
                 <Plus size={14} /> Urlaubsantrag stellen
               </Link>
               <Link href="/dashboard/calendar" className="btn-secondary w-full justify-center">
@@ -362,6 +371,18 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* ─── Wizard Modal ───────────────────────────────── */}
+      {showWizard && org && user && (
+        <WizardVacationRequest
+          orgId={org.id}
+          orgName={org.name}
+          userId={user.id}
+          userEmail={user.email}
+          onClose={() => setShowWizard(false)}
+          onSuccess={() => { setShowWizard(false); loadData(); }}
+        />
+      )}
     </div>
   );
 }

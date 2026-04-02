@@ -54,6 +54,7 @@ jobs:
 
       - name: Commit auto-fixed changes
         uses: stefanzweifel/git-auto-commit-action@v5
+        continue-on-error: true
         with:
           commit_message: "style: auto-fix lint and formatting issues"
           branch: ${{ github.head_ref }}
@@ -62,6 +63,7 @@ jobs:
   validate:
     name: Typecheck, Lint & Tests
     needs: autofix
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

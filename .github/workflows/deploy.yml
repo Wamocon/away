@@ -1,12 +1,9 @@
 # =============================================================================
-# Deploy – Inlined (Preview + Production)
+# Deploy – Production only (push to main/master)
 # =============================================================================
-# Inspired by the shared workflow templates from github_workflow.
-# Inlined directly to avoid dependency on a private external repository.
-#
-# Trigger:
-#   pull_request → main/master  →  Vercel *preview* deployment
-#   push         → main/master  →  Vercel *production* deployment
+# Runs ONLY after merge to main/master, not on pull requests.
+# Vercel Hobby plan cannot deploy private GitHub Organization repositories
+# via pull_request events.
 #
 # Required Secrets (repo-level):
 #   VERCEL_TOKEN       – Vercel personal access token
@@ -20,13 +17,10 @@ name: Deploy
 on:
   push:
     branches: [main, master]
-  pull_request:
-    branches: [main, master]
 
-# Cancel in-progress preview deploys on new commits; never cancel production
 concurrency:
-  group: deploy-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
   deploy:

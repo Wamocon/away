@@ -49,7 +49,7 @@ jobs:
         continue-on-error: true
 
       - name: Fix formatting
-        run: npx prettier --write .
+        run: npx prettier --write "src/**/*.{ts,tsx,js,jsx,json,css}" "*.{js,ts,mjs,json}"
         continue-on-error: true
 
       - name: Commit auto-fixed changes

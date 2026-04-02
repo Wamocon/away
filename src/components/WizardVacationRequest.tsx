@@ -258,7 +258,7 @@ export default function WizardVacationRequest({ userId, orgId, userEmail, orgNam
       } else if (e.code === 'PGRST') {
         msg = 'Datenbank-Fehler: Die Tabelle "document_numbers" konnte nicht gefunden werden. Bitte führen Sie die SQL-Migration aus.';
       } else if (typeof err === 'object' && err !== null) {
-        msg = err.message || JSON.stringify(err);
+        msg = (err as { message?: string }).message ?? JSON.stringify(err);
       } else {
         msg = String(err);
       }

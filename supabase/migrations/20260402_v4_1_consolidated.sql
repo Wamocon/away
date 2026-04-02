@@ -13,7 +13,7 @@
 -- DROP vor CREATE nötig, da PostgreSQL bei CREATE OR REPLACE keine
 -- Umbenennung von Parametern erlaubt (ERROR 42P13).
 
-DROP FUNCTION IF EXISTS public.is_admin_in_org(text, uuid);
+DROP FUNCTION IF EXISTS public.is_admin_in_org(text, uuid) CASCADE;
 CREATE FUNCTION public.is_admin_in_org(schema_name text, org_id uuid)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE result boolean;
@@ -26,7 +26,7 @@ BEGIN
 END;
 $$;
 
-DROP FUNCTION IF EXISTS public.is_approver_in_org(text, uuid);
+DROP FUNCTION IF EXISTS public.is_approver_in_org(text, uuid) CASCADE;
 CREATE FUNCTION public.is_approver_in_org(schema_name text, org_id uuid)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE result boolean;

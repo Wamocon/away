@@ -246,13 +246,11 @@ describe("calendarSync lib", () => {
     it("throws 401 for outlook on expired token", async () => {
       vi.stubGlobal(
         "fetch",
-        vi
-          .fn()
-          .mockResolvedValue({
-            status: 401,
-            ok: false,
-            text: async () => "Unauthorized",
-          }),
+        vi.fn().mockResolvedValue({
+          status: 401,
+          ok: false,
+          text: async () => "Unauthorized",
+        }),
       );
       await expect(
         fetchExternalEvents("outlook", "a".repeat(20)),
@@ -263,13 +261,11 @@ describe("calendarSync lib", () => {
     it("throws generic error for non-ok outlook response", async () => {
       vi.stubGlobal(
         "fetch",
-        vi
-          .fn()
-          .mockResolvedValue({
-            status: 500,
-            ok: false,
-            text: async () => "Server Error",
-          }),
+        vi.fn().mockResolvedValue({
+          status: 500,
+          ok: false,
+          text: async () => "Server Error",
+        }),
       );
       await expect(
         fetchExternalEvents("outlook", "a".repeat(20)),
@@ -327,13 +323,11 @@ describe("calendarSync lib", () => {
     it("throws 401 for google on expired token", async () => {
       vi.stubGlobal(
         "fetch",
-        vi
-          .fn()
-          .mockResolvedValue({
-            status: 401,
-            ok: false,
-            text: async () => "Unauthorized",
-          }),
+        vi.fn().mockResolvedValue({
+          status: 401,
+          ok: false,
+          text: async () => "Unauthorized",
+        }),
       );
       await expect(
         fetchExternalEvents("google", "a".repeat(20)),
@@ -344,13 +338,11 @@ describe("calendarSync lib", () => {
     it("throws generic error for non-ok google response", async () => {
       vi.stubGlobal(
         "fetch",
-        vi
-          .fn()
-          .mockResolvedValue({
-            status: 403,
-            ok: false,
-            text: async () => "Forbidden",
-          }),
+        vi.fn().mockResolvedValue({
+          status: 403,
+          ok: false,
+          text: async () => "Forbidden",
+        }),
       );
       await expect(
         fetchExternalEvents("google", "a".repeat(20)),

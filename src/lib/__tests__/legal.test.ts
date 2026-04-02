@@ -102,21 +102,17 @@ describe("legal", () => {
     it("returns users and consents on success", async () => {
       const usersChain = {
         select: vi.fn().mockReturnThis(),
-        eq: vi
-          .fn()
-          .mockResolvedValue({
-            data: [{ user_id: "u1", role: "admin" }],
-            error: null,
-          }),
+        eq: vi.fn().mockResolvedValue({
+          data: [{ user_id: "u1", role: "admin" }],
+          error: null,
+        }),
       };
       const consentsChain = {
         select: vi.fn().mockReturnThis(),
-        in: vi
-          .fn()
-          .mockResolvedValue({
-            data: [{ user_id: "u1", consent_type: "agb" }],
-            error: null,
-          }),
+        in: vi.fn().mockResolvedValue({
+          data: [{ user_id: "u1", consent_type: "agb" }],
+          error: null,
+        }),
       };
 
       let callCount = 0;
@@ -148,21 +144,17 @@ describe("legal", () => {
     it("throws on consents query error", async () => {
       const usersChain = {
         select: vi.fn().mockReturnThis(),
-        eq: vi
-          .fn()
-          .mockResolvedValue({
-            data: [{ user_id: "u1", role: "admin" }],
-            error: null,
-          }),
+        eq: vi.fn().mockResolvedValue({
+          data: [{ user_id: "u1", role: "admin" }],
+          error: null,
+        }),
       };
       const consentsChain = {
         select: vi.fn().mockReturnThis(),
-        in: vi
-          .fn()
-          .mockResolvedValue({
-            data: null,
-            error: { message: "consents fail" },
-          }),
+        in: vi.fn().mockResolvedValue({
+          data: null,
+          error: { message: "consents fail" },
+        }),
       };
 
       let callCount = 0;

@@ -234,12 +234,10 @@ describe("getOrgApproversForNotification", () => {
       from: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            in: vi
-              .fn()
-              .mockResolvedValue({
-                data: [{ user_id: "u1", role: "admin" }],
-                error: null,
-              }),
+            in: vi.fn().mockResolvedValue({
+              data: [{ user_id: "u1", role: "admin" }],
+              error: null,
+            }),
             eq: vi.fn().mockReturnValue({
               maybeSingle: vi.fn().mockResolvedValue({ data: null }), // no user_settings email
             }),
@@ -280,23 +278,19 @@ describe("getOrgApproversForNotification", () => {
         .mockReturnValueOnce({
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              in: vi
-                .fn()
-                .mockResolvedValue({
-                  data: [{ user_id: "u1", role: "cio" }],
-                  error: null,
-                }),
+              in: vi.fn().mockResolvedValue({
+                data: [{ user_id: "u1", role: "cio" }],
+                error: null,
+              }),
             }),
           }),
         })
         .mockReturnValue({
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              eq: vi
-                .fn()
-                .mockReturnValue({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: null }),
-                }),
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+              }),
             }),
           }),
         }),

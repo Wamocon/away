@@ -57,12 +57,10 @@ describe("documentNumbers lib", () => {
     });
 
     it("returns false and logs on non-PGRST error", async () => {
-      const mockEq2 = vi
-        .fn()
-        .mockResolvedValue({
-          count: null,
-          error: { code: "OTHER", message: "err" },
-        });
+      const mockEq2 = vi.fn().mockResolvedValue({
+        count: null,
+        error: { code: "OTHER", message: "err" },
+      });
       const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
       mockSupabase.select.mockReturnValue({ eq: mockEq1 });
 

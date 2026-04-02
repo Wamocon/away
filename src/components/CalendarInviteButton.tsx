@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useState } from "react";
 
-export default function CalendarInviteButton({ disabled, onSend }: { disabled: boolean, onSend: () => Promise<void> }) {
+export default function CalendarInviteButton({
+  disabled,
+  onSend,
+}: {
+  disabled: boolean;
+  onSend: () => Promise<void>;
+}) {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,9 +33,13 @@ export default function CalendarInviteButton({ disabled, onSend }: { disabled: b
         onClick={handleSend}
         disabled={disabled || sending}
       >
-        {sending ? 'Sende...' : 'Kalendereinladung an Team senden'}
+        {sending ? "Sende..." : "Kalendereinladung an Team senden"}
       </button>
-      {success && <div className="text-green-500 mt-2 text-sm">Kalendereinladung gesendet!</div>}
+      {success && (
+        <div className="text-green-500 mt-2 text-sm">
+          Kalendereinladung gesendet!
+        </div>
+      )}
       {error && <div className="text-red-500 mt-2 text-sm">{error}</div>}
     </div>
   );

@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useState } from "react";
 
-export default function SendMailButton({ disabled, onSend }: { disabled: boolean, onSend: () => Promise<void> }) {
+export default function SendMailButton({
+  disabled,
+  onSend,
+}: {
+  disabled: boolean;
+  onSend: () => Promise<void>;
+}) {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,9 +33,13 @@ export default function SendMailButton({ disabled, onSend }: { disabled: boolean
         onClick={handleSend}
         disabled={disabled || sending}
       >
-        {sending ? 'Sende...' : 'Urlaubsantrag per Mail senden'}
+        {sending ? "Sende..." : "Urlaubsantrag per Mail senden"}
       </button>
-      {success && <div className="text-green-500 mt-2 text-sm">E-Mail erfolgreich gesendet!</div>}
+      {success && (
+        <div className="text-green-500 mt-2 text-sm">
+          E-Mail erfolgreich gesendet!
+        </div>
+      )}
       {error && <div className="text-red-500 mt-2 text-sm">{error}</div>}
     </div>
   );

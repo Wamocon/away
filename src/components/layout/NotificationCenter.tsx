@@ -1,18 +1,18 @@
-﻿'use client';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import Link from 'next/link';
-import { Bell, CheckCircle, Clock, XCircle, X, Check } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
-import { format, parseISO } from 'date-fns';
-import { de } from 'date-fns/locale';
-import { getOrganizationsForUser } from '@/lib/organization';
-import { getUserRole, canApprove } from '@/lib/roles';
-import { useLanguage } from '@/components/ui/LanguageProvider';
+﻿"use client";
+import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
+import { Bell, CheckCircle, Clock, XCircle, X, Check } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { format, parseISO } from "date-fns";
+import { de } from "date-fns/locale";
+import { getOrganizationsForUser } from "@/lib/organization";
+import { getUserRole, canApprove } from "@/lib/roles";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 export interface AppNotification {
   id: string;
-  type: 'new_request' | 'approved' | 'rejected';
+  type: "new_request" | "approved" | "rejected";
   title: string;
   message: string;
   createdAt: string;
@@ -20,7 +20,7 @@ export interface AppNotification {
   requestId?: string;
 }
 
-const STORAGE_KEY = 'away-notifications-read';
+const STORAGE_KEY = "away-notifications-read";
 
 function getReadIds(): Set<string> {
   try {
@@ -39,7 +39,7 @@ function markRead(id: string) {
 
 function markAllRead(ids: string[]) {
   const existing = getReadIds();
-  ids.forEach(id => existing.add(id));
+  ids.forEach((id) => existing.add(id));
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing]));
 }
 
@@ -71,7 +71,7 @@ export function NotificationCenter() {
       try {
         role = await getUserRole(userId, org.id);
       } catch {
-        role = 'employee';
+        role = "employee";
       }
 
       const readIds = getReadIds();
@@ -79,20 +79,20 @@ export function NotificationCenter() {
 
       if (canApprove(role as never)) {
         const { data: pending } = await supabase
-          .from('vacation_requests')
-          .select('id, user_id, from, to, reason, created_at')
-          .eq('organization_id', org.id)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
+          .from("vacation_requests")
+          .select("id, user_id, from, to, reason, created_at")
+          .eq("organization_id", org.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
           .limit(10);
 
         if (pending) {
           for (const req of pending) {
             items.push({
               id: `pending-${req.id}`,
-              type: 'new_request',
-              title: 'Ausstehender Antrag',
-              message: `Urlaubsantrag vom ${format(parseISO(req.from), 'dd.MM.', { locale: de })} bis ${format(parseISO(req.to), 'dd.MM.yyyy', { locale: de })}`,
+              type: "new_request",
+              title: "Ausstehender Antrag",
+              message: `Urlaubsantrag vom ${format(parseISO(req.from), "dd.MM.", { locale: de })} bis ${format(parseISO(req.to), "dd.MM.yyyy", { locale: de })}`,
               createdAt: req.created_at,
               read: readIds.has(`pending-${req.id}`),
               requestId: req.id,
@@ -102,11 +102,11 @@ export function NotificationCenter() {
       }
 
       const { data: myChanges } = await supabase
-        .from('vacation_requests')
-        .select('id, from, to, status, updated_at')
-        .eq('user_id', userId)
-        .in('status', ['approved', 'rejected'])
-        .order('updated_at', { ascending: false })
+        .from("vacation_requests")
+        .select("id, from, to, status, updated_at")
+        .eq("user_id", userId)
+        .in("status", ["approved", "rejected"])
+        .order("updated_at", { ascending: false })
         .limit(10);
 
       if (myChanges) {
@@ -114,9 +114,12 @@ export function NotificationCenter() {
           const notifId = `status-${req.id}-${req.status}`;
           items.push({
             id: notifId,
-            type: req.status as 'approved' | 'rejected',
-            title: req.status === 'approved' ? 'Antrag genehmigt ✓' : 'Antrag abgelehnt',
-            message: `${format(parseISO(req.from), 'dd.MM.', { locale: de })} – ${format(parseISO(req.to), 'dd.MM.yyyy', { locale: de })}`,
+            type: req.status as "approved" | "rejected",
+            title:
+              req.status === "approved"
+                ? "Antrag genehmigt ✓"
+                : "Antrag abgelehnt",
+            message: `${format(parseISO(req.from), "dd.MM.", { locale: de })} – ${format(parseISO(req.to), "dd.MM.yyyy", { locale: de })}`,
             createdAt: req.updated_at,
             read: readIds.has(notifId),
             requestId: req.id,
@@ -127,7 +130,7 @@ export function NotificationCenter() {
       items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       setNotifications(items.slice(0, 15));
     } catch (err) {
-      console.error('[NotificationCenter]', err);
+      console.error("[NotificationCenter]", err);
     } finally {
       setLoading(false);
     }
@@ -146,27 +149,31 @@ export function NotificationCenter() {
       });
       buildNotifications();
     }
-    setOpen(o => !o);
+    setOpen((o) => !o);
   };
 
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (
-        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
       ) {
         setOpen(false);
       }
     }
-    if (open) document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    if (open) document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
   }, [open]);
 
-  const unread = notifications.filter(n => !n.read).length;
+  const unread = notifications.filter((n) => !n.read).length;
 
   const handleNotificationClick = (n: AppNotification) => {
     markRead(n.id);
-    setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+    setNotifications((prev) =>
+      prev.map((item) => (item.id === n.id ? { ...item, read: true } : item)),
+    );
     setOpen(false);
     if (n.requestId) {
       router.push(`/dashboard/requests/${n.requestId}`);
@@ -174,14 +181,16 @@ export function NotificationCenter() {
   };
 
   const handleReadAll = () => {
-    markAllRead(notifications.map(n => n.id));
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    markAllRead(notifications.map((n) => n.id));
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const iconForType = (type: AppNotification['type']) => {
-    if (type === 'approved') return <CheckCircle size={14} style={{ color: 'var(--success)' }} />;
-    if (type === 'rejected') return <XCircle size={14} style={{ color: 'var(--danger)' }} />;
-    return <Clock size={14} style={{ color: 'var(--warning)' }} />;
+  const iconForType = (type: AppNotification["type"]) => {
+    if (type === "approved")
+      return <CheckCircle size={14} style={{ color: "var(--success)" }} />;
+    if (type === "rejected")
+      return <XCircle size={14} style={{ color: "var(--danger)" }} />;
+    return <Clock size={14} style={{ color: "var(--warning)" }} />;
   };
 
   return (
@@ -197,9 +206,9 @@ export function NotificationCenter() {
         {unread > 0 && (
           <span
             className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-white flex items-center justify-center font-black"
-            style={{ background: 'var(--danger)', fontSize: '9px' }}
+            style={{ background: "var(--danger)", fontSize: "9px" }}
           >
-            {unread > 9 ? '9+' : unread}
+            {unread > 9 ? "9+" : unread}
           </span>
         )}
       </button>
@@ -211,20 +220,26 @@ export function NotificationCenter() {
           style={{
             top: dropdownPos.top,
             right: dropdownPos.right,
-            background: 'var(--bg-surface)',
-            borderColor: 'var(--border)',
+            background: "var(--bg-surface)",
+            borderColor: "var(--border)",
           }}
         >
           <div
             className="flex items-center justify-between px-4 py-3 border-b"
-            style={{ borderColor: 'var(--border)' }}
+            style={{ borderColor: "var(--border)" }}
           >
-            <span className="text-sm font-bold" style={{ color: 'var(--text-base)' }}>
+            <span
+              className="text-sm font-bold"
+              style={{ color: "var(--text-base)" }}
+            >
               {t.notifications.title}
               {unread > 0 && (
                 <span
                   className="ml-2 text-[10px] font-black px-1.5 py-0.5 rounded-full"
-                  style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}
+                  style={{
+                    background: "var(--danger-light)",
+                    color: "var(--danger)",
+                  }}
                 >
                   {unread} neu
                 </span>
@@ -235,7 +250,7 @@ export function NotificationCenter() {
                 <button
                   onClick={handleReadAll}
                   className="text-[10px] font-semibold px-2 py-1 rounded-lg transition-all"
-                  style={{ color: 'var(--primary)' }}
+                  style={{ color: "var(--primary)" }}
                   title={t.notifications.markAllRead}
                 >
                   <Check size={12} />
@@ -253,54 +268,74 @@ export function NotificationCenter() {
 
           <div className="overflow-y-auto max-h-80 custom-scrollbar">
             {loading && (
-              <div className="p-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-              Lade...{/* {t.common.loading} */}
+              <div
+                className="p-6 text-center text-xs"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Lade...{/* {t.common.loading} */}
               </div>
             )}
             {!loading && notifications.length === 0 && (
               <div className="p-6 text-center">
-                <Bell size={24} className="mx-auto mb-2 opacity-20" style={{ color: 'var(--text-subtle)' }} />
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.notifications.noNotifications}</p>
+                <Bell
+                  size={24}
+                  className="mx-auto mb-2 opacity-20"
+                  style={{ color: "var(--text-subtle)" }}
+                />
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {t.notifications.noNotifications}
+                </p>
               </div>
             )}
-            {!loading && notifications.map((n) => (
-              <div
-                key={n.id}
-                className="flex items-start gap-3 px-4 py-3 border-b cursor-pointer transition-all hover:bg-[var(--bg-elevated)]"
-                style={{
-                  borderColor: 'var(--border-subtle)',
-                  background: n.read ? undefined : 'var(--primary-light)',
-                }}
-                onClick={() => handleNotificationClick(n)}
-              >
-                <div className="mt-0.5 shrink-0">{iconForType(n.type)}</div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-xs font-semibold truncate"
-                    style={{ color: n.read ? 'var(--text-muted)' : 'var(--text-base)' }}
-                  >
-                    {n.title}
-                  </p>
-                  <p className="text-[11px] truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {n.message}
-                  </p>
+            {!loading &&
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  className="flex items-start gap-3 px-4 py-3 border-b cursor-pointer transition-all hover:bg-[var(--bg-elevated)]"
+                  style={{
+                    borderColor: "var(--border-subtle)",
+                    background: n.read ? undefined : "var(--primary-light)",
+                  }}
+                  onClick={() => handleNotificationClick(n)}
+                >
+                  <div className="mt-0.5 shrink-0">{iconForType(n.type)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-xs font-semibold truncate"
+                      style={{
+                        color: n.read
+                          ? "var(--text-muted)"
+                          : "var(--text-base)",
+                      }}
+                    >
+                      {n.title}
+                    </p>
+                    <p
+                      className="text-[11px] truncate mt-0.5"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {n.message}
+                    </p>
+                  </div>
+                  {!n.read && (
+                    <div
+                      className="w-2 h-2 rounded-full mt-1 shrink-0"
+                      style={{ background: "var(--primary)" }}
+                    />
+                  )}
                 </div>
-                {!n.read && (
-                  <div
-                    className="w-2 h-2 rounded-full mt-1 shrink-0"
-                    style={{ background: 'var(--primary)' }}
-                  />
-                )}
-              </div>
-            ))}
+              ))}
           </div>
 
           {notifications.length > 0 && (
-            <div className="px-4 py-2 border-t" style={{ borderColor: 'var(--border)' }}>
+            <div
+              className="px-4 py-2 border-t"
+              style={{ borderColor: "var(--border)" }}
+            >
               <Link
                 href="/dashboard/requests"
                 className="block text-center text-xs font-semibold py-1 rounded-lg transition-all hover:bg-[var(--bg-elevated)]"
-                style={{ color: 'var(--primary)' }}
+                style={{ color: "var(--primary)" }}
                 onClick={() => setOpen(false)}
               >
                 Alle Anträge anzeigen →

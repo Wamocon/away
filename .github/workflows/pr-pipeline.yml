@@ -19,6 +19,9 @@ on:
     branches: [main, master]
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+
 # Nur einen Run pro PR gleichzeitig – abbrechnen wenn neuer Push kommt
 concurrency:
   group: pr-validate-${{ github.event.pull_request.number }}

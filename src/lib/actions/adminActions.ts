@@ -331,4 +331,94 @@ export async function assignUsersToOrg(
   }
 }
 
+/**
+ * Liest die Einstellungen eines einzelnen Mitglieds (für Admin-Inline-Bearbeitung).
+ */
+export async function getMemberSettings(targetUserId: string, orgId: string) {
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { error: "Nicht authentifiziert." };
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("organization_id", orgId)
+      .single();
+
+    if (roleData?.role !== "admin") {
+      return { error: "Keine Berechtigung." };
+    }
+
+    const adminClient = await createAdminClient();
+    const { data, error } = await adminClient
+      .from("user_settings")
+      .select("settings")
+      .eq("user_id", targetUserId)
+      .eq("organization_id", orgId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return { data: (data?.settings as Record<string, unknown>) || {} };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+/**
+ * Aktualisiert die Einstellungen eines einzelnen Mitglieds (Admin-Funktion).
+ */
+export async function updateMemberSettings(
+  targetUserId: string,
+  orgId: string,
+  settings: Record<string, unknown>,
+) {
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { error: "Nicht authentifiziert." };
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("organization_id", orgId)
+      .single();
+
+    if (roleData?.role !== "admin") {
+      return { error: "Keine Berechtigung." };
+    }
+
+    const adminClient = await createAdminClient();
+
+    // Bestehende Einstellungen lesen und mergen
+    const { data: existing } = await adminClient
+      .from("user_settings")
+      .select("settings")
+      .eq("user_id", targetUserId)
+      .eq("organization_id", orgId)
+      .maybeSingle();
+
+    const current = (existing?.settings as Record<string, unknown>) || {};
+    const merged = { ...current, ...settings };
+
+    const { error } = await adminClient
+      .from("user_settings")
+      .upsert(
+        { user_id: targetUserId, organization_id: orgId, settings: merged },
+        { onConflict: "user_id,organization_id" },
+      );
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
 // Trigger Redeploy: 2026-03-28 (Fix SUPABASE_SERVICE_ROLE_KEY)

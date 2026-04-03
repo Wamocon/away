@@ -4,6 +4,8 @@ import {
   inviteUserToOrg,
   getOrgMembersWithEmails,
   getOrgApproversForNotification,
+  getMemberSettings,
+  updateMemberSettings,
 } from "../adminActions";
 import * as serverLib from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
@@ -315,5 +317,173 @@ describe("getOrgApproversForNotification", () => {
     });
     const res = await getOrgApproversForNotification("org-1");
     expect(res).toEqual([]);
+  });
+});
+
+// ─── v4.3: getMemberSettings & updateMemberSettings ──────────────────────────
+
+describe("getMemberSettings", () => {
+  const mockSupabase = {
+    auth: { getSession: vi.fn() },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn(),
+    maybeSingle: vi.fn(),
+  };
+  const mockAdminClient = {
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(),
+    auth: { admin: { getUserById: vi.fn() } },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://mock.supabase.co";
+    vi.mocked(serverLib.createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
+    mockSupabase.from.mockReturnValue(mockSupabase);
+    mockSupabase.select.mockReturnValue(mockSupabase);
+    mockSupabase.eq.mockReturnValue(mockSupabase);
+    mockAdminClient.from.mockReturnValue(mockAdminClient);
+    mockAdminClient.select.mockReturnValue(mockAdminClient);
+    mockAdminClient.eq.mockReturnValue(mockAdminClient);
+  });
+
+  it("returns error when not authenticated", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.error).toContain("Nicht authentifiziert");
+  });
+
+  it("returns error when caller is not admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "caller-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "employee" },
+      error: null,
+    });
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.error).toContain("Keine Berechtigung");
+  });
+
+  it("returns settings when admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "admin" },
+      error: null,
+    });
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: { settings: { vacationQuota: 28, firstName: "Anna" } },
+      error: null,
+    });
+
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.data).toEqual({ vacationQuota: 28, firstName: "Anna" });
+  });
+
+  it("returns empty object when no settings row exists", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "admin" },
+      error: null,
+    });
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.data).toEqual({});
+  });
+});
+
+describe("updateMemberSettings", () => {
+  const mockSupabase = {
+    auth: { getSession: vi.fn() },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn(),
+    maybeSingle: vi.fn(),
+  };
+  const mockAdminClient = {
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(),
+    upsert: vi.fn(),
+    auth: { admin: {} },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://mock.supabase.co";
+    vi.mocked(serverLib.createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
+    mockSupabase.from.mockReturnValue(mockSupabase);
+    mockSupabase.select.mockReturnValue(mockSupabase);
+    mockSupabase.eq.mockReturnValue(mockSupabase);
+    mockAdminClient.from.mockReturnValue(mockAdminClient);
+    mockAdminClient.select.mockReturnValue(mockAdminClient);
+    mockAdminClient.eq.mockReturnValue(mockAdminClient);
+  });
+
+  it("returns error when not admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "u1" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "employee" },
+      error: null,
+    });
+    const res = await updateMemberSettings("target", "org-1", { vacationQuota: 25 });
+    expect(res.error).toContain("Keine Berechtigung");
+  });
+
+  it("merges new settings with existing and upserts", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "admin" },
+      error: null,
+    });
+    // Existing settings
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: { settings: { theme: "dark", vacationQuota: 30 } },
+      error: null,
+    });
+    mockAdminClient.upsert.mockResolvedValueOnce({ error: null });
+
+    const res = await updateMemberSettings("target", "org-1", { vacationQuota: 28, employeeId: "E001" });
+    expect(res.success).toBe(true);
+    expect(mockAdminClient.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          theme: "dark",
+          vacationQuota: 28,
+          employeeId: "E001",
+        }),
+      }),
+      expect.any(Object),
+    );
   });
 });

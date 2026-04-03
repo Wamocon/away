@@ -3,6 +3,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { ViewModeProvider } from "@/components/ui/ViewModeProvider";
 import { LanguageProvider } from "@/components/ui/LanguageProvider";
+import { ToastProvider } from "@/components/ui/ToastProvider";
+import { ActiveOrgProvider } from "@/components/ui/ActiveOrgProvider";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -43,9 +45,13 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <LanguageProvider>
-            <ViewModeProvider>
-              <AppShell>{children}</AppShell>
-            </ViewModeProvider>
+            <ActiveOrgProvider>
+              <ToastProvider>
+                <ViewModeProvider>
+                  <AppShell>{children}</AppShell>
+                </ViewModeProvider>
+              </ToastProvider>
+            </ActiveOrgProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

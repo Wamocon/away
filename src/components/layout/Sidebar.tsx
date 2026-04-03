@@ -3,9 +3,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { useLanguage } from "@/components/ui/LanguageProvider";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useCallback } from "react";
-import { getOrganizationsForUser } from "@/lib/organization";
 import { getUserRole, UserRole, ROLE_LABELS } from "@/lib/roles";
 import SchemaRoleSwitcher from "@/components/SchemaRoleSwitcher";
 import {
@@ -25,9 +25,8 @@ import {
   UserCircle,
   ToggleLeft,
   ToggleRight,
+  ChevronDown,
 } from "lucide-react";
-
-// Removed local UserRole type in favor of import from @/lib/roles
 
 interface NavItem {
   href: string;
@@ -51,13 +50,15 @@ function SidebarContent({
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { t } = useLanguage();
+  const { orgs, currentOrg, currentOrgId, switchOrg } = useActiveOrg();
   const [userEmail, setUserEmail] = useState("");
   const [userInitial, setUserInitial] = useState("?");
+  const [userId, setUserId] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
-  const [orgName, setOrgName] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [isElevatedMode, setIsElevatedMode] = useState(true);
+  const [showOrgMenu, setShowOrgMenu] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -69,7 +70,6 @@ function SidebarContent({
     const next = !isElevatedMode;
     setIsElevatedMode(next);
     localStorage.setItem("role-mode", next ? "elevated" : "employee");
-    // Notify all pages to re-render navigation
     window.dispatchEvent(
       new CustomEvent("role-mode-change", { detail: { elevated: next } }),
     );
@@ -80,56 +80,60 @@ function SidebarContent({
       const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       if (!data.user) return;
+      setUserId(data.user.id);
       const email = data.user.email ?? "";
       setUserEmail(email);
       setUserInitial(email.charAt(0).toUpperCase());
-
-      const orgs = await getOrganizationsForUser(data.user.id);
-      if (orgs.length > 0) {
-        const org = orgs[0] as { id: string; name: string };
-        setOrgName(org.name);
-        try {
-          const r = await getUserRole(data.user.id, org.id);
-          setRole(r as UserRole);
-        } catch {
-          setRole("employee");
-        }
-
-        // Ausstehende Anträge zählen
-        const { data: pending } = await supabase
-          .from("vacation_requests")
-          .select("id")
-          .eq("organization_id", org.id)
-          .eq("status", "pending");
-        setPendingCount(pending?.length ?? 0);
-      }
     } catch {
       /* not logged in */
     }
   }, []);
 
-  // Initial laden und bei Routenwechsel neu laden (Bug 6)
+  // Rolle und Pending-Anträge neu laden wenn sich die aktive Org ändert
+  const loadRoleAndPending = useCallback(async () => {
+    if (!userId || !currentOrgId) return;
+    try {
+      const r = await getUserRole(userId, currentOrgId);
+      setRole(r as UserRole);
+
+      const supabase = createClient();
+      const { data: pending } = await supabase
+        .from("vacation_requests")
+        .select("id")
+        .eq("organization_id", currentOrgId)
+        .eq("status", "pending");
+      setPendingCount(pending?.length ?? 0);
+    } catch {
+      setRole("employee");
+    }
+  }, [userId, currentOrgId]);
+
   useEffect(() => {
     loadUser();
-  }, [loadUser, pathname]);
+  }, [loadUser]);
 
-  // Realtime-Subskription für vacation_requests (Bug 6)
   useEffect(() => {
+    if (userId && currentOrgId) {
+      loadRoleAndPending();
+    }
+  }, [loadRoleAndPending, userId, currentOrgId, pathname]);
+
+  // Realtime-Subskription für vacation_requests
+  useEffect(() => {
+    if (!currentOrgId) return;
     const supabase = createClient();
     const channel = supabase
       .channel("sidebar-pending-count")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "vacation_requests" },
-        () => {
-          loadUser();
-        },
+        () => loadRoleAndPending(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadUser]);
+  }, [loadRoleAndPending, currentOrgId]);
 
   const handleLogout = async () => {
     try {
@@ -139,6 +143,11 @@ function SidebarContent({
       /* ignore */
     }
     router.push("/auth/login");
+  };
+
+  const handleSwitchOrg = (orgId: string) => {
+    switchOrg(orgId);
+    setShowOrgMenu(false);
   };
 
   const mitarbeiterItems: NavItem[] = [
@@ -266,37 +275,80 @@ function SidebarContent({
         )}
       </div>
 
-      {/* ─── Organisation ──────────────────────────────── */}
-      {orgName && (
-        <div
-          className="shrink-0 mx-3 mt-3 px-3 py-2 rounded-xl flex items-center gap-2"
-          style={{ background: "var(--bg-elevated)" }}
-        >
-          <Building2
-            size={12}
-            style={{ color: "var(--primary)" }}
-            className="shrink-0"
-          />
-          <span
-            className="text-[11px] font-medium truncate"
-            style={{ color: "var(--text-muted)" }}
+      {/* ─── Organisation Switcher ──────────────────────── */}
+      {orgs.length > 0 && (
+        <div className="shrink-0 mx-3 mt-3 relative">
+          <button
+            onClick={() => setShowOrgMenu((v) => !v)}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-left ${
+              showOrgMenu
+                ? "border-[var(--primary)] bg-[var(--primary-light)]"
+                : "border-[var(--border)] bg-[var(--bg-elevated)]"
+            }`}
           >
-            {orgName}
-          </span>
-          {role && (
+            <Building2
+              size={12}
+              style={{ color: "var(--primary)" }}
+              className="shrink-0"
+            />
             <span
-              className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 badge ${
-                role === "admin"
-                  ? "role-admin"
-                  : role === "cio"
-                    ? "role-cio"
-                    : role === "approver"
-                      ? "role-approver"
-                      : "role-employee"
-              }`}
+              className="text-[11px] font-bold truncate flex-1"
+              style={{ color: "var(--text-base)" }}
             >
-              {role ? ROLE_LABELS[role as UserRole] : "Lade..."}
+              {currentOrg?.name ?? "Organisation wählen"}
             </span>
+            {role && (
+              <span
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 badge ${
+                  role === "admin"
+                    ? "role-admin"
+                    : role === "cio"
+                      ? "role-cio"
+                      : role === "approver"
+                        ? "role-approver"
+                        : "role-employee"
+                }`}
+              >
+                {ROLE_LABELS[role]}
+              </span>
+            )}
+            {orgs.length > 1 && (
+              <ChevronDown
+                size={12}
+                className={`shrink-0 transition-transform text-[var(--text-muted)] ${showOrgMenu ? "rotate-180" : ""}`}
+              />
+            )}
+          </button>
+
+          {/* Dropdown org list */}
+          {showOrgMenu && orgs.length > 1 && (
+            <div
+              className="absolute top-full left-0 right-0 mt-1 rounded-xl border shadow-xl z-50 overflow-hidden"
+              style={{
+                background: "var(--bg-surface)",
+                borderColor: "var(--border)",
+              }}
+            >
+              {orgs.map((org) => (
+                <button
+                  key={org.id}
+                  onClick={() => handleSwitchOrg(org.id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[11px] font-medium transition-colors hover:bg-[var(--bg-elevated)] ${
+                    org.id === currentOrgId
+                      ? "text-[var(--primary)] bg-[var(--primary-light)]"
+                      : "text-[var(--text-base)]"
+                  }`}
+                >
+                  <Building2 size={11} className="shrink-0 opacity-60" />
+                  <span className="truncate">{org.name}</span>
+                  {org.id === currentOrgId && (
+                    <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-[var(--primary)]">
+                      Aktiv
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -331,7 +383,7 @@ function SidebarContent({
         )}
 
       {/* ─── Navigation ────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0" onClick={() => setShowOrgMenu(false)}>
         {/* Mitarbeiter Sektion */}
         <div className="px-3 mt-2">
           <p className="section-label px-2 mb-2">Mitarbeiter</p>

@@ -194,4 +194,69 @@ describe("organization lib", () => {
       });
     });
   });
+
+  // ─── v4.3 Bug-fix tests ────────────────────────────────────────
+
+  describe("createOrganization – role check (Bug 5)", () => {
+    it("allows creation when user has no existing orgs (first org)", async () => {
+      // Erste Org: user_roles ist leer → kein Rollencheck nötig
+      mockSupabase.select.mockReturnValue(mockSupabase);
+      mockSupabase.eq.mockResolvedValueOnce({ data: [], error: null }); // existingOrgs check
+      mockSupabase.rpc.mockResolvedValueOnce({ data: "new-org-id", error: null });
+
+      const res = await createOrganization("user-1", "Erste Org");
+      expect(res.id).toBe("new-org-id");
+    });
+
+    it("allows creation when user is admin in an existing org", async () => {
+      mockSupabase.select.mockReturnValue(mockSupabase);
+      // existingOrgs: hat eine Org mit role=admin
+      mockSupabase.eq.mockResolvedValueOnce({
+        data: [{ organization_id: "org-1", role: "admin" }],
+        error: null,
+      });
+      mockSupabase.rpc.mockResolvedValueOnce({ data: "new-org-id", error: null });
+
+      const res = await createOrganization("user-1", "Zweite Org");
+      expect(res.id).toBe("new-org-id");
+    });
+
+    it("allows creation when user is cio", async () => {
+      mockSupabase.select.mockReturnValue(mockSupabase);
+      mockSupabase.eq.mockResolvedValueOnce({
+        data: [{ organization_id: "org-1", role: "cio" }],
+        error: null,
+      });
+      mockSupabase.rpc.mockResolvedValueOnce({ data: "new-org-id", error: null });
+
+      const res = await createOrganization("user-1", "Neue Org");
+      expect(res.id).toBe("new-org-id");
+    });
+
+    it("throws when user is only employee and tries to create org", async () => {
+      mockSupabase.select.mockReturnValue(mockSupabase);
+      mockSupabase.eq.mockResolvedValueOnce({
+        data: [{ organization_id: "org-1", role: "employee" }],
+        error: null,
+      });
+
+      await expect(createOrganization("user-employee", "Forbidden Org")).rejects.toThrow(
+        "Keine Berechtigung",
+      );
+      // RPC should NOT have been called
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it("throws when user is approver and tries to create org", async () => {
+      mockSupabase.select.mockReturnValue(mockSupabase);
+      mockSupabase.eq.mockResolvedValueOnce({
+        data: [{ organization_id: "org-1", role: "approver" }],
+        error: null,
+      });
+
+      await expect(createOrganization("user-approver", "Forbidden")).rejects.toThrow(
+        "Keine Berechtigung",
+      );
+    });
+  });
 });

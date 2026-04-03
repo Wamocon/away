@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   updateOrganizationName,
-  getOrganizationsForUser,
 } from "@/lib/organization";
 import {
   updateUserRole,
@@ -17,11 +16,15 @@ import {
   inviteUserToOrg,
   getAllAuthUsers,
   assignUsersToOrg,
+  getMemberSettings,
+  updateMemberSettings,
 } from "@/lib/actions/adminActions";
 import {
   getOrganizationSettings,
   updateOrganizationSettings,
 } from "@/lib/admin";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 import OrganizationSwitcher from "@/components/OrganizationSwitcher";
 import { SystemTab } from "@/components/admin/SystemTab";
 import {
@@ -63,6 +66,8 @@ interface OrgMember {
 
 export default function AdminSettingsPage() {
   const router = useRouter();
+  const { currentOrgId, currentOrg, orgs, switchOrg, userId: activeUserId, reload: reloadOrgs } = useActiveOrg();
+  const { showSuccess, showError, showInfo } = useToast();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [newName, setNewName] = useState("");
@@ -117,6 +122,12 @@ export default function AdminSettingsPage() {
   const [bulkError, setBulkError] = useState("");
   const [bulkSuccess, setBulkSuccess] = useState("");
   const [showAllUsers, setShowAllUsers] = useState(false);
+
+  // Inline Mitarbeiter-Einstellungen bearbeiten (Bug 2)
+  const [expandedMember, setExpandedMember] = useState<string | null>(null);
+  const [memberSettings, setMemberSettings] = useState<Record<string, Record<string, unknown>>>({});
+  const [loadingMemberSettings, setLoadingMemberSettings] = useState<string | null>(null);
+  const [savingMemberSettings, setSavingMemberSettings] = useState<string | null>(null);
 
   // Modal control
   const [confirmModal, setConfirmModal] = useState<{
@@ -178,15 +189,16 @@ export default function AdminSettingsPage() {
         return;
       }
       setCurrentUserId(data.user.id);
-
-      // Auto-load first organization if not set
-      const orgs = await getOrganizationsForUser(data.user.id);
-      if (orgs && orgs.length > 0 && orgs[0]) {
-        setOrgId(orgs[0].id);
-        setOrgName(orgs[0].name);
-      }
     });
   }, [router]);
+
+  // Aktive Org aus dem globalen Context übernehmen (persistiert in localStorage)
+  useEffect(() => {
+    if (currentOrgId) {
+      setOrgId(currentOrgId);
+      setOrgName(currentOrg?.name ?? "");
+    }
+  }, [currentOrgId, currentOrg]);
 
   const loadOrgSettings = useCallback(async (id: string) => {
     try {
@@ -264,6 +276,7 @@ export default function AdminSettingsPage() {
       if (newName && newName !== orgName) {
         await updateOrganizationName(orgId, newName);
         setOrgName(newName);
+        reloadOrgs(); // ActiveOrgProvider-Liste aktualisieren
       }
 
       await updateOrganizationSettings(orgId, {
@@ -275,17 +288,9 @@ export default function AdminSettingsPage() {
         autoApproveLimit,
       });
 
-      showAlert(
-        "Gespeichert",
-        "Die Organisationseinstellungen wurden erfolgreich aktualisiert.",
-        "success",
-      );
+      showSuccess("Organisationseinstellungen erfolgreich gespeichert.");
     } catch (err) {
-      showAlert(
-        "Fehler",
-        "Beim Speichern ist ein Problem aufgetreten: " + (err as Error).message,
-        "danger",
-      );
+      showError("Beim Speichern ist ein Problem aufgetreten: " + (err as Error).message);
     } finally {
       setIsSavingOrg(false);
     }
@@ -306,13 +311,16 @@ export default function AdminSettingsPage() {
       );
       if (result.error) {
         setInviteError(result.error);
+        showError(result.error);
       } else {
         setInviteSuccess(`Einladung an ${inviteEmail} gesendet!`);
+        showSuccess(`Einladung an ${inviteEmail} gesendet!`);
         setInviteEmail("");
         loadMembers();
       }
     } catch {
       setInviteError("Server-Fehler bei Einladung.");
+      showError("Server-Fehler bei Einladung.");
     } finally {
       setInviting(false);
     }
@@ -326,6 +334,9 @@ export default function AdminSettingsPage() {
       setMembers((prev) =>
         prev.map((m) => (m.user_id === memberId ? { ...m, role: newRole } : m)),
       );
+      showSuccess(`Rolle auf "${ROLE_LABELS[newRole]}" aktualisiert.`);
+    } catch (err) {
+      showError("Rolle konnte nicht aktualisiert werden: " + (err as Error).message);
     } finally {
       setUpdatingRole(null);
     }
@@ -340,13 +351,60 @@ export default function AdminSettingsPage() {
       const result = await getAllAuthUsers(orgId);
       if (result.error) {
         setBulkError(result.error);
+        showError(result.error);
       } else {
         setAllUsers(result.data ?? []);
         setShowAllUsers(true);
+        showInfo(`${result.data?.length ?? 0} Benutzer geladen.`);
       }
     } finally {
       setLoadingAllUsers(false);
     }
+  };
+
+  // Inline-Bearbeitung: Einstellungen eines Mitglieds laden/einblenden
+  const handleExpandMember = async (userId: string) => {
+    if (expandedMember === userId) {
+      setExpandedMember(null);
+      return;
+    }
+    if (!orgId) return;
+    setExpandedMember(userId);
+    if (memberSettings[userId]) return; // bereits geladen
+
+    setLoadingMemberSettings(userId);
+    try {
+      const result = await getMemberSettings(userId, orgId);
+      if (result.data) {
+        setMemberSettings((prev) => ({ ...prev, [userId]: result.data! }));
+      }
+    } catch {
+      showError("Mitarbeiter-Einstellungen konnten nicht geladen werden.");
+    } finally {
+      setLoadingMemberSettings(null);
+    }
+  };
+
+  const handleSaveMemberSettings = async (userId: string) => {
+    if (!orgId) return;
+    setSavingMemberSettings(userId);
+    try {
+      const result = await updateMemberSettings(userId, orgId, memberSettings[userId] || {});
+      if (result.error) {
+        showError("Speichern fehlgeschlagen: " + result.error);
+      } else {
+        showSuccess("Mitarbeiter-Einstellungen gespeichert.");
+      }
+    } finally {
+      setSavingMemberSettings(null);
+    }
+  };
+
+  const updateLocalMemberSetting = (userId: string, key: string, value: unknown) => {
+    setMemberSettings((prev) => ({
+      ...prev,
+      [userId]: { ...(prev[userId] || {}), [key]: value },
+    }));
   };
 
   const handleBulkAssign = async () => {
@@ -362,10 +420,12 @@ export default function AdminSettingsPage() {
       );
       if (result.error) {
         setBulkError(result.error);
+        showError(result.error);
       } else {
-        setBulkSuccess(`${result.count} Benutzer erfolgreich zugewiesen.`);
+        const msg = `${result.count} Benutzer erfolgreich zugewiesen.`;
+        setBulkSuccess(msg);
+        showSuccess(msg);
         setSelectedUserIds(new Set());
-        // Mitgliederliste neu laden
         loadMembers();
         await loadAllUsers();
       }
@@ -407,8 +467,11 @@ export default function AdminSettingsPage() {
         .single();
       if (dbError) throw dbError;
       setTemplates((prev) => [data as Template, ...prev]);
+      showSuccess(`Vorlage "${file.name}" erfolgreich hochgeladen.`);
     } catch (err) {
-      setUploadError((err as Error).message);
+      const msg = (err as Error).message;
+      setUploadError(msg);
+      showError("Upload fehlgeschlagen: " + msg);
     } finally {
       setUploading(false);
     }
@@ -428,6 +491,7 @@ export default function AdminSettingsPage() {
           .delete()
           .eq("id", template.id);
         setTemplates((prev) => prev.filter((t) => t.id !== template.id));
+        showSuccess(`Vorlage "${template.name}" gelöscht.`);
       },
       "danger",
     );
@@ -769,10 +833,12 @@ export default function AdminSettingsPage() {
                         </thead>
                         <tbody>
                           {members.map((m) => (
+                            <>
                             <tr
                               key={m.user_id}
-                              className="border-b hover:bg-[var(--bg-elevated)]/50 transition-colors"
+                              className={`border-b hover:bg-[var(--bg-elevated)]/50 transition-colors cursor-pointer ${expandedMember === m.user_id ? "bg-[var(--primary-light)]" : ""}`}
                               style={{ borderColor: "var(--border)" }}
+                              onClick={() => handleExpandMember(m.user_id)}
                             >
                               <td className="px-6 py-4">
                                 <p className="text-sm font-bold">{m.email}</p>
@@ -788,25 +854,113 @@ export default function AdminSettingsPage() {
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
                                   <select
-                                    className="text-[10px] bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 outline-none focus:border-[var(--primary)]"
+                                    className="text-[10px] bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg px-2 py-1 outline-none focus:border-[var(--primary)]"
                                     value={m.role}
-                                    onChange={(e) =>
-                                      handleUpdateRole(
-                                        m.user_id,
-                                        e.target.value as UserRole,
-                                      )
-                                    }
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      handleUpdateRole(m.user_id, e.target.value as UserRole);
+                                    }}
                                   >
                                     <option value="employee">Mitarbeiter</option>
                                     <option value="approver">Genehmiger</option>
-                                    <option value="cio">
-                                      CIO (Geschäftsführer)
-                                    </option>
+                                    <option value="cio">CIO (Geschäftsführer)</option>
                                     <option value="admin">Admin</option>
                                   </select>
+                                  <span className="text-[var(--text-muted)] text-[10px]">
+                                    {expandedMember === m.user_id ? "▲" : "▼"}
+                                  </span>
                                 </div>
                               </td>
                             </tr>
+                            {/* Inline-Bearbeitungszeile */}
+                            {expandedMember === m.user_id && (
+                              <tr key={`${m.user_id}-expand`} className="border-b" style={{ borderColor: "var(--border)" }}>
+                                <td colSpan={3} className="px-6 py-4 bg-[var(--bg-elevated)]/40">
+                                  {loadingMemberSettings === m.user_id ? (
+                                    <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                                      <Loader size={14} className="animate-spin" /> Lade Einstellungen...
+                                    </div>
+                                  ) : (
+                                    <div className="grid md:grid-cols-3 gap-4">
+                                      <div>
+                                        <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Urlaubsanspruch (Tage)</label>
+                                        <input
+                                          type="number"
+                                          value={(memberSettings[m.user_id]?.vacationQuota as number) ?? 30}
+                                          onChange={(e) => updateLocalMemberSetting(m.user_id, "vacationQuota", parseInt(e.target.value) || 0)}
+                                          className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--bg-input)] border-[var(--border)]"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Übertrag (Tage)</label>
+                                        <input
+                                          type="number"
+                                          value={(memberSettings[m.user_id]?.carryOver as number) ?? 0}
+                                          onChange={(e) => updateLocalMemberSetting(m.user_id, "carryOver", parseInt(e.target.value) || 0)}
+                                          className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--bg-input)] border-[var(--border)]"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Mitarbeiter-ID</label>
+                                        <input
+                                          type="text"
+                                          value={(memberSettings[m.user_id]?.employeeId as string) ?? ""}
+                                          onChange={(e) => updateLocalMemberSetting(m.user_id, "employeeId", e.target.value)}
+                                          className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--bg-input)] border-[var(--border)]"
+                                          placeholder="z.B. EMP-001"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Vertreter (Name)</label>
+                                        <input
+                                          type="text"
+                                          value={(memberSettings[m.user_id]?.deputyName as string) ?? ""}
+                                          onChange={(e) => updateLocalMemberSetting(m.user_id, "deputyName", e.target.value)}
+                                          className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--bg-input)] border-[var(--border)]"
+                                          placeholder="Name des Vertreters"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Vorname</label>
+                                        <input
+                                          type="text"
+                                          value={(memberSettings[m.user_id]?.firstName as string) ?? ""}
+                                          onChange={(e) => updateLocalMemberSetting(m.user_id, "firstName", e.target.value)}
+                                          className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--bg-input)] border-[var(--border)]"
+                                          placeholder="Vorname"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Nachname</label>
+                                        <input
+                                          type="text"
+                                          value={(memberSettings[m.user_id]?.lastName as string) ?? ""}
+                                          onChange={(e) => updateLocalMemberSetting(m.user_id, "lastName", e.target.value)}
+                                          className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--bg-input)] border-[var(--border)]"
+                                          placeholder="Nachname"
+                                        />
+                                      </div>
+                                      <div className="md:col-span-3 flex justify-end">
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleSaveMemberSettings(m.user_id); }}
+                                          disabled={savingMemberSettings === m.user_id}
+                                          className="btn-primary text-xs"
+                                        >
+                                          {savingMemberSettings === m.user_id ? (
+                                            <Loader size={13} className="animate-spin" />
+                                          ) : (
+                                            <CheckCircle size={13} />
+                                          )}
+                                          Einstellungen speichern
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                            </>
                           ))}
                         </tbody>
                       </table>
@@ -1045,10 +1199,11 @@ export default function AdminSettingsPage() {
                     Aktiv anpassen
                   </h3>
                   <OrganizationSwitcher
-                    userId={currentUserId!}
+                    userId={currentUserId ?? activeUserId ?? ""}
                     onOrgChange={(id: string, r: string, name?: string) => {
                       setOrgId(id);
                       setOrgName(name || "");
+                      switchOrg(id); // globalen Context aktualisieren
                     }}
                   />
                 </section>

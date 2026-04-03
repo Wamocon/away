@@ -35,7 +35,24 @@ export async function getCurrentOrganization(orgId: string) {
 export async function createOrganization(userId: string, name: string) {
   const supabase = createClient();
 
-  // Rufen Sie die neue Datenbank-Funktion auf, die Organisation + Admin-Rolle in einem Schritt erstellt
+  // Rollenprüfung: Nur Admin und CIO dürfen Organisationen erstellen.
+  // Bei der ersten Org des Nutzers gibt es noch keine Rolle – das ist erlaubt.
+  const { data: existingOrgs } = await supabase
+    .from("user_roles")
+    .select("organization_id, role")
+    .eq("user_id", userId);
+
+  if (existingOrgs && existingOrgs.length > 0) {
+    const hasElevatedRole = existingOrgs.some(
+      (r) => r.role === "admin" || r.role === "cio",
+    );
+    if (!hasElevatedRole) {
+      throw new Error(
+        "Keine Berechtigung: Nur Administratoren und CIOs können neue Organisationen erstellen.",
+      );
+    }
+  }
+
   const { data: orgId, error } = await supabase.rpc("create_new_organization", {
     org_name: name,
     creator_id: userId,
@@ -46,7 +63,6 @@ export async function createOrganization(userId: string, name: string) {
     throw error;
   }
 
-  // Rückgabe der neuen Organisations-Daten
   return { id: orgId, name };
 }
 

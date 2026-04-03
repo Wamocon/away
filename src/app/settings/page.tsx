@@ -17,7 +17,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { saveUserSettings, getUserSettings } from "@/lib/userSettings";
 import { getOAuthSettings, saveOAuthSettings } from "@/lib/calendarSync";
-import { getOrganizationsForUser } from "@/lib/organization";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
+import { useToast } from "@/components/ui/ToastProvider";
 import { useViewMode } from "@/components/ui/ViewModeProvider";
 import { useLanguage } from "@/components/ui/LanguageProvider";
 import { Locale } from "@/lib/i18n";
@@ -43,6 +44,8 @@ interface UserSettingsData {
 export default function SettingsPage() {
   const { viewMode, setViewMode } = useViewMode();
   const { locale, setLocale } = useLanguage();
+  const { currentOrgId } = useActiveOrg();
+  const { showSuccess, showError } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
   const [emailInput, setEmailInput] = useState("");
@@ -64,7 +67,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [orgId, setOrgId] = useState<string>("");
+  // orgId kommt vom globalen ActiveOrgProvider – kein lokaler State mehr nötig
+  const orgId = currentOrgId;
   // Extended settings
   const [vacationQuota, setVacationQuota] = useState(30);
   const [carryOver, setCarryOver] = useState(0);
@@ -80,45 +84,41 @@ export default function SettingsPage() {
   const loadData = useCallback(async () => {
     if (!userId) return;
     try {
-      // Find the first organization for the user to store personal settings
-      const orgs = await getOrganizationsForUser(userId);
-      if (orgs && orgs.length > 0 && orgs[0]) {
-        const currentOrgId = orgs[0].id;
-        setOrgId(currentOrgId);
+      // orgId aus dem globalen ActiveOrgProvider; kann null sein wenn kein Org zugeordnet
+      const activeOrgId = orgId || null;
 
-        // General settings
-        const data = await getUserSettings(userId, currentOrgId);
-        // Einstellungen sind direkt im JSONB-Feld 'settings'
-        const settings = (data?.settings as UserSettingsData) || {};
+      // Einstellungen laden – mit oder ohne Org-ID
+      const data = await getUserSettings(userId, activeOrgId ?? undefined);
+      const settings = (data?.settings as UserSettingsData) || {};
 
-        if (settings.email) setEmailInput(settings.email);
-        if (settings.firstName) setFirstName(settings.firstName);
-        if (settings.lastName) setLastName(settings.lastName);
-        if (settings.employeeId) setEmployeeId(settings.employeeId);
-        if (settings.language) setLanguage(settings.language as Locale);
-        if (settings.dateFormat) setDateFormat(settings.dateFormat);
-        if (settings.workDays) setWorkDays(settings.workDays);
-        if (settings.state) setState(settings.state);
-        if (settings.vacationQuota !== undefined)
-          setVacationQuota(settings.vacationQuota);
-        if (settings.carryOver !== undefined) setCarryOver(settings.carryOver);
-        if (settings.deputyName) setDeputyName(settings.deputyName);
-        if (settings.deputyEmail) setDeputyEmail(settings.deputyEmail);
-        if (settings.notifyOnApproval !== undefined)
-          setNotifyOnApproval(settings.notifyOnApproval);
-        if (settings.notifyOnRejection !== undefined)
-          setNotifyOnRejection(settings.notifyOnRejection);
-        if (settings.notifyOnReminder !== undefined)
-          setNotifyOnReminder(settings.notifyOnReminder);
+      if (settings.email) setEmailInput(settings.email);
+      if (settings.firstName) setFirstName(settings.firstName);
+      if (settings.lastName) setLastName(settings.lastName);
+      if (settings.employeeId) setEmployeeId(settings.employeeId);
+      if (settings.language) setLanguage(settings.language as Locale);
+      if (settings.dateFormat) setDateFormat(settings.dateFormat);
+      if (settings.workDays) setWorkDays(settings.workDays);
+      if (settings.state) setState(settings.state);
+      if (settings.vacationQuota !== undefined)
+        setVacationQuota(settings.vacationQuota);
+      if (settings.carryOver !== undefined) setCarryOver(settings.carryOver);
+      if (settings.deputyName) setDeputyName(settings.deputyName);
+      if (settings.deputyEmail) setDeputyEmail(settings.deputyEmail);
+      if (settings.notifyOnApproval !== undefined)
+        setNotifyOnApproval(settings.notifyOnApproval);
+      if (settings.notifyOnRejection !== undefined)
+        setNotifyOnRejection(settings.notifyOnRejection);
+      if (settings.notifyOnReminder !== undefined)
+        setNotifyOnReminder(settings.notifyOnReminder);
 
-        // OAuth settings
-        const outlook = await getOAuthSettings(userId, currentOrgId, "outlook");
+      // OAuth settings (nur wenn Org vorhanden)
+      if (activeOrgId) {
+        const outlook = await getOAuthSettings(userId, activeOrgId, "outlook");
         if (outlook) {
           setOutlookEmail(outlook.email);
           setOutlookToken(outlook.token);
         }
-
-        const google = await getOAuthSettings(userId, currentOrgId, "google");
+        const google = await getOAuthSettings(userId, activeOrgId, "google");
         if (google) {
           setGoogleEmail(google.email);
           setGoogleToken(google.token);
@@ -128,8 +128,7 @@ export default function SettingsPage() {
       console.error("[Settings] loadData Fehler:", err);
       setSaveError("Einstellungen konnten nicht geladen werden: " + (err instanceof Error ? err.message : String(err)));
     }
-  }, [userId]);
-
+  }, [userId, orgId]);
   useEffect(() => {
     const supabase = createClient();
     supabase.auth
@@ -162,11 +161,12 @@ export default function SettingsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId || !orgId) return;
+    if (!userId) return;
+    // orgId kann null sein – in diesem Fall werden Einstellungen ohne Org gespeichert
     setSaving(true);
+    setSaveError(null);
     try {
-      // Save all settings including the new ones
-      await saveUserSettings(userId, orgId, emailInput, {
+      await saveUserSettings(userId, orgId || null, emailInput, {
         firstName,
         lastName,
         employeeId,
@@ -183,40 +183,27 @@ export default function SettingsPage() {
         notifyOnReminder,
       });
 
-      // Apply language change immediately
+      // Sprache sofort anwenden
       setLocale(language as Locale);
 
-      // Save OAuth credentials if entered
-      if (outlookEmail || outlookToken) {
-        await saveOAuthSettings(
-          userId,
-          orgId,
-          "outlook",
-          outlookEmail,
-          outlookToken,
-        );
+      // OAuth speichern wenn vorhanden
+      if (orgId && (outlookEmail || outlookToken)) {
+        await saveOAuthSettings(userId, orgId, "outlook", outlookEmail, outlookToken);
       }
-      if (googleEmail || googleToken) {
-        await saveOAuthSettings(
-          userId,
-          orgId,
-          "google",
-          googleEmail,
-          googleToken,
-        );
+      if (orgId && (googleEmail || googleToken)) {
+        await saveOAuthSettings(userId, orgId, "google", googleEmail, googleToken);
       }
 
       setSaved(true);
-      setSaveError(null);
+      showSuccess(locale === "en" ? "Settings saved successfully!" : "Einstellungen erfolgreich gespeichert!");
       // Daten neu laden um Persistenz zu bestätigen
       await loadData();
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error("Save failed:", err);
-      setSaveError(
-        "Fehler beim Speichern: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
+      const msg = "Fehler beim Speichern: " + (err instanceof Error ? err.message : String(err));
+      setSaveError(msg);
+      showError(msg);
     } finally {
       setSaving(false);
     }

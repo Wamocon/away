@@ -81,5 +81,20 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
-          echo "Production URL: $URL"
+          for attempt in 1 2 3; do
+            echo "Deploy attempt $attempt of 3..."
+            if vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} > /tmp/vercel-deploy.txt 2>&1; then
+              cat /tmp/vercel-deploy.txt
+              URL=$(grep -E '^https://' /tmp/vercel-deploy.txt | tail -1)
+              echo "Production URL: $URL"
+              break
+            else
+              cat /tmp/vercel-deploy.txt
+              if [ "$attempt" = "3" ]; then
+                echo "::error::Vercel production deploy failed after 3 attempts"
+                exit 1
+              fi
+              echo "Retrying in 15 seconds..."
+              sleep 15
+            fi
+          done

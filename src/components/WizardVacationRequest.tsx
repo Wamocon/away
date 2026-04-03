@@ -135,16 +135,13 @@ export default function WizardVacationRequest({
           if (s.employeeId) setEmployeeId(s.employeeId as string);
           if (s.state) setSelectedState(s.state as GermanState);
           // Erweiterte Vorbefüllung
-          if (s.deputyName && !deputy) setDeputyField(s.deputyName as string);
+          if (s.deputyName && !deputyField) setDeputyField(s.deputyName as string);
           if (s.location && !location) setLocation(s.location as string);
-        }
-        // Auth-E-Mail als Fallback setzen
-        if (!data?.settings || !(data.settings as Record<string, unknown>).email) {
-          // userEmail wird als Prop übergeben, nichts zu tun
         }
       });
     }
-  }, [orgId, userId, setFirstName, setLastName, setTemplates]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, userId]);
 
   useEffect(() => {
     if (from && to) {

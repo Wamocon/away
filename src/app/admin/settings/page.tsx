@@ -66,7 +66,7 @@ interface OrgMember {
 
 export default function AdminSettingsPage() {
   const router = useRouter();
-  const { currentOrgId, currentOrg, orgs, switchOrg, userId: activeUserId, reload: reloadOrgs } = useActiveOrg();
+  const { currentOrgId, currentOrg, switchOrg, userId: activeUserId, reload: reloadOrgs } = useActiveOrg();
   const { showSuccess, showError, showInfo } = useToast();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
@@ -146,22 +146,6 @@ export default function AdminSettingsPage() {
     message: "",
     onConfirm: () => {},
   });
-
-  const showAlert = (
-    title: string,
-    message: string | React.ReactNode,
-    type: AlertType = "info",
-  ) => {
-    setConfirmModal({
-      isOpen: true,
-      title,
-      message,
-      type,
-      hideCancel: true,
-      confirmText: "Verstanden",
-      onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
-    });
-  };
 
   const showConfirm = (
     title: string,

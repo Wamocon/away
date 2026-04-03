@@ -95,7 +95,7 @@ function SidebarContent({
           setRole("employee");
         }
 
-        // count pending requests
+        // Ausstehende Anträge zählen
         const { data: pending } = await supabase
           .from("vacation_requests")
           .select("id")
@@ -108,8 +108,27 @@ function SidebarContent({
     }
   }, []);
 
+  // Initial laden und bei Routenwechsel neu laden (Bug 6)
   useEffect(() => {
     loadUser();
+  }, [loadUser, pathname]);
+
+  // Realtime-Subskription für vacation_requests (Bug 6)
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("sidebar-pending-count")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vacation_requests" },
+        () => {
+          loadUser();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadUser]);
 
   const handleLogout = async () => {

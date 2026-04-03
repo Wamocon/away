@@ -869,3 +869,53 @@ html.dark textarea {
   color: #f4f8ff !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
 }
+
+/* ── select option background (native dropdown) ─────────── */
+/* Browser-native option-Elemente erben oft kein CSS - explizit setzen */
+html:not(.dark) select option,
+html:not(.dark) select optgroup {
+  background-color: #ffffff !important;
+  color: #0a1020 !important;
+}
+html.dark select option,
+html.dark select optgroup {
+  background-color: #0f1628 !important;
+  color: #f4f8ff !important;
+}
+
+/* ── Light-mode: sicherstellen dass keine text-white Labels existieren ─ */
+/* Alle Elemente die text-white haben sollen in light mode lesbar sein.
+   Da viele Komponenten im Wizard hardcoded text-white nutzen, korrigieren
+   wir per CSS Variable. Der :not(.dark) Selektor hat höhere Spezifität
+   als die Tailwind-Klassen in den meisten Fällen. */
+html:not(.dark) .card-glass label,
+html:not(.dark) .card-glass h2,
+html:not(.dark) .card-glass h3,
+html:not(.dark) .card-glass h4,
+html:not(.dark) .card-glass p,
+html:not(.dark) .card-glass span:not([class*="text-"]) {
+  color: var(--text-base);
+}
+
+/* ── Kalender Datumsauswahl Highlight ──────────────────── */
+.cal-day.selected {
+  background: rgba(99, 102, 241, 0.12) !important;
+}
+.cal-day.in-range {
+  background: rgba(99, 102, 241, 0.07);
+}
+.cal-day.range-start,
+.cal-day.range-end {
+  background: rgba(99, 102, 241, 0.2);
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.cal-day.selectable:hover {
+  cursor: pointer;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* ── INP Performance: Slider ohne Layout-Thrashing ───────── */
+input[type="range"] {
+  contain: layout style;
+}

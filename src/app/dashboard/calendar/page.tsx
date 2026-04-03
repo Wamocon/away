@@ -32,6 +32,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CalendarSync from "@/components/CalendarSync";
 
 type ViewMode = "month" | "week";
@@ -57,6 +58,11 @@ export default function CalendarPage() {
   const [showSync, setShowSync] = useState(false);
   const [selectedSyncEvent, setSelectedSyncEvent] =
     useState<CalendarEvent | null>(null);
+  // Bug 8: Datumsauswahl per Klick im Kalender
+  const [rangeStart, setRangeStart] = useState<Date | null>(null);
+  const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
+
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -184,8 +190,74 @@ export default function CalendarPage() {
   const monthLabel = format(currentDate, "MMMM yyyy", { locale: de });
   const weekLabel = `${format(weekStart, "dd.MM.")} – ${format(addDays(weekStart, 6), "dd.MM.yyyy")}`;
 
+  // Bug 8: Klick auf Kalendertag für Datumsauswahl
+  const handleDayClick = (day: Date) => {
+    if (!rangeStart || (rangeStart && rangeEnd)) {
+      // Erste Auswahl oder Reset nach fertiger Auswahl
+      setRangeStart(day);
+      setRangeEnd(null);
+    } else {
+      // Zweite Auswahl
+      if (day < rangeStart) {
+        setRangeEnd(rangeStart);
+        setRangeStart(day);
+      } else {
+        setRangeEnd(day);
+      }
+    }
+  };
+
+  const isDaySelected = (day: Date) => {
+    if (!rangeStart) return false;
+    if (isSameDay(day, rangeStart)) return true;
+    if (rangeEnd && isSameDay(day, rangeEnd)) return true;
+    return false;
+  };
+
+  const isDayInRange = (day: Date) => {
+    if (!rangeStart || !rangeEnd) return false;
+    return day > rangeStart && day < rangeEnd;
+  };
+
+  const handleCreateRequest = () => {
+    if (!rangeStart) return;
+    const fromStr = format(rangeStart, "yyyy-MM-dd");
+    const toStr = rangeEnd ? format(rangeEnd, "yyyy-MM-dd") : fromStr;
+    router.push(`/dashboard/requests?from=${fromStr}&to=${toStr}&open=wizard`);
+  };
+
   return (
     <div className="p-6 md:p-8 w-full animate-fade-in">
+      {/* ─── Datumsauswahl Banner (Bug 8) ────────────────── */}
+      {rangeStart && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 rounded-2xl shadow-2xl border animate-in slide-in-from-bottom-4 duration-300"
+          style={{ background: "var(--bg-surface)", borderColor: "var(--primary)" }}
+        >
+          <div className="text-sm font-semibold" style={{ color: "var(--text-base)" }}>
+            <span style={{ color: "var(--primary)" }}>
+              {format(rangeStart, "dd.MM.yyyy")}
+            </span>
+            {rangeEnd && (
+              <> → <span style={{ color: "var(--primary)" }}>{format(rangeEnd, "dd.MM.yyyy")}</span></>
+            )}
+            {!rangeEnd && " (Endtag wählen…)"}
+          </div>
+          {rangeEnd && (
+            <button onClick={handleCreateRequest} className="btn-primary text-xs">
+              <Plus size={13} /> Urlaub beantragen
+            </button>
+          )}
+          <button
+            onClick={() => { setRangeStart(null); setRangeEnd(null); }}
+            className="btn-ghost p-1"
+            title="Auswahl zurücksetzen"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* ─── Header ─────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
@@ -363,11 +435,15 @@ export default function CalendarPage() {
                 const totalCells = firstDayOffset + monthDays.length;
                 const isLastRow = idx >= totalCells - (totalCells % 7 || 7);
                 const maxVisible = 3;
+                // Bug 8: Auswahl-Status
+                const isSelected = isDaySelected(day);
+                const isInRange = isDayInRange(day);
 
                 return (
                   <div
                     key={day.toISOString()}
-                    className={`cal-day ${isToday_ ? "today" : ""} ${isWknd ? "weekend" : ""}`}
+                    onClick={() => handleDayClick(day)}
+                    className={`cal-day selectable ${isToday_ ? "today" : ""} ${isWknd ? "weekend" : ""} ${isSelected ? "selected" : ""} ${isInRange ? "in-range" : ""}`}
                     style={{
                       borderBottom: isLastRow
                         ? "none"

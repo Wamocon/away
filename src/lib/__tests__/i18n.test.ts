@@ -147,4 +147,88 @@ describe("i18n – getTranslations", () => {
     expect(en.settings.themeOptions.dark).toBe("Dark");
     expect(en.settings.themeOptions.light).toBe("Light");
   });
+
+  // ─── v4.2 Bug-fix keys ────────────────────────────────────────
+  it("settings.savedMsg is translated in both languages", () => {
+    const de = getTranslations("de");
+    const en = getTranslations("en");
+    expect(de.settings.savedMsg).toBe("Einstellungen erfolgreich gespeichert!");
+    expect(en.settings.savedMsg).toBeTruthy();
+  });
+
+  it("admin section has all required keys in both languages", () => {
+    const de = getTranslations("de");
+    const en = getTranslations("en");
+    const requiredAdminKeys: Array<keyof typeof de.admin> = [
+      "title",
+      "general",
+      "users",
+      "templates",
+      "organizations",
+      "allUsers",
+      "allUsersDesc",
+      "loadAllUsers",
+      "bulkAssign",
+    ];
+    for (const key of requiredAdminKeys) {
+      expect(de.admin[key]).toBeTruthy();
+      expect(en.admin[key]).toBeTruthy();
+    }
+  });
+
+  it("admin.title is correct in both languages", () => {
+    const de = getTranslations("de");
+    const en = getTranslations("en");
+    expect(de.admin.title).toBe("Administration");
+    expect(en.admin.title).toBe("Administration");
+  });
+
+  it("calendar section has createRequest and clearSelection in both languages", () => {
+    const de = getTranslations("de");
+    const en = getTranslations("en");
+    expect(de.calendar.createRequest).toBe("Urlaub beantragen");
+    expect(en.calendar.createRequest).toBeTruthy();
+    expect(de.calendar.clearSelection).toBeTruthy();
+    expect(en.calendar.clearSelection).toBeTruthy();
+  });
+
+  it("approvals section has approve, reject, signatureRequired in both languages", () => {
+    const de = getTranslations("de");
+    const en = getTranslations("en");
+    expect(de.approvals.approve).toBe("Genehmigen");
+    expect(en.approvals.approve).toBeTruthy();
+    expect(de.approvals.reject).toBe("Ablehnen");
+    expect(en.approvals.reject).toBeTruthy();
+    expect(de.approvals.signatureRequired).toBeTruthy();
+    expect(en.approvals.signatureRequired).toBeTruthy();
+  });
+
+  it("de and en have the same second-level keys for admin, calendar, approvals", () => {
+    const de = getTranslations("de");
+    const en = getTranslations("en");
+    const sections: Array<"admin" | "calendar" | "approvals"> = ["admin", "calendar", "approvals"];
+    for (const section of sections) {
+      const deKeys = Object.keys(de[section]).sort();
+      const enKeys = Object.keys(en[section]).sort();
+      expect(deKeys).toEqual(enKeys);
+    }
+  });
+
+  it("settings profile fields are translated in both languages", () => {
+    const de = getTranslations("de");
+    const en = getTranslations("en");
+    const profileKeys: Array<keyof typeof de.settings> = [
+      "profileTitle",
+      "profileDesc",
+      "firstName",
+      "lastName",
+      "employeeId",
+      "deputyName",
+      "deputyEmail",
+    ];
+    for (const key of profileKeys) {
+      expect(de.settings[key]).toBeTruthy();
+      expect(en.settings[key]).toBeTruthy();
+    }
+  });
 });

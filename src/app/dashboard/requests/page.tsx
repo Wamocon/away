@@ -54,6 +54,9 @@ function RequestsPageContent() {
     initialFilter === "all" && searchParams.get("open") === "wizard",
   );
   const [actionId, setActionId] = useState<string | null>(null);
+  // Bug 8: Datum-Vorbelegung aus URL-Params (Kalender-Auswahl)
+  const initialFromParam = searchParams.get("from") ?? undefined;
+  const initialToParam = searchParams.get("to") ?? undefined;
 
   useEffect(() => {
     if (searchParams.get("open") === "wizard") {
@@ -518,6 +521,8 @@ function RequestsPageContent() {
             setShowWizard(false);
             loadData();
           }}
+          initialFrom={initialFromParam}
+          initialTo={initialToParam}
         />
       )}
     </div>

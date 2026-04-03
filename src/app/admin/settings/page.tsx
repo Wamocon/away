@@ -15,6 +15,8 @@ import {
 import {
   getOrgMembersWithEmails,
   inviteUserToOrg,
+  getAllAuthUsers,
+  assignUsersToOrg,
 } from "@/lib/actions/adminActions";
 import {
   getOrganizationSettings,
@@ -105,6 +107,16 @@ export default function AdminSettingsPage() {
   // Role management
   const [, setUpdatingRole] = useState<string | null>(null);
   const [isSavingOrg, setIsSavingOrg] = useState(false);
+
+  // Bug 10/11: Alle Auth-User anzeigen und zuweisen
+  const [allUsers, setAllUsers] = useState<{ id: string; email: string; created_at: string; isInOrg: boolean }[]>([]);
+  const [loadingAllUsers, setLoadingAllUsers] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [bulkRole, setBulkRole] = useState<UserRole>("employee");
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [bulkError, setBulkError] = useState("");
+  const [bulkSuccess, setBulkSuccess] = useState("");
+  const [showAllUsers, setShowAllUsers] = useState(false);
 
   // Modal control
   const [confirmModal, setConfirmModal] = useState<{
@@ -316,6 +328,49 @@ export default function AdminSettingsPage() {
       );
     } finally {
       setUpdatingRole(null);
+    }
+  };
+
+  // Bug 10/11: Alle Auth-Benutzer laden
+  const loadAllUsers = async () => {
+    if (!orgId) return;
+    setLoadingAllUsers(true);
+    setBulkError("");
+    try {
+      const result = await getAllAuthUsers(orgId);
+      if (result.error) {
+        setBulkError(result.error);
+      } else {
+        setAllUsers(result.data ?? []);
+        setShowAllUsers(true);
+      }
+    } finally {
+      setLoadingAllUsers(false);
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (!orgId || selectedUserIds.size === 0) return;
+    setBulkAssigning(true);
+    setBulkError("");
+    setBulkSuccess("");
+    try {
+      const result = await assignUsersToOrg(
+        Array.from(selectedUserIds),
+        orgId,
+        bulkRole,
+      );
+      if (result.error) {
+        setBulkError(result.error);
+      } else {
+        setBulkSuccess(`${result.count} Benutzer erfolgreich zugewiesen.`);
+        setSelectedUserIds(new Set());
+        // Mitgliederliste neu laden
+        loadMembers();
+        await loadAllUsers();
+      }
+    } finally {
+      setBulkAssigning(false);
     }
   };
 
@@ -678,81 +733,209 @@ export default function AdminSettingsPage() {
 
               {/* TAB: Mitarbeiter */}
               {activeTab === "users" && (
-                <div className="card space-y-4 animate-in slide-in-from-bottom-2 duration-300 shadow-sm overflow-hidden">
-                  <div
-                    className="p-6 border-b"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <h2 className="text-base font-bold flex items-center gap-2">
-                      <Users size={18} className="text-[var(--primary)]" />{" "}
-                      Teammitglieder
-                    </h2>
-                    <p className="text-[11px] text-[var(--text-muted)] mt-1 italic">
-                      Verwalte Rollen und Zugriffsberechtigungen.
-                    </p>
-                  </div>
+                <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+                  {/* Bestehende Mitglieder */}
+                  <div className="card space-y-4 shadow-sm overflow-hidden">
+                    <div
+                      className="p-6 border-b"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      <h2 className="text-base font-bold flex items-center gap-2">
+                        <Users size={18} className="text-[var(--primary)]" />{" "}
+                        Teammitglieder
+                      </h2>
+                      <p className="text-[11px] text-[var(--text-muted)] mt-1 italic">
+                        Verwalte Rollen und Zugriffsberechtigungen.
+                      </p>
+                    </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr
-                          className="bg-[var(--bg-elevated)] border-b"
-                          style={{ borderColor: "var(--border)" }}
-                        >
-                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-                            Benutzer
-                          </th>
-                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-                            Rolle
-                          </th>
-                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-                            Aktionen
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {members.map((m) => (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
                           <tr
-                            key={m.user_id}
-                            className="border-b hover:bg-[var(--bg-elevated)]/50 transition-colors"
+                            className="bg-[var(--bg-elevated)] border-b"
                             style={{ borderColor: "var(--border)" }}
                           >
-                            <td className="px-6 py-4">
-                              <p className="text-sm font-bold">{m.email}</p>
-                              <p className="text-[10px] text-[var(--text-muted)]">
-                                ID: {m.user_id.slice(0, 8)}...
-                              </p>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`badge ${ROLE_COLORS[m.role]}`}>
-                                {ROLE_LABELS[m.role]}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <select
-                                  className="text-[10px] bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 outline-none focus:border-[var(--primary)]"
-                                  value={m.role}
-                                  onChange={(e) =>
-                                    handleUpdateRole(
-                                      m.user_id,
-                                      e.target.value as UserRole,
-                                    )
-                                  }
-                                >
-                                  <option value="employee">Mitarbeiter</option>
-                                  <option value="approver">Genehmiger</option>
-                                  <option value="cio">
-                                    CIO (Geschäftsführer)
-                                  </option>
-                                  <option value="admin">Admin</option>
-                                </select>
-                              </div>
-                            </td>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                              Benutzer
+                            </th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                              Rolle
+                            </th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                              Aktionen
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {members.map((m) => (
+                            <tr
+                              key={m.user_id}
+                              className="border-b hover:bg-[var(--bg-elevated)]/50 transition-colors"
+                              style={{ borderColor: "var(--border)" }}
+                            >
+                              <td className="px-6 py-4">
+                                <p className="text-sm font-bold">{m.email}</p>
+                                <p className="text-[10px] text-[var(--text-muted)]">
+                                  ID: {m.user_id.slice(0, 8)}...
+                                </p>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`badge ${ROLE_COLORS[m.role]}`}>
+                                  {ROLE_LABELS[m.role]}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    className="text-[10px] bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 outline-none focus:border-[var(--primary)]"
+                                    value={m.role}
+                                    onChange={(e) =>
+                                      handleUpdateRole(
+                                        m.user_id,
+                                        e.target.value as UserRole,
+                                      )
+                                    }
+                                  >
+                                    <option value="employee">Mitarbeiter</option>
+                                    <option value="approver">Genehmiger</option>
+                                    <option value="cio">
+                                      CIO (Geschäftsführer)
+                                    </option>
+                                    <option value="admin">Admin</option>
+                                  </select>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Bug 10/11: Alle Benutzer anzeigen und zuweisen */}
+                  <div className="card p-6 space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-base font-bold flex items-center gap-2">
+                          <UserPlus size={18} className="text-[var(--primary)]" /> Alle Benutzer zuordnen
+                        </h2>
+                        <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                          Direkt in der Datenbank angelegte Benutzer der Organisation zuweisen.
+                        </p>
+                      </div>
+                      <button
+                        onClick={loadAllUsers}
+                        disabled={loadingAllUsers}
+                        className="btn-secondary text-xs"
+                      >
+                        {loadingAllUsers ? (
+                          <Loader size={13} className="animate-spin" />
+                        ) : (
+                          <Users size={13} />
+                        )}
+                        Alle User laden
+                      </button>
+                    </div>
+
+                    {bulkError && (
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs rounded-xl">
+                        {bulkError}
+                      </div>
+                    )}
+                    {bulkSuccess && (
+                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs rounded-xl flex items-center gap-2">
+                        <CheckCircle size={14} /> {bulkSuccess}
+                      </div>
+                    )}
+
+                    {showAllUsers && allUsers.length > 0 && (
+                      <>
+                        <div className="overflow-x-auto rounded-xl border" style={{ borderColor: "var(--border)" }}>
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-[var(--bg-elevated)]">
+                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                                  <input
+                                    type="checkbox"
+                                    className="rounded"
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedUserIds(new Set(allUsers.filter(u => !u.isInOrg).map(u => u.id)));
+                                      } else {
+                                        setSelectedUserIds(new Set());
+                                      }
+                                    }}
+                                  />
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">E-Mail</th>
+                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {allUsers.map((u) => (
+                                <tr
+                                  key={u.id}
+                                  className="border-t hover:bg-[var(--bg-elevated)]/40"
+                                  style={{ borderColor: "var(--border)" }}
+                                >
+                                  <td className="px-4 py-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedUserIds.has(u.id)}
+                                      disabled={u.isInOrg}
+                                      onChange={(e) => {
+                                        const next = new Set(selectedUserIds);
+                                        if (e.target.checked) next.add(u.id);
+                                        else next.delete(u.id);
+                                        setSelectedUserIds(next);
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-sm">
+                                    {u.email || <span className="text-[var(--text-muted)]">—</span>}
+                                    <div className="text-[10px] text-[var(--text-muted)]">{u.id.slice(0, 8)}…</div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    {u.isInOrg ? (
+                                      <span className="badge badge-approved text-[10px]">Bereits Mitglied</span>
+                                    ) : (
+                                      <span className="badge badge-pending text-[10px]">Nicht zugeordnet</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {selectedUserIds.size > 0 && (
+                          <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--bg-elevated)] border" style={{ borderColor: "var(--border)" }}>
+                            <span className="text-xs font-bold text-[var(--text-muted)]">
+                              {selectedUserIds.size} ausgewählt
+                            </span>
+                            <select
+                              value={bulkRole}
+                              onChange={(e) => setBulkRole(e.target.value as UserRole)}
+                              className="text-xs border rounded-lg px-2 py-1.5 outline-none"
+                            >
+                              <option value="employee">Mitarbeiter</option>
+                              <option value="approver">Genehmiger</option>
+                              <option value="cio">CIO</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            <button
+                              onClick={handleBulkAssign}
+                              disabled={bulkAssigning}
+                              className="btn-primary text-xs"
+                            >
+                              {bulkAssigning ? <Loader size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                              Organisation zuweisen
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               )}

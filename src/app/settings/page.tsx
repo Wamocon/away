@@ -63,6 +63,7 @@ export default function SettingsPage() {
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [orgId, setOrgId] = useState<string>("");
   // Extended settings
   const [vacationQuota, setVacationQuota] = useState(30);
@@ -87,6 +88,7 @@ export default function SettingsPage() {
 
         // General settings
         const data = await getUserSettings(userId, currentOrgId);
+        // Einstellungen sind direkt im JSONB-Feld 'settings'
         const settings = (data?.settings as UserSettingsData) || {};
 
         if (settings.email) setEmailInput(settings.email);
@@ -122,8 +124,9 @@ export default function SettingsPage() {
           setGoogleToken(google.token);
         }
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.error("[Settings] loadData Fehler:", err);
+      setSaveError("Einstellungen konnten nicht geladen werden: " + (err instanceof Error ? err.message : String(err)));
     }
   }, [userId]);
 
@@ -137,6 +140,8 @@ export default function SettingsPage() {
         if (!uid) return;
         setUserId(uid);
         setUserEmail(email ?? "");
+        // E-Mail vorbesetzen falls noch nicht gesetzt
+        setEmailInput((prev) => prev || email || "");
       })
       .catch(() => {});
   }, []);
@@ -202,10 +207,13 @@ export default function SettingsPage() {
       }
 
       setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setSaveError(null);
+      // Daten neu laden um Persistenz zu bestätigen
+      await loadData();
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error("Save failed:", err);
-      alert(
+      setSaveError(
         "Fehler beim Speichern: " +
           (err instanceof Error ? err.message : String(err)),
       );
@@ -216,13 +224,29 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 md:p-8 w-full animate-fade-in space-y-6 text-[var(--text-base)]">
+      {/* Toast Notifications */}
+      {saved && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl animate-in slide-in-from-top-2 duration-300 bg-[var(--success)] text-white font-semibold text-sm">
+          <CheckCircle size={16} />
+          {locale === "en" ? "Settings saved successfully!" : "Einstellungen erfolgreich gespeichert!"}
+        </div>
+      )}
+      {saveError && (
+        <div className="rounded-xl p-4 bg-[var(--danger-light)] border border-[var(--danger)] text-[var(--danger)] text-sm font-medium flex items-start gap-2">
+          <span className="shrink-0 font-black">⚠</span>
+          {saveError}
+          <button onClick={() => setSaveError(null)} className="ml-auto shrink-0 opacity-70 hover:opacity-100">✕</button>
+        </div>
+      )}
       <div className="mb-8">
         <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
           <User size={22} className="text-[var(--primary)]" />{" "}
-          Profil-Einstellungen
+          {locale === "en" ? "Profile Settings" : "Profil-Einstellungen"}
         </h1>
         <p className="text-sm mt-1 text-[var(--text-muted)]">
-          Dein persönliches Profil, Benachrichtigungen und Regionaleinstellungen
+          {locale === "en"
+            ? "Your personal profile, notifications and regional settings"
+            : "Dein persönliches Profil, Benachrichtigungen und Regionaleinstellungen"}
         </p>
       </div>
 
@@ -807,7 +831,7 @@ export default function SettingsPage() {
               ) : saved ? (
                 <CheckCircle size={16} />
               ) : null}
-              {saved ? "Profil gespeichert!" : "Einstellungen sichern"}
+              {saved ? (locale === "en" ? "Saved!" : "Profil gespeichert!") : (locale === "en" ? "Save Settings" : "Einstellungen sichern")}
             </button>
           </div>
         </form>

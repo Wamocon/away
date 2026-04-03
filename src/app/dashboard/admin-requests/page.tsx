@@ -17,27 +17,28 @@ import {
   Clock,
   Search,
   Eye,
-  Loader,
   SlidersHorizontal,
   LayoutGrid,
   List,
 } from "lucide-react";
 import Link from "next/link";
 import { useViewMode } from "@/components/ui/ViewModeProvider";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 import { useRouter } from "next/navigation";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
 
-const statusConfig = {
-  all: { label: "Alle", cls: "badge-primary", Icon: SlidersHorizontal },
-  pending: { label: "Ausstehend", cls: "badge-pending", Icon: Clock },
-  approved: { label: "Genehmigt", cls: "badge-approved", Icon: CheckCircle },
-  rejected: { label: "Abgelehnt", cls: "badge-rejected", Icon: XCircle },
-};
-
 export default function AdminRequestsPage() {
   const { viewMode, setViewMode } = useViewMode();
   const router = useRouter();
+  const { t } = useLanguage();
+
+  const statusConfig = {
+    all: { label: t.common.all, cls: "badge-primary", Icon: SlidersHorizontal },
+    pending: { label: t.status.pending, cls: "badge-pending", Icon: Clock },
+    approved: { label: t.status.approved, cls: "badge-approved", Icon: CheckCircle },
+    rejected: { label: t.status.rejected, cls: "badge-rejected", Icon: XCircle },
+  };
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [org, setOrg] = useState<{ id: string; name: string } | null>(null);
   const [, setRole] = useState<UserRole | null>(null);
@@ -123,10 +124,10 @@ export default function AdminRequestsPage() {
             style={{ color: "var(--text-base)" }}
           >
             <ClipboardList size={22} style={{ color: "var(--primary)" }} />
-            Anträge
+            {t.nav.approvals}
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            {org?.name} – Alle eingereichten Urlaubsanträge verwalten
+            {org?.name} – {t.approvals?.desc || "Alle eingereichten Urlaubsanträge verwalten"}
           </p>
         </div>
       </div>
@@ -282,31 +283,27 @@ export default function AdminRequestsPage() {
                       className={`badge ${r.status === "approved" ? "badge-approved" : r.status === "rejected" ? "badge-rejected" : "badge-pending"}`}
                     >
                       {r.status === "approved"
-                        ? "Genehmigt"
+                        ? t.status.approved
                         : r.status === "rejected"
-                          ? "Abgelehnt"
-                          : "Ausstehend"}
+                          ? t.status.rejected
+                          : t.status.pending}
                     </span>
                   </td>
                   <td>
                     {r.status === "pending" && (
                       <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleStatus(r.id, "approved")}
-                          disabled={actionId === r.id}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+                        <Link
+                          href={`/dashboard/requests/${r.id}`}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
                           style={{
                             background: "var(--success-light)",
                             color: "var(--success)",
                           }}
+                          title="Genehmigen (Unterschrift erforderlich)"
                         >
-                          {actionId === r.id ? (
-                            <Loader size={10} className="animate-spin" />
-                          ) : (
-                            <CheckCircle size={10} />
-                          )}
-                          Genehmigen
-                        </button>
+                          <CheckCircle size={10} />
+                          {t.vacation.approve}
+                        </Link>
                         <button
                           onClick={() => handleStatus(r.id, "rejected")}
                           disabled={actionId === r.id}
@@ -317,7 +314,7 @@ export default function AdminRequestsPage() {
                           }}
                         >
                           <XCircle size={10} />
-                          Ablehnen
+                          {t.vacation.reject}
                         </button>
                       </div>
                     )}
@@ -352,10 +349,10 @@ export default function AdminRequestsPage() {
                       className={`badge mb-2 inline-block ${r.status === "approved" ? "badge-approved" : r.status === "rejected" ? "badge-rejected" : "badge-pending"}`}
                     >
                       {r.status === "approved"
-                        ? "Genehmigt"
+                        ? t.status.approved
                         : r.status === "rejected"
-                          ? "Abgelehnt"
-                          : "Ausstehend"}
+                          ? t.status.rejected
+                          : t.status.pending}
                     </span>
                     <div
                       className="text-sm font-bold"
@@ -377,7 +374,7 @@ export default function AdminRequestsPage() {
                     className="font-semibold"
                     style={{ color: "var(--text-base)" }}
                   >
-                    Grund:{" "}
+                    {t.vacation.reason}:{" "}
                   </span>
                   {r.reason || "–"}
                 </div>
@@ -394,22 +391,17 @@ export default function AdminRequestsPage() {
                   </span>
                   {r.status === "pending" && (
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleStatus(r.id, "approved")}
-                        disabled={actionId === r.id}
-                        className="p-1.5 rounded-md disabled:opacity-50"
+                      <Link
+                        href={`/dashboard/requests/${r.id}`}
+                        className="p-1.5 rounded-md"
                         style={{
                           background: "var(--success-light)",
                           color: "var(--success)",
                         }}
-                        title="Genehmigen"
+                        title="Genehmigen (Unterschrift erforderlich)"
                       >
-                        {actionId === r.id ? (
-                          <Loader size={12} className="animate-spin" />
-                        ) : (
-                          <CheckCircle size={12} />
-                        )}
-                      </button>
+                        <CheckCircle size={12} />
+                      </Link>
                       <button
                         onClick={() => handleStatus(r.id, "rejected")}
                         disabled={actionId === r.id}

@@ -247,4 +247,102 @@ describe("userSettings lib", () => {
       );
     });
   });
+
+  // ─── v4.2 Bug-fix tests ────────────────────────────────────────
+  describe("getUserSettings – returns flattened fields from settings JSON", () => {
+    it("returns deputyName and deputyEmail from settings JSON", async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: {
+          id: "id-5",
+          settings: { deputyName: "Max Mustermann", deputyEmail: "max@example.de" },
+        },
+        error: null,
+      });
+
+      const result = await getUserSettings("user-1", "org-1");
+      expect(result.settings.deputyName).toBe("Max Mustermann");
+      expect(result.settings.deputyEmail).toBe("max@example.de");
+    });
+
+    it("returns firstName and lastName from settings JSON", async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: {
+          id: "id-6",
+          settings: { firstName: "Anna", lastName: "Schmidt" },
+        },
+        error: null,
+      });
+
+      const result = await getUserSettings("user-1", "org-1");
+      expect(result.settings.firstName).toBe("Anna");
+      expect(result.settings.lastName).toBe("Schmidt");
+    });
+
+    it("returns vacationQuota and carryOver from settings JSON", async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: {
+          id: "id-7",
+          settings: { vacationQuota: 28, carryOver: 5 },
+        },
+        error: null,
+      });
+
+      const result = await getUserSettings("user-1", "org-1");
+      expect(result.settings.vacationQuota).toBe(28);
+      expect(result.settings.carryOver).toBe(5);
+    });
+
+    it("handles empty settings JSON gracefully", async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: { id: "id-8", settings: null },
+        error: null,
+      });
+
+      const result = await getUserSettings("user-1", "org-1");
+      // Should not throw; settings should be empty object or null
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe("saveUserSettings – location field", () => {
+    it("persists location field", async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: { id: "id-9", settings: {} },
+        error: null,
+      });
+      mockResult.error = null;
+
+      await saveUserSettings("user-1", "org-1", "a@b.de", {
+        location: "Berlin",
+      });
+
+      expect(mockSupabase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            location: "Berlin",
+          }),
+        }),
+      );
+    });
+
+    it("persists employeeId field", async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: { id: "id-10", settings: {} },
+        error: null,
+      });
+      mockResult.error = null;
+
+      await saveUserSettings("user-1", "org-1", "a@b.de", {
+        employeeId: "EMP-001",
+      });
+
+      expect(mockSupabase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            employeeId: "EMP-001",
+          }),
+        }),
+      );
+    });
+  });
 });

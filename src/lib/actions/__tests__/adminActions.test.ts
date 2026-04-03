@@ -133,8 +133,14 @@ describe("getOrgMembersWithEmails", () => {
     order: vi.fn().mockReturnThis(),
     single: vi.fn(),
   };
+  // v4.2: adminClient is now used for the user_roles query (Bug 11 fix)
+  // so it needs from/select/eq/order chain as well as auth.admin.getUserById
   const mockAdminClient = {
     auth: { admin: { getUserById: vi.fn() } },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn(),
   };
 
   beforeEach(() => {
@@ -147,6 +153,9 @@ describe("getOrgMembersWithEmails", () => {
     mockSupabase.select.mockReturnValue(mockSupabase);
     mockSupabase.eq.mockReturnValue(mockSupabase);
     mockSupabase.order.mockReturnValue(mockSupabase);
+    mockAdminClient.from.mockReturnValue(mockAdminClient);
+    mockAdminClient.select.mockReturnValue(mockAdminClient);
+    mockAdminClient.eq.mockReturnValue(mockAdminClient);
   });
 
   it("returns error when not authenticated", async () => {
@@ -176,13 +185,13 @@ describe("getOrgMembersWithEmails", () => {
       data: { session: { user: { id: "admin-id" } } },
       error: null,
     });
-    // Role check → admin
+    // Role check (own role) → admin, still via mockSupabase
     mockSupabase.single.mockResolvedValueOnce({
       data: { role: "admin" },
       error: null,
     });
-    // Roles list
-    mockSupabase.order.mockResolvedValueOnce({
+    // user_roles list is now fetched via adminClient (Bug 11 fix)
+    mockAdminClient.order.mockResolvedValueOnce({
       data: [{ user_id: "u1", role: "admin", created_at: "" }],
       error: null,
     });

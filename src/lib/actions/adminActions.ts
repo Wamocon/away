@@ -55,7 +55,11 @@ export async function getOrgMembersWithEmails(orgId: string) {
       };
     }
 
-    const { data: roles, error: rolesError } = await supabase
+    // Admin-Client nutzen, damit RLS-Policy "Role_Self" umgangen wird
+    // (normale Clients sehen nur die eigene Zeile)
+    const adminClient = await createAdminClient();
+
+    const { data: roles, error: rolesError } = await adminClient
       .from("user_roles")
       .select("user_id, role, created_at")
       .eq("organization_id", orgId)
@@ -63,8 +67,6 @@ export async function getOrgMembersWithEmails(orgId: string) {
 
     if (rolesError) throw rolesError;
     if (!roles) return { data: [] };
-
-    const adminClient = await createAdminClient();
 
     const members = await Promise.all(
       roles.map(async (m) => {
@@ -220,6 +222,112 @@ export async function getOrgApproversForNotification(
   } catch (err) {
     console.error("[getOrgApproversForNotification] Fehler:", err);
     return [];
+  }
+}
+
+/**
+ * Listet ALLE Auth-User auf (Admin-API).
+ * Nur für Admins verwendbar.
+ */
+export async function getAllAuthUsers(orgId: string) {
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { error: "Nicht authentifiziert." };
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("organization_id", orgId)
+      .single();
+
+    if (roleData?.role !== "admin") {
+      return { error: "Keine Berechtigung." };
+    }
+
+    const adminClient = await createAdminClient();
+
+    // Bestehende Mitglieder der Org laden
+    const { data: existingRoles } = await adminClient
+      .from("user_roles")
+      .select("user_id")
+      .eq("organization_id", orgId);
+    const existingIds = new Set((existingRoles ?? []).map((r) => r.user_id));
+
+    // Alle Auth-User laden
+    const { data: usersData, error } =
+      await adminClient.auth.admin.listUsers({ perPage: 1000 });
+    if (error) throw error;
+
+    const users = usersData.users.map((u) => ({
+      id: u.id,
+      email: u.email ?? "",
+      created_at: u.created_at,
+      isInOrg: existingIds.has(u.id),
+    }));
+
+    return { data: users };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+/**
+ * Weist einen oder mehrere Benutzer einer Organisation zu.
+ * Erstellt user_roles und user_settings Einträge.
+ */
+export async function assignUsersToOrg(
+  userIds: string[],
+  orgId: string,
+  role: UserRole = "employee",
+) {
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { error: "Nicht authentifiziert." };
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("organization_id", orgId)
+      .single();
+
+    if (roleData?.role !== "admin") {
+      return { error: "Keine Berechtigung." };
+    }
+
+    const adminClient = await createAdminClient();
+
+    const roleRows = userIds.map((uid) => ({
+      user_id: uid,
+      organization_id: orgId,
+      role,
+    }));
+
+    const { error: roleError } = await adminClient
+      .from("user_roles")
+      .upsert(roleRows, { onConflict: "user_id,organization_id" });
+    if (roleError) throw roleError;
+
+    // Fehlende user_settings anlegen
+    const settingsRows = userIds.map((uid) => ({
+      user_id: uid,
+      organization_id: orgId,
+      settings: {},
+    }));
+    await adminClient
+      .from("user_settings")
+      .upsert(settingsRows, { onConflict: "user_id,organization_id" });
+
+    return { success: true, count: userIds.length };
+  } catch (err) {
+    return { error: (err as Error).message };
   }
 }
 

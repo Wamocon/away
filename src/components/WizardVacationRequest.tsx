@@ -46,6 +46,8 @@ interface WizardProps {
   orgName: string;
   onClose: () => void;
   onSuccess: () => void;
+  initialFrom?: string;
+  initialTo?: string;
 }
 
 type Step = 1 | 2 | 3 | 4;
@@ -70,6 +72,8 @@ export default function WizardVacationRequest({
   orgName,
   onClose,
   onSuccess,
+  initialFrom,
+  initialTo,
 }: WizardProps) {
   const [step, setStep] = useState<Step>(1);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -91,8 +95,8 @@ export default function WizardVacationRequest({
     { id: "sonder", label: "Sonderurlaub", checked: false },
   ]);
   const [newTypeName, setNewTypeName] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(initialFrom || "");
+  const [to, setTo] = useState(initialTo || "");
   const [reason, setReason] = useState("");
   const [location, setLocation] = useState("");
   const [signedAt, setSignedAt] = useState(
@@ -104,7 +108,8 @@ export default function WizardVacationRequest({
   const [selectedState, setSelectedState] = useState<GermanState>("ALL");
 
   // Hilfsfelder
-  const deputy = "";
+  const [deputyField, setDeputyField] = useState("");
+  const deputy = deputyField;
   const notes = "";
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -121,14 +126,21 @@ export default function WizardVacationRequest({
         .eq("organization_id", orgId)
         .then(({ data }) => setTemplates((data as Template[]) || []));
 
-      // Fetch profile settings for pre-filling
+      // Fetch profile settings for pre-filling (Bug 7)
       getUserSettings(userId, orgId).then((data) => {
         if (data && data.settings) {
-          const s = data.settings as Record<string, string | undefined>;
-          if (s.firstName) setFirstName(s.firstName);
-          if (s.lastName) setLastName(s.lastName);
-          if (s.employeeId) setEmployeeId(s.employeeId);
+          const s = data.settings as Record<string, unknown>;
+          if (s.firstName) setFirstName(s.firstName as string);
+          if (s.lastName) setLastName(s.lastName as string);
+          if (s.employeeId) setEmployeeId(s.employeeId as string);
           if (s.state) setSelectedState(s.state as GermanState);
+          // Erweiterte Vorbefüllung
+          if (s.deputyName && !deputy) setDeputyField(s.deputyName as string);
+          if (s.location && !location) setLocation(s.location as string);
+        }
+        // Auth-E-Mail als Fallback setzen
+        if (!data?.settings || !(data.settings as Record<string, unknown>).email) {
+          // userEmail wird als Prop übergeben, nichts zu tun
         }
       });
     }
@@ -413,7 +425,7 @@ export default function WizardVacationRequest({
       {step > 1 && (
         <button
           onClick={() => setStep((step - 1) as Step)}
-          className="px-6 py-3 rounded-2xl bg-white/5 text-white/70 font-bold text-xs uppercase tracking-widest border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"
+          className="px-6 py-3 rounded-2xl bg-[var(--bg-elevated)] text-[var(--text-muted)] font-bold text-xs uppercase tracking-widest border border-[var(--border)] hover:bg-[var(--bg-surface)] transition-all flex items-center gap-2"
         >
           <ChevronLeft size={16} /> Zurück
         </button>
@@ -460,7 +472,7 @@ export default function WizardVacationRequest({
                       ? "bg-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-110"
                       : step > i
                         ? "bg-emerald-500 text-white"
-                        : "bg-white/5 text-white/30 border border-white/10"
+                        : "bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border)]"
                   }`}
                 >
                   {step > i ? "✓" : i}
@@ -745,7 +757,7 @@ export default function WizardVacationRequest({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black mb-1.5 text-white/50 uppercase tracking-widest">
+                    <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-widest">
                       Bundesland (Feiertage)
                     </label>
                     <select
@@ -753,13 +765,13 @@ export default function WizardVacationRequest({
                       onChange={(e) =>
                         setSelectedState(e.target.value as GermanState)
                       }
-                      className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl px-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all appearance-none"
+                      className="w-full h-12 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl px-4 text-sm text-[var(--text-base)] focus:outline-none focus:border-indigo-500 transition-all appearance-none"
                     >
                       {GERMAN_STATES.map((s) => (
                         <option
                           key={s.code}
                           value={s.code}
-                          className="bg-slate-900"
+                          className="bg-[var(--bg-elevated)] text-[var(--text-base)]"
                         >
                           {s.name}
                         </option>
@@ -937,16 +949,16 @@ export default function WizardVacationRequest({
             <div className="w-24 h-24 rounded-[32px] bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-500/20 rotate-3">
               <CheckCircle size={48} />
             </div>
-            <h3 className="text-3xl font-black text-white mb-3 tracking-tight">
+            <h3 className="text-3xl font-black text-[var(--text-base)] mb-3 tracking-tight">
               Antrag eingereicht!
             </h3>
-            <p className="text-sm font-medium text-white/50 mb-10 max-w-sm mx-auto">
+            <p className="text-sm font-medium text-[var(--text-muted)] mb-10 max-w-sm mx-auto">
               Dein Urlaubsantrag wurde erfolgreich erstellt und zur Genehmigung
               weitergeleitet.
             </p>
             <button
               onClick={onSuccess}
-              className="px-12 py-4 rounded-2xl bg-white text-black font-black text-xs uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-xl active:scale-95"
+              className="px-12 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-xl active:scale-95"
             >
               Fenster Schließen
             </button>
@@ -969,8 +981,8 @@ export default function WizardVacationRequest({
         message={
           <>
             Möchtest du deinen Urlaubsantrag von{" "}
-            <span className="text-white font-bold">{from}</span> bis{" "}
-            <span className="text-white font-bold">{to}</span> jetzt verbindlich
+            <span className="text-[var(--primary)] font-bold">{from}</span> bis{" "}
+            <span className="text-[var(--primary)] font-bold">{to}</span> jetzt verbindlich
             einreichen?
           </>
         }

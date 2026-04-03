@@ -1,5 +1,11 @@
 const fs = require("fs");
-const path = "d:/IDEA/Projekt/away/src/app/admin/settings/page.tsx";
+const nodePath = require("path");
+const targetPath = process.argv[2];
+if (!targetPath) {
+  console.error("Usage: node fix-encoding.js <path/to/file>");
+  process.exit(1);
+}
+const path = nodePath.resolve(targetPath);
 let text = fs.readFileSync(path, "utf8");
 
 const replacements = [

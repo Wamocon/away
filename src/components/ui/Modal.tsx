@@ -13,6 +13,8 @@ interface ModalProps {
   maxWidth?: string;
 }
 
+let openModalCount = 0;
+
 /**
  * Ein universelles Modal-System mit React Portals:
  * - Verhindert "Einsperren" in Containern durch Rendering am body-Ende.
@@ -32,12 +34,16 @@ export default function Modal({
   useEffect(() => {
     setMounted(true);
     if (isOpen) {
+      openModalCount++;
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
     }
     return () => {
-      document.body.style.overflow = "unset";
+      if (isOpen) {
+        openModalCount--;
+        if (openModalCount === 0) {
+          document.body.style.overflow = "unset";
+        }
+      }
     };
   }, [isOpen]);
 

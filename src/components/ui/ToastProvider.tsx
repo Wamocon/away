@@ -90,15 +90,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"
-        aria-live="polite"
+        aria-live="off"
         aria-atomic="false"
       >
         {toasts.map((toast) => {
           const Icon = ICONS[toast.type];
+          const isError = toast.type === "error";
           return (
             <div
               key={toast.id}
-              role="alert"
+              role={isError ? "alert" : "status"}
+              aria-live={isError ? "assertive" : "polite"}
+              aria-atomic="true"
               className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl text-sm font-semibold text-white min-w-[260px] max-w-[380px] toast-slide-in ${STYLES[toast.type]}`}
             >
               <Icon size={16} className="shrink-0" />

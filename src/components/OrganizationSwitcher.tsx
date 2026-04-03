@@ -36,10 +36,16 @@ export default function OrganizationSwitcher({
   useEffect(() => {
     if (!selectedOrg || !userId) return;
     const org = orgs.find((o) => o.id === selectedOrg);
-    getUserRole(userId, selectedOrg).then((role) => {
-      setCurrentRole(role);
-      onOrgChange(selectedOrg, role, org?.name);
-    });
+    getUserRole(userId, selectedOrg)
+      .then((role) => {
+        setCurrentRole(role);
+        onOrgChange(selectedOrg, role, org?.name);
+      })
+      .catch(() => {
+        const fallbackRole = "employee";
+        setCurrentRole(fallbackRole);
+        onOrgChange(selectedOrg, fallbackRole, org?.name);
+      });
   }, [selectedOrg, userId, onOrgChange, orgs]);
 
   // Fallback: Orgs direkt laden falls Context noch leer ist

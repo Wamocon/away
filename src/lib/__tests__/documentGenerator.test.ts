@@ -1,8 +1,8 @@
-﻿import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { generatePDF, generateExcel, generateWord } from "../documentGenerator";
 import type { DocumentData } from "../documentGenerator";
 
-// â”€â”€ Hoisted mock variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Hoisted mock variables ─────────────────────────────────────
 const {
   mockTextField,
   mockCheckBox,
@@ -53,7 +53,7 @@ const {
   };
 });
 
-// â”€â”€ Mocks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Mocks ──────────────────────────────────────────────────────
 vi.mock("pdf-lib", () => ({
   PDFDocument: {
     load: vi.fn().mockResolvedValue(mockPdfDoc),
@@ -90,7 +90,7 @@ vi.mock("pizzip", () => ({
   default: vi.fn().mockImplementation(() => ({})),
 }));
 
-// â”€â”€ Sample data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sample data ────────────────────────────────────────────────
 const sampleData: DocumentData = {
   from: "2025-06-01",
   to: "2025-06-10",

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { getOrganizationsForUser } from "@/lib/organization";
 import { getUserRole, canApprove } from "@/lib/roles";
 import { useLanguage } from "@/components/ui/LanguageProvider";
@@ -34,13 +35,17 @@ function getReadIds(): Set<string> {
 function markRead(id: string) {
   const ids = getReadIds();
   ids.add(id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {}
 }
 
 function markAllRead(ids: string[]) {
   const existing = getReadIds();
   ids.forEach((id) => existing.add(id));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing]));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing]));
+  } catch {}
 }
 
 export function NotificationCenter() {
@@ -51,7 +56,8 @@ export function NotificationCenter() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const dateFnsLocale = locale === "en" ? enUS : de;
 
   const buildNotifications = useCallback(async () => {
     setLoading(true);
@@ -91,8 +97,8 @@ export function NotificationCenter() {
             items.push({
               id: `pending-${req.id}`,
               type: "new_request",
-              title: "Ausstehender Antrag",
-              message: `Urlaubsantrag vom ${format(parseISO(req.from), "dd.MM.", { locale: de })} bis ${format(parseISO(req.to), "dd.MM.yyyy", { locale: de })}`,
+              title: t.notifications.newRequest,
+              message: `${format(parseISO(req.from), "dd.MM.", { locale: dateFnsLocale })} – ${format(parseISO(req.to), "dd.MM.yyyy", { locale: dateFnsLocale })}`,
               createdAt: req.created_at,
               read: readIds.has(`pending-${req.id}`),
               requestId: req.id,
@@ -117,9 +123,9 @@ export function NotificationCenter() {
             type: req.status as "approved" | "rejected",
             title:
               req.status === "approved"
-                ? "Antrag genehmigt ✓"
-                : "Antrag abgelehnt",
-            message: `${format(parseISO(req.from), "dd.MM.", { locale: de })} – ${format(parseISO(req.to), "dd.MM.yyyy", { locale: de })}`,
+                ? t.notifications.approved
+                : t.notifications.rejected,
+            message: `${format(parseISO(req.from), "dd.MM.", { locale: dateFnsLocale })} – ${format(parseISO(req.to), "dd.MM.yyyy", { locale: dateFnsLocale })}`,
             createdAt: req.updated_at,
             read: readIds.has(notifId),
             requestId: req.id,
@@ -134,7 +140,7 @@ export function NotificationCenter() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t, dateFnsLocale]);
 
   useEffect(() => {
     buildNotifications();
@@ -241,7 +247,7 @@ export function NotificationCenter() {
                     color: "var(--danger)",
                   }}
                 >
-                  {unread} neu
+                  {unread} {t.common.new}
                 </span>
               )}
             </span>
@@ -259,7 +265,7 @@ export function NotificationCenter() {
               <button
                 onClick={() => setOpen(false)}
                 className="p-1 rounded-lg btn-ghost"
-                aria-label="Schließen"
+                aria-label={t.common.close}
               >
                 <X size={14} />
               </button>
@@ -272,7 +278,7 @@ export function NotificationCenter() {
                 className="p-6 text-center text-xs"
                 style={{ color: "var(--text-muted)" }}
               >
-                Lade...{/* {t.common.loading} */}
+                {t.common.loading}
               </div>
             )}
             {!loading && notifications.length === 0 && (
@@ -338,7 +344,7 @@ export function NotificationCenter() {
                 style={{ color: "var(--primary)" }}
                 onClick={() => setOpen(false)}
               >
-                Alle Anträge anzeigen →
+                {t.notifications.viewAll}
               </Link>
             </div>
           )}

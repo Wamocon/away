@@ -4,9 +4,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
+        source: "/api/(.*)",
         headers: [
-          { key: "Access-Control-Allow-Origin", value: "*" },
           {
             key: "Access-Control-Allow-Methods",
             value: "GET,OPTIONS,PATCH,DELETE,POST,PUT",
@@ -16,6 +15,11 @@ const nextConfig: NextConfig = {
             value:
               "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version",
           },
+        ],
+      },
+      {
+        source: "/(.*)",
+        headers: [
           {
             key: "Content-Security-Policy",
             value:

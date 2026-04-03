@@ -36,6 +36,7 @@ export const translations = {
       yes: "Ja",
       no: "Nein",
       noData: "Keine Daten vorhanden",
+      new: "neu",
     },
     // Status
     status: {
@@ -212,6 +213,7 @@ export const translations = {
       yes: "Yes",
       no: "No",
       noData: "No data available",
+      new: "new",
     },
     status: {
       pending: "Pending",

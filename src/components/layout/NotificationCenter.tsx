@@ -133,7 +133,16 @@ export function NotificationCenter() {
         }
       }
 
-      items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      items.sort((a, b) => {
+        const aTime = Date.parse(a.createdAt);
+        const bTime = Date.parse(b.createdAt);
+
+        if (!Number.isNaN(aTime) && !Number.isNaN(bTime)) {
+          return bTime - aTime;
+        }
+
+        return b.createdAt.localeCompare(a.createdAt);
+      });
       setNotifications(items.slice(0, 15));
     } catch (err) {
       console.error("[NotificationCenter]", err);

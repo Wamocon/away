@@ -6,7 +6,8 @@ import {
   useState,
   useCallback,
 } from "react";
-import { getTranslations, Locale, TranslationKey } from "@/lib/i18n";
+import { getTranslations } from "@/lib/i18n";
+import type { Locale, TranslationKey } from "@/lib/i18n";
 
 interface LanguageContextValue {
   locale: Locale;

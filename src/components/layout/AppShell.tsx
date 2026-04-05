@@ -64,6 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     color: locale === "de" ? "white" : "var(--text-muted)",
                   }}
                   title="Deutsch"
+                  aria-label="Sprache: Deutsch"
                 >
                   DE
                 </button>
@@ -74,6 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     color: locale === "en" ? "white" : "var(--text-muted)",
                   }}
                   title="English"
+                  aria-label="Language: English"
                 >
                   EN
                 </button>

@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -30,15 +30,26 @@ export default function Modal({
   maxWidth = "max-w-lg",
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
+  // Track whether *this* instance incremented the counter so we only
+  // decrement once, even under React Strict Mode double-invocation.
+  const didLockRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
-    if (isOpen) {
+    if (isOpen && !didLockRef.current) {
+      didLockRef.current = true;
       openModalCount++;
       document.body.style.overflow = "hidden";
+    } else if (!isOpen && didLockRef.current) {
+      didLockRef.current = false;
+      openModalCount--;
+      if (openModalCount === 0) {
+        document.body.style.overflow = "unset";
+      }
     }
     return () => {
-      if (isOpen) {
+      if (didLockRef.current) {
+        didLockRef.current = false;
         openModalCount--;
         if (openModalCount === 0) {
           document.body.style.overflow = "unset";

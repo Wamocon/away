@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Zap,
@@ -49,6 +49,14 @@ const PLAN_FEATURES = {
 };
 
 export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={null}>
+      <SubscriptionPageInner />
+    </Suspense>
+  );
+}
+
+function SubscriptionPageInner() {
   const { subscription, loading, planTier } = useSubscription();
   const { currentOrgId } = useActiveOrg();
   const { showSuccess, showError } = useToast();

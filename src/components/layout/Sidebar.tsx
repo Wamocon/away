@@ -7,7 +7,6 @@ import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { getUserRole, UserRole, ROLE_LABELS } from "@/lib/roles";
-import SchemaRoleSwitcher from "@/components/SchemaRoleSwitcher";
 import { useSubscription } from "@/components/ui/SubscriptionProvider";
 import { PlanGate } from "@/components/ui/PlanGate";
 import {
@@ -458,10 +457,6 @@ function SidebarContent({
         className="shrink-0 border-t"
         style={{ borderColor: "var(--border)" }}
       >
-        {/* Visual 1:1 TeamRadar Switcher */}
-        {mounted && process.env.NODE_ENV !== "production" && (
-          <SchemaRoleSwitcher />
-        )}
 
         <div className="px-3 py-2">
           <div

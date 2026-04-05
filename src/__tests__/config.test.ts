@@ -23,6 +23,8 @@ describe("Next.js Configuration", () => {
 
     expect(content).toContain("/api/");
     expect(content).toContain("Access-Control-Allow-Methods");
-    expect(content).not.toContain("Access-Control-Allow-Origin: *");
+    expect(content).not.toMatch(
+      /key\s*:\s*["']Access-Control-Allow-Origin["'][\s\S]*?value\s*:\s*["']\*["']/,
+    );
   });
 });

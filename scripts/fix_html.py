@@ -1,187 +1,18 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Away – Produkthandbuch | WAMOCON</title>
-  <style>
-    /* ── Reset & Base ─────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+"""Replaces the main section of docs/manual/index.html with clean v2.0 content."""
+import re, pathlib
 
-    :root {
-      --primary:   #3b82f6;
-      --primary-dark: #1d4ed8;
-      --primary-glow: rgba(59,130,246,0.18);
-      --success:   #10b981;
-      --warning:   #f59e0b;
-      --danger:    #ef4444;
-      --bg-page:   #070b14;
-      --bg-card:   rgba(15,23,42,0.8);
-      --bg-code:   #0f172a;
-      --border:    rgba(255,255,255,0.06);
-      --text:      #f1f5f9;
-      --text-muted:#94a3b8;
-      --text-dim:  rgba(255,255,255,0.3);
-      --wmc-grad:  linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    }
+html_path = pathlib.Path(__file__).parent.parent / "docs" / "manual" / "index.html"
+content = html_path.read_text(encoding="utf-8")
 
-    html { scroll-behavior: smooth; font-size: 15px; }
+# Find <main> opening and the closing </div> that wraps layout
+main_start = content.find("  <main>")
+# The layout closes with </div>\n\n</body>
+layout_close = content.rfind("</div>\n\n</body>")
 
-    body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: var(--bg-page);
-      color: var(--text);
-      line-height: 1.6;
-    }
+assert main_start != -1, "<main> not found"
+assert layout_close != -1, "layout closing not found"
 
-    /* ── Header ──────────────────────────────────────────── */
-    .page-header {
-      background: var(--wmc-grad);
-      border-bottom: 2px solid var(--primary);
-      box-shadow: 0 4px 20px rgba(59,130,246,0.1);
-      padding: 0 2rem;
-      height: 70px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      backdrop-blur: 10px;
-    }
-    .brand { display: flex; align-items: center; gap: 14px; text-decoration: none; }
-    .logo-mark {
-      width: 44px; height: 44px; border-radius: 12px;
-      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px; font-weight: 900; color: #fff;
-      box-shadow: 0 4px 12px rgba(59,130,246,0.3);
-      transform: rotate(-5deg);
-    }
-    .brand-name { color: #fff; font-weight: 800; font-size: 1.1rem; }
-    .brand-sub  { color: var(--text-muted); font-size: 0.7rem; letter-spacing: 0.05em; font-weight: 600; }
-    .header-meta { color: var(--text-dim); font-size: 0.75rem; text-align: right; }
-
-    /* ── Layout ──────────────────────────────────────────────── */
-    .layout {
-      display: grid;
-      grid-template-columns: 280px 1fr;
-      min-height: calc(100vh - 70px);
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    /* ── Sidebar ────────────────────────────────────────────── */
-    #toc-sidebar {
-      position: sticky;
-      top: 70px;
-      height: calc(100vh - 70px);
-      overflow-y: auto;
-      padding: 2rem 1.5rem;
-      border-right: 1px solid var(--border);
-      background: rgba(15,23,42,0.4);
-    }
-    .toc-title { font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dim); margin-bottom: 1rem; }
-    .toc-link { display: block; padding: 0.5rem 0; color: var(--text-muted); text-decoration: none; font-size: 0.85rem; transition: 0.2s; }
-    .toc-link:hover { color: #fff; transform: translateX(4px); }
-    .toc-link.l1 { font-weight: 700; color: var(--text); border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1rem; }
-    .toc-link.l2 { padding-left: 1rem; font-size: 0.8rem; }
-
-    /* ── Main Content ────────────────────────────────────────── */
-    main { padding: 3rem 4rem 6rem; max-width: 900px; }
-
-    /* ── Cover ──────────────────────────────────────────────── */
-    .cover {
-      background: linear-gradient(160deg, rgba(30,58,138,0.3) 0%, rgba(15,23,42,0.8) 100%);
-      border: 1px solid rgba(59,130,246,0.2);
-      border-radius: 24px;
-      padding: 4rem;
-      margin-bottom: 4rem;
-      position: relative;
-      overflow: hidden;
-    }
-    .doc-type { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: var(--primary); margin-bottom: 1rem; }
-    .cover h1 { font-size: 3rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
-    .cover-sub { font-size: 1.2rem; color: var(--text-muted); margin-bottom: 3rem; }
-    .cover-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 2rem; }
-    .meta-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 0.3rem; }
-    .meta-value { font-weight: 700; font-size: 1rem; }
-
-    /* ── Typography ─────────────────────────────────────────── */
-    h2 { font-size: 2rem; font-weight: 900; margin: 4rem 0 1.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.8rem; }
-    h2 .num { color: var(--primary); opacity: 0.5; font-size: 1.2rem; }
-    h3 { font-size: 1.4rem; font-weight: 800; margin: 2.5rem 0 1rem; color: var(--primary); }
-    p { margin-bottom: 1.2rem; }
-    ul, ol { margin-bottom: 1.5rem; padding-left: 1.5rem; }
-    li { margin-bottom: 0.52rem; }
-    li::marker { color: var(--primary); }
-
-    /* ── Blocks ─────────────────────────────────────────────── */
-    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin: 1.5rem 0; }
-    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
-    .badge-success { background: rgba(16,185,129,0.1); color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
-    .badge-primary { background: var(--primary-glow); color: var(--primary); border: 1px solid rgba(59,130,246,0.2); }
-
-    .info-box { padding: 1.2rem 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 4px solid var(--primary); background: rgba(59,130,246,0.05); }
-    .info-box-title { font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); margin-bottom: 0.5rem; }
-
-    /* ── Table ───────────────────────────────────────────────── */
-    .table-wrap { overflow-x: auto; margin: 2rem 0; border-radius: 12px; border: 1px solid var(--border); }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th { text-align: left; padding: 1rem; background: rgba(255,255,255,0.02); color: var(--text-muted); font-weight: 800; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; }
-    td { padding: 1rem; border-top: 1px solid var(--border); }
-
-    /* ── Responsive ───────────────────────────────────────────── */
-    @media (max-width: 1000px) {
-      .layout { grid-template-columns: 1fr; }
-      #toc-sidebar { display: none; }
-      main { padding: 2rem 1.5rem; }
-      .cover { padding: 2.5rem; }
-    }
-  </style>
-</head>
-<body>
-
-<header class="page-header">
-  <a class="brand" href="#">
-    <div class="logo-mark">A</div>
-    <div>
-      <div class="brand-name">Away</div>
-      <div class="brand-sub">Urlaubsplanungs-Software</div>
-    </div>
-  </a>
-  <div class="header-meta">
-    Produkthandbuch v2.0 · April 2026<br>
-    <strong>Vertraulich · WAMOCON GmbH</strong>
-  </div>
-</header>
-
-<div class="layout">
-  <nav id="toc-sidebar">
-    <div class="toc-title">Index</div>
-    <a class="toc-link l1" href="#uebersicht">1. Übersicht</a>
-    <a class="toc-link l1" href="#business-model">2. Business Model</a>
-    <a class="toc-link l2" href="#planuebersicht">2.1 Planübersicht</a>
-    <a class="toc-link l2" href="#trial-system">2.2 Trial-System</a>
-    <a class="toc-link l2" href="#upgrade">2.3 Upgrade-Prozess</a>
-    <a class="toc-link l1" href="#tutorials">3. Tutorials</a>
-    <a class="toc-link l2" href="#tut-antrag">3.1 Ersten Antrag stellen</a>
-    <a class="toc-link l2" href="#tut-register">3.2 Organisation registrieren</a>
-    <a class="toc-link l2" href="#tut-invite">3.3 Genehmiger einladen</a>
-    <a class="toc-link l1" href="#howto">4. How-to Guides</a>
-    <a class="toc-link l2" href="#ht-email">4.1 Antrag per E-Mail</a>
-    <a class="toc-link l2" href="#ht-approve">4.2 Antrag genehmigen</a>
-    <a class="toc-link l2" href="#ht-upgrade">4.3 Plan upgraden</a>
-    <a class="toc-link l2" href="#ht-calsync">4.4 Kalender-Sync</a>
-    <a class="toc-link l2" href="#ht-superadmin">4.5 Super-Admin</a>
-    <a class="toc-link l1" href="#referenz">5. Funktionsreferenz</a>
-    <a class="toc-link l2" href="#routen">5.1 Routen</a>
-    <a class="toc-link l2" href="#rollen">5.2 Rollen</a>
-    <a class="toc-link l1" href="#tech">6. Technische Architektur</a>
-    <a class="toc-link l1" href="#compliance">7. Compliance &amp; DSGVO</a>
-    <a class="toc-link l1" href="#glossar">8. Glossar</a>
-  </nav>
-
+new_main = """\
   <main>
     <div class="cover">
       <div class="doc-type">Produkthandbuch &middot; WAMOCON</div>
@@ -482,8 +313,8 @@
       </div>
     </section>
   </main>
+"""
 
-</div>
-
-</body>
-</html>
+new_content = content[:main_start] + new_main + "\n</div>\n\n</body>\n</html>\n"
+html_path.write_text(new_content, encoding="utf-8")
+print(f"Done. Sections: {len(__import__('re').findall(r'<section id=', new_content))}, Length: {len(new_content)}")

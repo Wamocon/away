@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPlanActive, PRO_ONLY_ROUTES } from "@/lib/subscription";
+import type { Subscription } from "@/lib/subscription";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -77,6 +79,67 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/auth/login", request.url));
     }
     return supabaseResponse;
+  }
+
+  // ── Subscription-Check ─────────────────────────────────────────────────────
+  // Routen die immer erreichbar sein sollen (auch ohne aktives Abo)
+  const subscriptionFreeRoutes = [
+    "/settings/subscription",
+    "/legal",
+    "/auth",
+  ];
+  const isSubscriptionFreeRoute = subscriptionFreeRoutes.some((r) =>
+    pathname.startsWith(r),
+  );
+
+  if (!isSubscriptionFreeRoute) {
+    try {
+      // Aktive Org des Users holen (erste gefundene Org)
+      const { data: userRoleRow } = await supabase
+        .from("user_roles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+
+      const orgId = userRoleRow?.organization_id;
+
+      if (orgId) {
+        const { data: subData } = await supabase
+          .from("subscriptions")
+          .select(
+            `id, organization_id, plan_id, status,
+             trial_start, trial_end, grace_end,
+             activated_by, order_requested_at, created_at,
+             plan:subscription_plans (id, name, max_users, features, price_monthly)`,
+          )
+          .eq("organization_id", orgId)
+          .maybeSingle();
+
+        const sub = subData as Subscription | null;
+        const active = isPlanActive(sub);
+
+        // Kein aktives Abo → nur Abo-Seite erlaubt
+        if (!active) {
+          return NextResponse.redirect(
+            new URL("/settings/subscription", request.url),
+          );
+        }
+
+        // Pro-only-Routen: Lite-User blockieren
+        const isPro = sub?.plan?.name === "pro";
+        const isProOnlyRoute = PRO_ONLY_ROUTES.some((r) =>
+          pathname.startsWith(r),
+        );
+        if (isProOnlyRoute && !isPro) {
+          const redirectUrl = new URL("/settings/subscription", request.url);
+          redirectUrl.searchParams.set("upgrade", "1");
+          return NextResponse.redirect(redirectUrl);
+        }
+      }
+    } catch {
+      // Subscription-Check darf niemals den Zugang blockieren (fail-open)
+    }
   }
 
   // Admin-Check für /admin/ oder /dashboard/admin/

@@ -4,17 +4,22 @@ import SendMailButton from "./SendMailButton";
 import CalendarInviteButton from "./CalendarInviteButton";
 import { createVacationRequest } from "@/lib/vacation";
 import { createClient } from "@/lib/supabase/client";
+import { buildVacationSubmitMailtoLink } from "@/lib/email";
 
 export default function VacationRequestForm({
   userId,
   organizationId,
   emailProvider,
   accessToken,
+  approverEmail,
+  applicantName,
 }: {
   userId: string;
   organizationId: string;
   emailProvider?: string;
   accessToken?: string;
+  approverEmail?: string;
+  applicantName?: string;
 }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -41,8 +46,22 @@ export default function VacationRequestForm({
   };
 
   const handleSendMail = async () => {
-    if (!emailProvider || !accessToken)
+    // Fallback: kein OAuth-Provider → mailto: öffnen
+    if (!emailProvider || !accessToken) {
+      if (approverEmail) {
+        const link = buildVacationSubmitMailtoLink({
+          approverEmail,
+          applicantName: applicantName ?? userId,
+          fromDate: from,
+          toDate: to,
+          reason,
+          appLink: `${window.location.origin}/dashboard/requests`,
+        });
+        window.location.href = link;
+        return;
+      }
       throw new Error("Kein E-Mail-Provider verbunden!");
+    }
     const supabase = createClient();
     const { data, error } = await supabase.functions.invoke(
       "send-vacation-mail",

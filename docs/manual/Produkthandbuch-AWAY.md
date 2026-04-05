@@ -1,110 +1,237 @@
-# Produkthandbuch: Away – Professionelle Urlaubsplanung
+# Produkthandbuch: Away - Professionelle Urlaubsplanung
 
-## 1. Executive Summary
-Away ist eine hochmoderne, webbasierte Software-as-a-Service-Lösung zur effizienten Steuerung von Urlaubsansprüchen und Abwesenheiten in Teams und Organisationen. Die Anwendung digitalisiert den gesamten Workflow von der Antragstellung über die Genehmigungslogik bis hin zur revisionssicheren Dokumentation.
-
-**Leistungskern:**
-- **Automatisierung**: Vollständige Ablösung papierbasierter oder Excel-gestützter Prozesse.
-- **Transparenz**: Echtzeit-Kalender für Teams zur Vermeidung von Kapazitätsengpässen.
-- **Compliance**: Integrierte Rechtskonformität durch digitales Consent-Tracking und DSGVO-konforme Datenverarbeitung.
-- **Mobilität**: Responsive Web-Technologie für den Zugriff von jedem Endgerät.
+> **Version 2.0** | Stand: April 2026 | WAMOCON
 
 ---
 
-## 2. Produktübersicht
-### 2.1 Produktbeschreibung
-Away adressiert die Komplexität moderner Arbeitswelten durch eine intuitive Oberfläche und robuste Backend-Logik. Die Applikation ermöglicht es Organisationen, Urlaubsregeln global zu definieren und dennoch individuell auf Team-Ebene zu steuern.
+## Inhaltsverzeichnis
 
-### 2.2 Zielgruppen
-- **Mitarbeiter (Endbenutzer)**: Einfache Erfassung von Anträgen, Einsicht in den eigenen Urlaubsstatus.
-- **Teamleiter (Approver)**: Koordination von Team-Abwesenheiten, Genehmigung oder Ablehnung mit Kommentarfunktion.
-- **Administratoren**: Organisationsweite Steuerung, Benutzerverwaltung, Compliance-Audit und Reporting.
+1. [Uebersicht](#1-uebersicht)
+2. [Business Model: Lite und Pro](#2-business-model-lite-und-pro)
+3. [Tutorials - Erste Schritte](#3-tutorials)
+4. [How-to Guides](#4-how-to-guides)
+5. [Funktionsreferenz](#5-funktionsreferenz)
+6. [Technische Architektur](#6-technische-architektur)
+7. [Compliance und DSGVO](#7-compliance-und-dsgvo)
+8. [Glossar](#8-glossar)
 
-### 2.3 Funktionsmatrix
-| Funktion | Beschreibung | Status |
+---
+
+## 1. Uebersicht
+
+**Away** ist eine webbasierte SaaS-Loesung fuer die digitale Urlaubsplanung in Teams und Organisationen.
+
+**Was Away loest:**
+- Papierbasierte oder Excel-Prozesse abschaffen
+- Echtzeit-Kalender fuer Teams
+- DSGVO-konforme Dokumentation
+- Zugriff von jedem Endgeraet
+
+---
+
+## 2. Business Model: Lite und Pro
+
+Away ist in zwei Plaenen verfuegbar. Beide koennen **30 Tage kostenlos getestet** werden.
+
+### 2.1 Planuebersicht
+
+| Feature | Lite | Pro |
+| :--- | :---: | :---: |
+| Urlaubsantraege stellen und genehmigen | Ja | Ja |
+| In-App Kalender | Ja | Ja |
+| Rollen: Mitarbeiter, Genehmiger, Admin | Ja | Ja |
+| Benutzereinstellungen | Ja | Ja |
+| DSGVO-Consent | Ja | Ja |
+| Einladungslink | Ja | Ja |
+| Max. Benutzer | 50 | Unbegrenzt |
+| Organisationen | 1 (fest) | Unbegrenzt |
+| Externe Kalender-Sync (Outlook / Google) | Nein | Ja |
+| E-Mail-Integration und Versand | Nein | Ja |
+| Dokumentvorlagen (PDF / DOCX) | Nein | Ja |
+| Reports und Analytics | Nein | Ja |
+| Multi-Organisations-Verwaltung | Nein | Ja |
+| DSGVO-Admin-Panel | Nein | Ja |
+| Kalender-Einladungen (Outlook) | Nein | Ja |
+
+### 2.2 Trial-System
+
+Jede Registrierung startet automatisch einen 30-Tage-Trial.
+
+Lebenszyklus:
+- Registrierung → Trial (30 Tage) → Ablauf → Grace Period (30 Tage) → Datenloesch
+- Bestellung waehrend Trial oder Grace → Aktiv (unbegrenzt)
+
+| Status | Bedeutung | Zugang |
 | :--- | :--- | :--- |
-| Urlaubs-Wizard | Geführte Erfassung von Abwesenheiten inkl. Typprüfung | ✅ Operativ |
-| Genehmigungs-Workflow | Mehrstufige Statusübergänge (Pending, Approved, Rejected) | ✅ Operativ |
-| Team-Kalender | Visualisierung aller Abwesenheiten zur Koordination | ✅ Operativ |
-| Dokumenten-Export | Generierung von Excel-Listen und PDF-Nachweisen | ✅ Operativ |
-| Legal Consent | Versionierte Speicherung von AGB- und Datenschutz-Zustimmungen | ✅ Operativ |
+| trial | Testzeitraum laeuft | Voll |
+| active | Bezahltes Abo aktiv | Voll |
+| pending_order | Upgrade beantragt, Trial laeuft noch | Bis Trial-Ende |
+| grace | Trial abgelaufen, Nachfrist (30 Tage) | Gesperrt |
+| expired | Abgelaufen | Gesperrt |
+
+### 2.3 Upgrade-Prozess
+
+Per Klick auf Auf Pro upgraden in /settings/subscription:
+1. Status wird auf pending_order gesetzt.
+2. Mit E-Mail-Provider: automatische Benachrichtigung an WAMOCON.
+3. Ohne E-Mail-Provider: System-Mail-Client oeffnet sich mit vorausgefuellter E-Mail.
+4. Super-Admin schaltet Plan manuell im /admin/subscriptions-Panel frei.
 
 ---
 
-## 3. Benutzerhandbuch
-### 3.1 Registrierung & Anmeldung
-Nutzer treten der Plattform primär über einen geschützten **Einladungsprozess** bei. Während der Annahme einer Einladung erfolgt die obligatorische Zustimmung zu den aktuellen Rechtstexten.
+## 3. Tutorials
 
-### 3.2 Urlaubsantrag stellen
-Über den Button „Neuer Antrag“ öffnet sich ein geführter Dialog:
-1. **Zeitraum**: Auswahl von Start- und Enddatum.
-2. **Grund**: Optionale Angabe des Abwesenheitsgrundes.
-3. **Abschluss**: Nach Absenden wird die zuständige Führungskraft automatisch (optional via E-Mail) benachrichtigt.
+### 3.1 Mitarbeiter: Ersten Antrag stellen
 
-### 3.3 Statusverfolgung
-Anträge können in der „Meine Anträge“-Ansicht verfolgt werden. Nutzer sehen unmittelbar, wenn ein Antrag genehmigt oder unter Angabe von Gründen abgelehnt wurde.
+1. Einladungslink in E-Mail anklicken
+2. Passwort vergeben (min. 8 Zeichen)
+3. AGB, Datenschutz, DSGVO akzeptieren
+4. Dashboard: Neuer Antrag klicken
+5. Start- und Enddatum waehlen
+6. Grund optional eintragen
+7. Absenden - Genehmiger wird informiert
+8. Status verfolgen unter Meine Antraege
+
+### 3.2 Administrator: Neue Organisation registrieren
+
+1. /auth/register oeffnen
+2. Plan waehlen (Lite oder Pro)
+3. Organisations-Name, E-Mail und Passwort eingeben
+4. Alle rechtlichen Bedingungen akzeptieren
+5. 30 Tage kostenlos starten klicken
+
+### 3.3 Admin: Ersten Genehmiger einladen
+
+1. /admin/settings navigieren
+2. Benutzer einladen klicken
+3. E-Mail eingeben, Rolle Genehmiger waehlen
+4. Einladung senden
 
 ---
 
-## 4. Rollen- und Berechtigungskonzept
-Away nutzt ein striktes **Role-Based Access Control (RBAC)** Modell:
+## 4. How-to Guides
 
-| Rolle | Berechtigungen |
+### 4.1 Urlaubsantrag per E-Mail einreichen (ohne Provider)
+
+1. Antrag im Wizard stellen
+2. Per E-Mail einreichen klicken
+3. System-Mail-Client oeffnet sich mit vorausgefuellter E-Mail (Empfaenger: Genehmiger, Betreff: Antragsdaten)
+4. E-Mail pruefen und senden
+
+### 4.2 Genehmiger: Antrag genehmigen oder ablehnen
+
+1. Genehmigungen in Navigation klicken
+2. Antrag anklicken
+3. Genehmigen oder Ablehnen klicken
+4. Optional: Kommentar schreiben
+
+### 4.3 Administrator: Probeabo upgraden
+
+1. /settings/subscription oeffnen
+2. Auf Pro upgraden klicken
+3. Mit Provider: automatisch; ohne Provider: System-Mail-Client
+4. WAMOCON schaltet Plan frei
+
+### 4.4 Pro: Kalender-Sync konfigurieren
+
+1. /settings > OAuth / Kalender oeffnen
+2. Anbieter waehlen (Outlook oder Google)
+3. E-Mail und Token eingeben
+4. Speichern
+
+### 4.5 Super-Admin: Plan freischalten
+
+1. /admin/subscriptions oeffnen
+2. Organisation suchen
+3. Lite aktiv oder Pro aktiv klicken
+4. +30d Trial verlaengert den Testzeitraum
+5. Sperren setzt Status auf expired
+
+---
+
+## 5. Funktionsreferenz
+
+### 5.1 Routen-Uebersicht
+
+| Route | Beschreibung | Zugriff |
+| :--- | :--- | :--- |
+| /auth/login | Anmeldung | Alle |
+| /auth/register | Neue Organisation (Trial) | Oeffentlich |
+| /auth/accept-invite | Einladung annehmen | Eingeladene |
+| /dashboard | Startseite | Alle |
+| /dashboard/requests | Meine Antraege | Alle |
+| /dashboard/admin-requests | Genehmigungsuebersicht | Genehmiger+ |
+| /dashboard/calendar | Teamkalender | Alle |
+| /dashboard/organizations | Organisations-Verwaltung | Admin [Pro] |
+| /dashboard/reports | Reports und Analytics | Genehmiger+ [Pro] |
+| /settings | Profil und Einstellungen | Alle |
+| /settings/subscription | Abonnement und Plan | Alle |
+| /admin/settings | Organisations-Admin | Admin, CIO |
+| /admin/consents | DSGVO-Audit | Admin [Pro] |
+| /admin/subscriptions | Subscription-Verwaltung | Super-Admin only |
+
+### 5.2 Rollen und Berechtigungen
+
+| Berechtigung | Employee | Approver | Admin | CIO |
+| :--- | :---: | :---: | :---: | :---: |
+| Eigene Antraege stellen | Ja | Ja | Ja | Ja |
+| Antraege genehmigen | Nein | Ja | Ja | Ja |
+| Nutzer einladen | Nein | Nein | Ja | Ja |
+| Admin-Einstellungen | Nein | Nein | Ja | Ja |
+| Reports (Pro) | Nein | Ja | Ja | Ja |
+| DSGVO-Panel (Pro) | Nein | Nein | Ja | Ja |
+
+---
+
+## 6. Technische Architektur
+
+### 6.1 Stack
+
+| Schicht | Technologie |
 | :--- | :--- |
-| **User** | Eigene Anträge erstellen, Team-Kalender einsehen, eigene Einstellungen verwalten. |
-| **Admin** | Alle Anträge der Organisation verwalten, Nutzer einladen, Rollen zuweisen, Compliance-Dashboard einsehen. |
+| Frontend | Next.js 15 (App Router), React 19, Tailwind CSS |
+| Backend / Auth | Supabase (PostgreSQL + RLS + Edge Functions) |
+| Deployment | Vercel (serverless + Edge) |
+| Tests | Vitest (Unit), Playwright (E2E) |
+| Dokumentation | HTML + GitHub Pages |
+
+### 6.2 Middleware-Checks
+
+1. Auth: Nicht eingeloggt > /auth/login
+2. Subscription: Abgelaufen > /settings/subscription
+3. Plan-Gate: Lite auf Pro-Route > /settings/subscription?upgrade=1
+4. Admin-Check: Nicht-Admin auf /admin/* > /dashboard
+
+### 6.3 Cron Job
+
+Taeglich 02:00 UTC via Vercel:
+- Trial abgelaufen > expired
+- Expired ohne Grace > Grace Period setzen (+30d)
+- Grace abgelaufen > Daten loeschen
 
 ---
 
-## 5. Technische Architektur
-### 5.1 Systemübersicht
-Die Anwendung basiert auf dem **Next.js App-Router** in Kombination mit **Supabase** als Backend-as-a-Service.
+## 7. Compliance und DSGVO
 
-- **Frontend**: React 19, Tailwind CSS (Vanilla-Basis), Lucide Icons.
-- **Backend / Database**: Supabase PostgreSQL mit Row Level Security (RLS).
-- **Infrastruktur**: Vercel-Deployment, Edge-Functions für E-Mail-Versand.
+Bei Registrierung und Einladungs-Annahme Pflicht-Zustimmung zu:
+1. AGB
+2. Datenschutzerklaerung
+3. DSGVO-konforme Datenverarbeitung
 
-### 5.2 Offline-Konzept
-Durch die Nutzung moderner Web-Technologien und lokaler State-Management-Ansätze sind Grundfunktionen der Ansicht auch bei temporärer Instabilität der Internetverbindung verfügbar.
+Jede Einwilligung in legal_consents gespeichert mit user_id, Typ, Version, Zeitstempel.
 
----
-
-## 6. Rechtliche Dokumentation & Compliance
-### 6.1 Zustimmungslogik (Legal Guard)
-Away erzwingt für alle neuen Benutzer die aktive Zustimmung zu:
-1. **Allgemeinen Geschäftsbedingungen (AGB)**
-2. **Datenschutzerklärung**
-3. **DSGVO-konformer Datenverarbeitung**
-
-### 6.2 Nachweisbarkeit (Audit Trail)
-Jede Zustimmung wird in der Tabelle `legal_consents` mit folgenden Metadaten gespeichert:
-- Eindeutige User-ID
-- Typ der Zustimmung
-- Versionsnummer des Dokuments
-- Zeitstempel (Server-Zeit)
+Nach Grace Period automatisch geloescht: vacation_requests, user_settings, user_roles.
 
 ---
 
-## 7. Admin-Auswertung & Governance
-Das Admin-Dashboard bietet eine dedizierte Compliance-Ansicht (`/admin/consents`). 
-- **Transparenz**: Übersicht über den Zustimmungsstatus aller Nutzer.
-- **Revisionssicherheit**: Dokumentation von Akzeptanzzeitpunkten für Audits oder Datenschutzprüfungen.
-- **Legacy-Handling**: Kennzeichnung von Alt-Accounts als „Unvollständig“, um Migrationsrisiken transparent zu machen.
+## 8. Glossar
 
----
-
-## 8. K6-Synthese: Compliance Framework
-Aus Sicht der Corporate Governance stellt Away nicht nur ein Werkzeug zur Urlaubsplanung dar, sondern ein **zentrales Element der digitalen Nachweisführung**:
-
-- **Governance**: Automatisierte Durchsetzung von Richtlinien.
-- **Risikomanagement**: Minimierung rechtlicher Risiken durch lückenlose Dokumentation.
-- **Operationalisierung**: Transformation von Rechtstexten in technische Schranken (Check-Before-Action).
-
----
-
-## 9. Audit-Bericht & Fazit
-### Status der Rechtslücken
-Frühere Defizite (fehlende Impressums-Integration, unklarer Zustimmungsstatus) wurden vollständig behoben. Die Applikation verfügt über produktiv integrierte Rechtstexte und eine technische Sperre für unautorisierte Datennutzung ohne vorherige Zustimmung.
-
-**Bewertung des Reifegrads:** 
-🚀 **Produktionsreif (v1.0)** – Technisch implementiert, administrativ auswertbar, juristisch vorbereitet.
+| Begriff | Erklaerung |
+| :--- | :--- |
+| Trial | 30-taegiger kostenloser Testzeitraum |
+| Grace Period | 30-taegige Nachfrist nach Trial-Ablauf |
+| PlanGate | UI-Komponente fuer Feature-abhaengige Anzeige |
+| Super-Admin | WAMOCON-interner Plattform-Administrator |
+| RLS | Row Level Security - PostgreSQL-Datenisolation |
+| mailto: Fallback | System-Mail-Client oeffnen wenn kein Provider konfiguriert |
+| pending_order | Upgrade beantragt, Freischaltung ausstehend |

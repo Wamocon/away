@@ -4,8 +4,14 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { VacationRequest, updateVacationStatus } from "@/lib/vacation";
 import { getUserRole, UserRole, canApprove } from "@/lib/roles";
-import { notifyApplicantOfStatusChange } from "@/lib/notifications";
+import {
+  notifyApplicantOfStatusChange,
+  submitVacationRequestByEmail,
+  notifyApplicantWithSignedDocument,
+} from "@/lib/notifications";
 import { getOrganizationsForUser } from "@/lib/organization";
+import { getTemplatesForOrg, getTemplateBytes, DocumentTemplate } from "@/lib/template";
+import { generatePDF, DocumentData } from "@/lib/documentGenerator";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { de } from "date-fns/locale";
 import { renderFieldValue } from "@/lib/utils/formatters";
@@ -21,18 +27,30 @@ import {
   ChevronRight,
   Upload,
   X,
+  Download,
+  Send,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 export default function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useLanguage();
   const [request, setRequest] = useState<VacationRequest | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState("");
+  // PDF-Export & E-Mail-Einreichen
+  const [exportLoading, setExportLoading] = useState(false);
+  const [submitEmailLoading, setSubmitEmailLoading] = useState(false);
+  const [submitEmailSuccess, setSubmitEmailSuccess] = useState(false);
+  const [submitEmailError, setSubmitEmailError] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -53,6 +71,22 @@ export default function RequestDetailPage() {
           () => "employee" as UserRole,
         );
         setRole(r);
+        setCurrentOrgId(org.id);
+      }
+
+      setCurrentUserId(data.user.id);
+      // Name aus user_settings laden wenn vorhanden
+      const supabase2 = createClient();
+      const { data: us } = await supabase2
+        .from("user_settings")
+        .select("settings")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+      const s = (us?.settings as Record<string, string> | undefined) ?? {};
+      if (s.firstName || s.lastName) {
+        setCurrentUserName(`${s.firstName ?? ""} ${s.lastName ?? ""}`.trim());
+      } else {
+        setCurrentUserName(data.user.email ?? "");
       }
 
       const { data: req } = await supabase
@@ -98,11 +132,104 @@ export default function RequestDetailPage() {
     }
   }, [request]);
 
+  const handleExportPDF = async () => {
+    if (!request || !currentOrgId) return;
+    setExportLoading(true);
+    try {
+      const tf = (request.template_fields ?? {}) as Record<string, unknown>;
+      const vacationTypes: Record<string, boolean> = {};
+      if (Array.isArray(tf.vacationTypes)) {
+        for (const vt of tf.vacationTypes as { id: string; checked?: boolean }[]) {
+          vacationTypes[vt.id] = !!vt.checked;
+        }
+      }
+      let docData: DocumentData = {
+        from: request.from,
+        to: request.to,
+        reason: request.reason ?? "",
+        deputy: String(tf.deputy ?? ""),
+        notes: String(tf.notes ?? ""),
+        userEmail: "",
+        orgName: "",
+        date: String(tf.signedAt ?? ""),
+        firstName: String(tf.firstName ?? ""),
+        lastName: String(tf.lastName ?? ""),
+        employeeId: String(tf.employeeId ?? ""),
+        documentId: String(tf.documentId ?? ""),
+        vacationDays: tf.vacationDays !== undefined ? Number(tf.vacationDays) : undefined,
+        vacationTypes,
+        location: String(tf.location ?? ""),
+        signedAt: String(tf.signedAt ?? ""),
+        employeeSignatureBase64: tf.employeeSignature as string | undefined,
+      };
+
+      // Unterschrift aus Storage laden falls nicht in template_fields
+      if (!docData.employeeSignatureBase64 && employeeSigUrl) {
+        try {
+          const sigRes = await fetch(employeeSigUrl);
+          const sigBlob = await sigRes.blob();
+          const sigBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(sigBlob);
+          });
+          docData.employeeSignatureBase64 = sigBase64;
+        } catch { /* Unterschrift optional */ }
+      }
+
+      // Vorlage laden (Fallback: ohne Vorlage)
+      let templateBytes: ArrayBuffer | undefined;
+      try {
+        const templates = await getTemplatesForOrg(currentOrgId);
+        if (templates && templates.length > 0) {
+          const first = templates[0] as DocumentTemplate;
+          templateBytes = await getTemplateBytes(first.storage_path);
+        }
+      } catch {
+        /* kein Template, Fallback-PDF wird erstellt */
+      }
+
+      const blob = await generatePDF(docData, templateBytes);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // Format: [MonatJahr]_Urlaubsantrag_[Antragsteller]_[Zeitraum]
+      const monatJahr = format(parseISO(request.from), "MMMMyyyy", { locale: de });
+      const antragsteller = [docData.firstName, docData.lastName]
+        .filter(Boolean).join("_") || "Unbekannt";
+      a.download = `${monatJahr}_Urlaubsantrag_${antragsteller}_${request.from}_${request.to}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError("PDF-Export fehlgeschlagen: " + (err as Error).message);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleSubmitByEmail = async () => {
+    if (!request) return;
+    setSubmitEmailLoading(true);
+    setSubmitEmailError("");
+    setSubmitEmailSuccess(false);
+    try {
+      const result = await submitVacationRequestByEmail(request, currentUserName);
+      if (result.success) {
+        setSubmitEmailSuccess(true);
+      } else {
+        setSubmitEmailError(result.error ?? "E-Mail konnte nicht gesendet werden.");
+      }
+    } finally {
+      setSubmitEmailLoading(false);
+    }
+  };
+
   const handleStatus = async (status: "approved" | "rejected") => {
     if (!request) return;
 
     if (status === "approved" && !approverSignature) {
-      setError("Bitte laden Sie Ihre Unterschrift hoch, um zu genehmigen.");
+      setError(t.errors.signatureRequired);
       return;
     }
 
@@ -127,17 +254,29 @@ export default function RequestDetailPage() {
       const updated = await updateVacationStatus(request.id, status);
       setRequest(updated);
 
-      // Trigger notification (Async/Non-blocking)
+      // Trigger notifications (Async/Non-blocking)
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        notifyApplicantOfStatusChange(updated, status, user.id).catch((err) => {
-          console.warn(
-            "[Notifications] E-Mail-Dienst (Status Change) fehlgeschlagen:",
-            err,
+        if (status === "approved") {
+          // Phase H: Antragsteller mit unterschriebenem PDF benachrichtigen
+          notifyApplicantWithSignedDocument(updated, user.id, currentUserName).catch(
+            (err) => {
+              console.warn(
+                "[Notifications] notifyApplicantWithSignedDocument fehlgeschlagen:",
+                err,
+              );
+            },
           );
-        });
+        } else {
+          notifyApplicantOfStatusChange(updated, status, user.id).catch((err) => {
+            console.warn(
+              "[Notifications] E-Mail-Dienst (Status Change) fehlgeschlagen:",
+              err,
+            );
+          });
+        }
       }
     } catch (err) {
       setError((err as Error).message);
@@ -168,19 +307,19 @@ export default function RequestDetailPage() {
 
   const statusConfig = {
     pending: {
-      label: "Ausstehend",
+      label: t.status.pending,
       cls: "badge-pending",
       Icon: Clock,
       color: "var(--warning)",
     },
     approved: {
-      label: "Genehmigt",
+      label: t.status.approved,
       cls: "badge-approved",
       Icon: CheckCircle,
       color: "var(--success)",
     },
     rejected: {
-      label: "Abgelehnt",
+      label: t.status.rejected,
       cls: "badge-rejected",
       Icon: XCircle,
       color: "var(--danger)",
@@ -223,7 +362,7 @@ export default function RequestDetailPage() {
             href="/dashboard/requests"
             className="btn-primary mt-4 inline-flex"
           >
-            <ArrowLeft size={14} /> Zurück zu Anträgen
+            <ArrowLeft size={14} /> {t.common.back}
           </Link>
         </div>
       </div>
@@ -246,8 +385,8 @@ export default function RequestDetailPage() {
         {/* Modal close button */}
         <button
           onClick={() => router.push("/dashboard/requests")}
-          className="absolute top-4 right-4 p-2 rounded-xl btn-ghost z-10"
-          aria-label="Schließen"
+          className="sticky top-4 float-right mr-2 p-2 rounded-xl btn-ghost z-10"
+          aria-label={t.common.close}
         >
           <X size={18} />
         </button>
@@ -261,17 +400,17 @@ export default function RequestDetailPage() {
               href="/dashboard"
               className="hover:text-[var(--text-base)] transition-colors"
             >
-              Dashboard
+              {t.requestDetail.breadcrumb.dashboard}
             </Link>
             <ChevronRight size={12} />
             <Link
               href="/dashboard/requests"
               className="hover:text-[var(--text-base)] transition-colors"
             >
-              Anträge
+              {t.requestDetail.breadcrumb.requests}
             </Link>
             <ChevronRight size={12} />
-            <span style={{ color: "var(--text-base)" }}>Antrag Details</span>
+            <span style={{ color: "var(--text-base)" }}>{t.requestDetail.breadcrumb.details}</span>
           </div>
 
           {/* Header */}
@@ -281,7 +420,7 @@ export default function RequestDetailPage() {
                 className="text-2xl font-black tracking-tight"
                 style={{ color: "var(--text-base)" }}
               >
-                Urlaubsantrag
+                {t.requestDetail.title}
               </h1>
               <p
                 className="text-xs mt-1 font-mono"
@@ -307,13 +446,13 @@ export default function RequestDetailPage() {
             <div className="flex items-center gap-0">
               {[
                 {
-                  label: "Eingereicht",
+                  label: t.requestDetail.statusFlow.submitted,
                   date: request.created_at,
                   done: true,
                   active: false,
                 },
                 {
-                  label: "In Prüfung",
+                  label: t.requestDetail.statusFlow.inProgress,
                   date:
                     request.status !== "pending" ? request.updated_at : null,
                   done: request.status !== "pending",
@@ -321,7 +460,7 @@ export default function RequestDetailPage() {
                 },
                 {
                   label:
-                    request.status === "rejected" ? "Abgelehnt" : "Genehmigt",
+                    request.status === "rejected" ? t.status.rejected : t.status.approved,
                   date:
                     request.status !== "pending" ? request.updated_at : null,
                   done: request.status !== "pending",
@@ -392,7 +531,7 @@ export default function RequestDetailPage() {
                 className="text-xs font-bold uppercase tracking-widest mb-4"
                 style={{ color: "var(--text-subtle)" }}
               >
-                Zeitraum
+                {t.requestDetail.period}
               </h2>
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -402,7 +541,7 @@ export default function RequestDetailPage() {
                       className="text-xs"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      Von
+                      {t.vacation.from}
                     </p>
                     <p
                       className="text-sm font-semibold"
@@ -421,7 +560,7 @@ export default function RequestDetailPage() {
                       className="text-xs"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      Bis
+                      {t.vacation.to}
                     </p>
                     <p
                       className="text-sm font-semibold"
@@ -438,7 +577,7 @@ export default function RequestDetailPage() {
                   style={{ borderColor: "var(--border)" }}
                 >
                   <span className="badge badge-primary text-sm">
-                    {days} Urlaubstage
+                    {days} {t.vacation.days}
                   </span>
                 </div>
               </div>
@@ -449,12 +588,12 @@ export default function RequestDetailPage() {
                 className="text-xs font-bold uppercase tracking-widest mb-4"
                 style={{ color: "var(--text-subtle)" }}
               >
-                Details
+                {t.requestDetail.details}
               </h2>
               <div className="space-y-3">
                 <div>
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    Grund
+                    {t.requestDetail.reason}
                   </p>
                   <p
                     className="text-sm font-medium"
@@ -465,7 +604,7 @@ export default function RequestDetailPage() {
                 </div>
                 <div>
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    Eingereicht am
+                    {t.requestDetail.submittedAt}
                   </p>
                   <p className="text-sm" style={{ color: "var(--text-base)" }}>
                     {format(parseISO(request.created_at), "dd.MM.yyyy HH:mm", {
@@ -480,7 +619,7 @@ export default function RequestDetailPage() {
                         className="text-xs mb-1"
                         style={{ color: "var(--text-muted)" }}
                       >
-                        Weitere Angaben
+                        {t.requestDetail.moreDetails}
                       </p>
                       {Object.entries(
                         request.template_fields as Record<string, unknown>,
@@ -518,7 +657,7 @@ export default function RequestDetailPage() {
               {/* Applicant Signature */}
               <div className="space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
-                  Mitarbeiter
+                  {t.requestDetail.employee}
                 </p>
                 <div className="aspect-[3/2] rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-elevated)] relative overflow-hidden flex items-center justify-center p-4">
                   {employeeSigUrl ? (
@@ -541,7 +680,7 @@ export default function RequestDetailPage() {
               {/* Approver Signature */}
               <div className="space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
-                  Genehmiger
+                  {t.requestDetail.approver}
                 </p>
                 <div className="aspect-[3/2] rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-elevated)] relative overflow-hidden flex items-center justify-center">
                   {approverSigUrl ? (
@@ -631,19 +770,7 @@ export default function RequestDetailPage() {
                     ) : (
                       <CheckCircle size={13} />
                     )}
-                    Genehmigen
-                  </button>
-                  <button
-                    onClick={() => handleStatus("rejected")}
-                    disabled={actionLoading}
-                    className="btn-secondary"
-                    style={{
-                      borderColor: "rgba(239,68,68,0.3)",
-                      color: "var(--danger)",
-                    }}
-                  >
-                    <XCircle size={13} />
-                    Ablehnen
+                    {t.vacation.approve}
                   </button>
                 </>
               )}
@@ -654,8 +781,40 @@ export default function RequestDetailPage() {
                 disabled={actionLoading}
                 className="btn-secondary"
               >
-                <Mail size={13} /> E-Mail Erinnerung
+                <Mail size={13} /> {t.notifications.newRequest}
               </button>
+
+              {/* PDF-Export */}
+              <button
+                onClick={handleExportPDF}
+                disabled={exportLoading}
+                className="btn-secondary"
+              >
+                {exportLoading ? (
+                  <Loader size={13} className="animate-spin" />
+                ) : (
+                  <Download size={13} />
+                )}
+                {t.requestDetail.exportPdf}
+              </button>
+
+              {/* Per E-Mail einreichen – nur für Antragsteller bei pending */}
+              {request.status === "pending" && currentUserId === request.user_id && (
+                <button
+                  onClick={handleSubmitByEmail}
+                  disabled={submitEmailLoading || submitEmailSuccess}
+                  className="btn-primary"
+                >
+                  {submitEmailLoading ? (
+                    <Loader size={13} className="animate-spin" />
+                  ) : submitEmailSuccess ? (
+                    <CheckCircle size={13} />
+                  ) : (
+                    <Send size={13} />
+                  )}
+                  {submitEmailSuccess ? t.requestDetail.submitEmailSuccess : t.requestDetail.submitByEmail}
+                </button>
+              )}
 
               {/* Link kopieren */}
               <button
@@ -664,9 +823,21 @@ export default function RequestDetailPage() {
                 }
                 className="btn-secondary"
               >
-                Link kopieren
+                {t.requestDetail.copyLink}
               </button>
             </div>
+
+            {submitEmailError && (
+              <div
+                className="mt-3 text-xs p-2.5 rounded-lg"
+                style={{
+                  background: "var(--danger-light)",
+                  color: "var(--danger)",
+                }}
+              >
+                {submitEmailError}
+              </div>
+            )}
 
             {error && (
               <div

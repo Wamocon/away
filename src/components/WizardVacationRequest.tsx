@@ -237,9 +237,10 @@ export default function WizardVacationRequest({
         type = selectedTemplate.type;
       }
 
-      const typesObj = vacationTypes.reduce(
-        (acc, t) => ({ ...acc, [t.label]: t.checked }),
-        {},
+      // vacationTypes als id→checked Map für PDF-Checkbox-Mapping
+      const vacationTypesMap = vacationTypes.reduce(
+        (acc, t) => ({ ...acc, [t.id]: t.checked }),
+        {} as Record<string, boolean>,
       );
       const docData: DocumentData = {
         from,
@@ -250,6 +251,14 @@ export default function WizardVacationRequest({
         userEmail,
         orgName: orgName || "Haupt-Organisation",
         date: new Date().toLocaleDateString("de-DE"),
+        firstName,
+        lastName,
+        employeeId,
+        documentId,
+        vacationDays: Number(vacationDays),
+        vacationTypes: vacationTypesMap,
+        location,
+        signedAt,
         customFields: {
           firstName,
           lastName,
@@ -258,7 +267,6 @@ export default function WizardVacationRequest({
           vacationDays: vacationDays.toString(),
           location,
           signedAt,
-          ...typesObj,
         },
       };
 

@@ -28,18 +28,20 @@ import Link from "next/link";
 import WizardVacationRequest from "@/components/WizardVacationRequest";
 import { useSearchParams } from "next/navigation";
 import { useViewMode } from "@/components/ui/ViewModeProvider";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
 
 const statusConfig = {
-  all: { label: "Alle", cls: "badge-primary", Icon: SlidersHorizontal },
-  pending: { label: "Ausstehend", cls: "badge-pending", Icon: Clock },
-  approved: { label: "Genehmigt", cls: "badge-approved", Icon: CheckCircle },
-  rejected: { label: "Abgelehnt", cls: "badge-rejected", Icon: XCircle },
+  all: { label: "all", cls: "badge-primary", Icon: SlidersHorizontal },
+  pending: { label: "pending", cls: "badge-pending", Icon: Clock },
+  approved: { label: "approved", cls: "badge-approved", Icon: CheckCircle },
+  rejected: { label: "rejected", cls: "badge-rejected", Icon: XCircle },
 };
 
 function RequestsPageContent() {
   const { viewMode, setViewMode } = useViewMode();
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const initialFilter = (searchParams.get("filter") || "all") as StatusFilter;
 
@@ -157,22 +159,22 @@ function RequestsPageContent() {
             style={{ color: "var(--text-base)" }}
           >
             <ClipboardList size={22} style={{ color: "var(--primary)" }} />
-            {canApprove(role) ? "Alle Urlaubsanträge" : "Meine Anträge"}
+            {canApprove(role) ? t.requests.allRequests : t.requests.myRequests}
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
             {canApprove(role)
-              ? `${org?.name} – Alle eingereichten Anträge`
-              : "Deine Urlaubsanträge verwalten"}
+              ? `${org?.name} ${t.requests.allSubmitted}`
+              : t.requests.manageYours}
           </p>
         </div>
         <button
           onClick={() => setShowWizard(true)}
           className="btn-primary"
           disabled={!user || !org}
-          title={!org ? "Du musst erst einer Organisation beitreten" : ""}
+          title={!org ? t.requests.noOrgTooltip : ""}
         >
           <Plus size={14} />
-          Neuer Antrag
+          {t.requests.newRequest}
         </button>
       </div>
 
@@ -198,7 +200,10 @@ function RequestsPageContent() {
               }`}
             >
               <Icon size={12} />
-              {cfg.label}
+              {cfg.label === "all" ? t.common.all
+                : cfg.label === "pending" ? t.status.pending
+                : cfg.label === "approved" ? t.status.approved
+                : t.status.rejected}
               {counts[s] > 0 && (
                 <span className={`ml-0.5 text-[10px] font-bold opacity-75`}>
                   ({counts[s]})
@@ -216,14 +221,14 @@ function RequestsPageContent() {
           <button
             onClick={() => setViewMode("list")}
             className={`p-1.5 rounded-lg transition-all ${viewMode === "list" ? "bg-white dark:bg-gray-800 shadow-sm text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-base)]"}`}
-            title="Listenansicht"
+            title={t.view.listView}
           >
             <List size={14} />
           </button>
           <button
             onClick={() => setViewMode("grid")}
             className={`p-1.5 rounded-lg transition-all ${viewMode === "grid" ? "bg-white dark:bg-gray-800 shadow-sm text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-base)]"}`}
-            title="Rasteransicht"
+            title={t.view.gridView}
           >
             <LayoutGrid size={14} />
           </button>
@@ -240,7 +245,7 @@ function RequestsPageContent() {
           <Search size={12} style={{ color: "var(--text-muted)" }} />
           <input
             type="text"
-            placeholder="Suchen..."
+            placeholder={t.common.searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-transparent border-none outline-none text-xs w-28"
@@ -265,28 +270,26 @@ function RequestsPageContent() {
               style={{ color: "var(--text-muted)" }}
             >
               {statusFilter === "all"
-                ? "Noch keine Anträge vorhanden"
-                : `Keine ${statusConfig[statusFilter].label.toLowerCase()} Anträge`}
+              ? t.requests.emptyAll
+              : t.requests.emptyFiltered}
             </p>
             {org ? (
               <button
                 onClick={() => setShowWizard(true)}
                 className="btn-primary mt-4 inline-flex"
               >
-                <Plus size={13} /> Ersten Antrag stellen
+                <Plus size={13} /> {t.dashboard.createFirstRequest}
               </button>
             ) : (
               <div className="mt-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 max-w-md mx-auto">
                 <p className="text-xs font-bold text-amber-600 uppercase tracking-widest mb-2">
-                  Keine Organisation
-                </p>
-                <p className="text-sm text-[var(--text-base)] mb-4">
-                  Du bist noch keiner Organisation zugeordnet. Bitte tritt einer
-                  Organisation bei oder erstelle eine neue, um Anträge zu
-                  stellen.
-                </p>
-                <Link href="/settings" className="btn-secondary text-xs">
-                  Zu den Einstellungen
+                    {t.requests.noOrg.heading}
+                  </p>
+                  <p className="text-sm text-[var(--text-base)] mb-4">
+                    {t.requests.noOrg.description}
+                  </p>
+                  <Link href="/settings" className="btn-secondary text-xs">
+                    {t.nav.toSettings}
                 </Link>
               </div>
             )}
@@ -295,11 +298,11 @@ function RequestsPageContent() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Zeitraum</th>
-                <th>Dauer</th>
-                <th>Grund</th>
-                <th>Status</th>
-                {canApprove(role) && <th>Aktionen</th>}
+                <th>{t.table.period}</th>
+                <th>{t.table.duration}</th>
+                <th>{t.table.reason}</th>
+                <th>{t.table.status}</th>
+                {canApprove(role) && <th>{t.table.actions}</th>}
                 <th></th>
               </tr>
             </thead>
@@ -326,7 +329,7 @@ function RequestsPageContent() {
                         parseISO(r.to),
                         parseISO(r.from),
                       ) + 1}{" "}
-                      Tage
+                      {t.common.days}
                     </span>
                   </td>
                   <td>
@@ -348,10 +351,10 @@ function RequestsPageContent() {
                       }`}
                     >
                       {r.status === "approved"
-                        ? "Genehmigt"
+                        ? t.status.approved
                         : r.status === "rejected"
-                          ? "Abgelehnt"
-                          : "Ausstehend"}
+                          ? t.status.rejected
+                          : t.status.pending}
                     </span>
                   </td>
                   {canApprove(role) && (
@@ -372,7 +375,7 @@ function RequestsPageContent() {
                             ) : (
                               <CheckCircle size={10} />
                             )}
-                            Genehmigen
+                            {t.vacation.approve}
                           </button>
                           <button
                             onClick={() => handleStatus(r.id, "rejected")}
@@ -384,7 +387,7 @@ function RequestsPageContent() {
                             }}
                           >
                             <XCircle size={10} />
-                            Ablehnen
+                            {t.vacation.reject}
                           </button>
                         </div>
                       )}
@@ -394,7 +397,7 @@ function RequestsPageContent() {
                     <Link
                       href={`/dashboard/requests/${r.id}`}
                       className="btn-ghost p-1.5"
-                      title="Details"
+                      title={t.common.details}
                     >
                       <Eye size={14} />
                     </Link>
@@ -426,10 +429,10 @@ function RequestsPageContent() {
                       }`}
                     >
                       {r.status === "approved"
-                        ? "Genehmigt"
+                        ? t.status.approved
                         : r.status === "rejected"
-                          ? "Abgelehnt"
-                          : "Ausstehend"}
+                          ? t.status.rejected
+                          : t.status.pending}
                     </span>
                     <div
                       className="text-sm font-bold"
@@ -449,12 +452,9 @@ function RequestsPageContent() {
                 </div>
 
                 <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  <span
-                    className="font-semibold"
-                    style={{ color: "var(--text-base)" }}
-                  >
-                    Grund:{" "}
-                  </span>
+                  <span className="font-semibold" style={{ color: "var(--text-base)" }}>
+                      {t.requests.reasonLabel}{" "}
+                    </span>
                   {r.reason || "–"}
                 </div>
 
@@ -467,7 +467,7 @@ function RequestsPageContent() {
                       parseISO(r.to),
                       parseISO(r.from),
                     ) + 1}{" "}
-                    Tage
+                    {t.common.days}
                   </span>
 
                   {canApprove(role) && r.status === "pending" && (
@@ -480,7 +480,7 @@ function RequestsPageContent() {
                           background: "var(--success-light)",
                           color: "var(--success)",
                         }}
-                        title="Genehmigen"
+                        title={t.vacation.approve}
                       >
                         {actionId === r.id ? (
                           <Loader size={12} className="animate-spin" />
@@ -496,7 +496,7 @@ function RequestsPageContent() {
                           background: "var(--danger-light)",
                           color: "var(--danger)",
                         }}
-                        title="Ablehnen"
+                        title={t.vacation.reject}
                       >
                         <XCircle size={12} />
                       </button>
@@ -515,7 +515,7 @@ function RequestsPageContent() {
           userId={user.id}
           orgId={org?.id || ""}
           userEmail={user.email}
-          orgName={org?.name || "Standard Organisation"}
+          orgName={org?.name || t.requests.defaultOrg}
           onClose={() => setShowWizard(false)}
           onSuccess={() => {
             setShowWizard(false);

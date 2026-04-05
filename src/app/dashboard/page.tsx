@@ -121,20 +121,16 @@ export default function Dashboard() {
   const recentRequests = displayRequests.slice(0, 5);
 
   const statusConfig = {
-    pending: { label: "Ausstehend", color: "badge-pending", Icon: Clock },
-    approved: {
-      label: "Genehmigt",
-      color: "badge-approved",
-      Icon: CheckCircle,
-    },
-    rejected: { label: "Abgelehnt", color: "badge-rejected", Icon: XCircle },
+    pending: { label: t.status.pending, color: "badge-pending", Icon: Clock },
+    approved: { label: t.status.approved, color: "badge-approved", Icon: CheckCircle },
+    rejected: { label: t.status.rejected, color: "badge-rejected", Icon: XCircle },
   };
 
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Lade...
+          {t.common.loading}
         </div>
       </div>
     );
@@ -163,7 +159,7 @@ export default function Dashboard() {
                 </span>
               </>
             ) : (
-              "Kein Unternehmen ausgewählt"
+              t.dashboard.noOrgSelected
             )}
             {role && (
               <span
@@ -182,21 +178,21 @@ export default function Dashboard() {
             <button
               onClick={() => setViewMode("list")}
               className={`p-1.5 rounded-lg transition-all ${viewMode === "list" ? "bg-white dark:bg-gray-800 shadow-sm text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-base)]"}`}
-              title="Listenansicht"
+              title={t.view.listView}
             >
               <List size={14} />
             </button>
             <button
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-lg transition-all ${viewMode === "grid" ? "bg-white dark:bg-gray-800 shadow-sm text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-base)]"}`}
-              title="Rasteransicht"
+              title={t.view.gridView}
             >
               <LayoutGrid size={14} />
             </button>
           </div>
           <Link href="/dashboard/calendar" className="btn-secondary">
             <CalendarDays size={14} />
-            Kalender
+            {t.nav.calendar}
           </Link>
           <button onClick={() => setShowWizard(true)} className="btn-primary">
             <Plus size={14} />
@@ -218,7 +214,7 @@ export default function Dashboard() {
             </div>
             {pending.length > 0 && (
               <span className="text-[10px] font-bold text-white bg-[var(--warning)] px-1.5 py-0.5 rounded-full">
-                Neu
+                {t.common.new}
               </span>
             )}
           </div>
@@ -232,7 +228,7 @@ export default function Dashboard() {
             className="text-xs font-medium"
             style={{ color: "var(--text-muted)" }}
           >
-            {isAdminView ? "Ausstehende Anträge" : "Meine ausstehenden"}
+            {isAdminView ? t.dashboard.kpi.pendingRequests : t.dashboard.kpi.myPending}
           </p>
         </div>
 
@@ -256,7 +252,7 @@ export default function Dashboard() {
             className="text-xs font-medium"
             style={{ color: "var(--text-muted)" }}
           >
-            Genehmigte Anträge
+            {t.dashboard.kpi.approvedRequests}
           </p>
         </div>
 
@@ -280,7 +276,7 @@ export default function Dashboard() {
             className="text-xs font-medium"
             style={{ color: "var(--text-muted)" }}
           >
-            Urlaubstage {new Date().getFullYear()}
+            {t.dashboard.kpi.vacationDays} {new Date().getFullYear()}
           </p>
         </div>
 
@@ -304,7 +300,7 @@ export default function Dashboard() {
             className="text-xs font-medium"
             style={{ color: "var(--text-muted)" }}
           >
-            Bevorstehende Urlaube
+            {t.dashboard.kpi.upcomingVacations}
           </p>
         </div>
       </div>
@@ -319,16 +315,16 @@ export default function Dashboard() {
                 className="text-sm font-bold"
                 style={{ color: "var(--text-base)" }}
               >
-                {isAdminView ? "Anträge der Berater" : t.dashboard.myRequests}
+                {isAdminView ? t.dashboard.allConsultantRequests : t.dashboard.myRequests}
               </h2>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                 {isAdminView
-                  ? "Alle Urlaubsanträge der Organisation"
-                  : "Aktuelle Urlaubsanträge"}
+                  ? t.dashboard.allOrgRequests
+                  : t.dashboard.recentRequests}
               </p>
             </div>
             <Link href="/dashboard/requests" className="btn-ghost text-xs">
-              Alle anzeigen <ArrowRight size={12} />
+              {t.common.showAll} <ArrowRight size={12} />
             </Link>
           </div>
 
@@ -342,13 +338,13 @@ export default function Dashboard() {
             <div className="text-center py-10">
               <ClipboardList size={32} className="mx-auto mb-3 opacity-20" />
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Noch keine Anträge
+                {t.dashboard.noRequests}
               </p>
               <Link
                 href="/dashboard/requests"
                 className="btn-primary mt-4 inline-flex"
               >
-                <Plus size={13} /> Ersten Antrag stellen
+                <Plus size={13} /> {t.dashboard.createFirstRequest}
               </Link>
             </div>
           ) : viewMode === "list" ? (
@@ -391,7 +387,7 @@ export default function Dashboard() {
                             parseISO(r.to),
                             parseISO(r.from),
                           ) + 1}{" "}
-                          Tage)
+                          {t.common.days})
                         </span>
                       </p>
                       {r.reason && (
@@ -436,7 +432,7 @@ export default function Dashboard() {
                           parseISO(r.to),
                           parseISO(r.from),
                         ) + 1}{" "}
-                        Tage
+                        {t.common.days}
                       </span>
                     </div>
                     <div
@@ -469,26 +465,26 @@ export default function Dashboard() {
               className="text-sm font-bold mb-3"
               style={{ color: "var(--text-base)" }}
             >
-              Schnellzugriff
+              {t.dashboard.quickActions}
             </h2>
             <div className="flex flex-col gap-2">
               <Link
                 href="/dashboard/requests"
                 className="btn-primary w-full justify-center"
               >
-                <Plus size={14} /> Urlaubsantrag stellen
+                <Plus size={14} /> {t.vacation.submitRequest}
               </Link>
               <Link
                 href="/dashboard/calendar"
                 className="btn-secondary w-full justify-center"
               >
-                <CalendarDays size={14} /> Kalender öffnen
+                <CalendarDays size={14} /> {t.nav.openCalendar}
               </Link>
               <Link
                 href="/dashboard/email"
                 className="btn-secondary w-full justify-center"
               >
-                <Mail size={14} /> E-Mail verbinden
+                <Mail size={14} /> {t.nav.connectEmail}
               </Link>
               {canApprove(role) && isAdminView && (
                 <Link
@@ -499,7 +495,7 @@ export default function Dashboard() {
                     color: "var(--warning)",
                   }}
                 >
-                  <Clock size={14} /> Anträge genehmigen
+                  <Clock size={14} /> {t.nav.approveRequests}
                 </Link>
               )}
               {role === "admin" && isAdminView && (
@@ -511,7 +507,7 @@ export default function Dashboard() {
                     color: "var(--danger)",
                   }}
                 >
-                  <ShieldCheck size={14} /> Administration
+                  <ShieldCheck size={14} /> {t.nav.toAdministration}
                 </Link>
               )}
             </div>
@@ -524,7 +520,7 @@ export default function Dashboard() {
                 className="text-sm font-bold mb-3"
                 style={{ color: "var(--text-base)" }}
               >
-                Nächster Urlaub
+                {t.dashboard.nextVacation}
               </h2>
               {upcoming.slice(0, 2).map((r) => (
                 <div key={r.id} className="mb-3 last:mb-0">
@@ -534,9 +530,9 @@ export default function Dashboard() {
                       className="text-xs font-semibold"
                       style={{ color: "var(--success)" }}
                     >
-                      in{" "}
+                      {t.common.in}{" "}
                       {differenceInCalendarDays(parseISO(r.from), new Date())}{" "}
-                      Tagen
+                      {t.common.daysFrom}
                     </span>
                   </div>
                   <p
@@ -571,20 +567,20 @@ export default function Dashboard() {
                   className="text-sm font-bold"
                   style={{ color: "var(--text-base)" }}
                 >
-                  Admin-Übersicht
+                  {t.dashboard.adminOverview}
                 </h2>
               </div>
               <p
                 className="text-xs mb-3"
                 style={{ color: "var(--text-muted)" }}
               >
-                {pending.length} Anträge warten auf Genehmigung
+                {pending.length} {t.dashboard.requestsAwaitingApproval}
               </p>
               <Link
                 href="/admin/settings"
                 className="btn-secondary w-full justify-center text-xs"
               >
-                <Users size={13} /> Zur Administration
+                <Users size={13} /> {t.nav.toAdministration}
               </Link>
             </div>
           )}

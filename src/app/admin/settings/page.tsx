@@ -22,7 +22,11 @@ import {
 import {
   getOrganizationSettings,
   updateOrganizationSettings,
+  getApproverEmails,
+  updateApproverEmails,
+  ApproverEmail,
 } from "@/lib/admin";
+import { assignApproverToUsers } from "@/lib/actions/adminActions";
 import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import OrganizationSwitcher from "@/components/OrganizationSwitcher";
@@ -81,6 +85,7 @@ export default function AdminSettingsPage() {
     | "company"
     | "policies"
     | "users"
+    | "approvers"
     | "templates"
     | "organizations"
     | "integrations"
@@ -128,6 +133,16 @@ export default function AdminSettingsPage() {
   const [memberSettings, setMemberSettings] = useState<Record<string, Record<string, unknown>>>({});
   const [loadingMemberSettings, setLoadingMemberSettings] = useState<string | null>(null);
   const [savingMemberSettings, setSavingMemberSettings] = useState<string | null>(null);
+
+  // Genehmiger-Verwaltung
+  const [approverEmails, setApproverEmails] = useState<ApproverEmail[]>([]);
+  const [newApproverName, setNewApproverName] = useState("");
+  const [newApproverEmail, setNewApproverEmail] = useState("");
+  const [savingApprovers, setSavingApprovers] = useState(false);
+  // Massenzuordnung
+  const [selectedApproverEmail, setSelectedApproverEmail] = useState("");
+  const [assignTargetUserIds, setAssignTargetUserIds] = useState<Set<string>>(new Set());
+  const [assigningApprover, setAssigningApprover] = useState(false);
 
   // Modal control
   const [confirmModal, setConfirmModal] = useState<{
@@ -196,6 +211,9 @@ export default function AdminSettingsPage() {
         setHolidayRegion(settings.holidayRegion as string);
       if (settings.autoApproveLimit !== undefined)
         setAutoApproveLimit(settings.autoApproveLimit as number);
+      const approvers = await getApproverEmails(id);
+      setApproverEmails(approvers);
+      if (approvers.length > 0) setSelectedApproverEmail(approvers[0].email);
     } catch (err) {
       console.error("Fehler beim Laden der Orga-Settings:", err);
     }
@@ -481,6 +499,53 @@ export default function AdminSettingsPage() {
     );
   };
 
+  const handleAddApprover = () => {
+    if (!newApproverEmail.trim()) return;
+    setApproverEmails((prev) => [
+      ...prev,
+      { name: newApproverName.trim(), email: newApproverEmail.trim() },
+    ]);
+    setNewApproverName("");
+    setNewApproverEmail("");
+  };
+
+  const handleRemoveApprover = (email: string) => {
+    setApproverEmails((prev) => prev.filter((a) => a.email !== email));
+  };
+
+  const handleSaveApprovers = async () => {
+    if (!orgId) return;
+    setSavingApprovers(true);
+    try {
+      await updateApproverEmails(orgId, approverEmails);
+      showSuccess("Genehmiger gespeichert.");
+    } catch (err) {
+      showError("Speichern fehlgeschlagen: " + (err as Error).message);
+    } finally {
+      setSavingApprovers(false);
+    }
+  };
+
+  const handleAssignApprover = async () => {
+    if (!orgId || !selectedApproverEmail || assignTargetUserIds.size === 0) return;
+    setAssigningApprover(true);
+    try {
+      const result = await assignApproverToUsers(
+        orgId,
+        selectedApproverEmail,
+        Array.from(assignTargetUserIds),
+      );
+      if (result.error) {
+        showError(result.error);
+      } else {
+        showSuccess(`${result.count} Mitarbeiter dem Genehmiger zugeordnet.`);
+        setAssignTargetUserIds(new Set());
+      }
+    } finally {
+      setAssigningApprover(false);
+    }
+  };
+
   const dayLabels = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
   return (
@@ -514,6 +579,7 @@ export default function AdminSettingsPage() {
             { id: "company", label: "Unternehmen", icon: Briefcase },
             { id: "policies", label: "Richtlinien", icon: Zap },
             { id: "users", label: "Mitarbeiter", icon: Users },
+            { id: "approvers", label: "Genehmiger", icon: ShieldCheck },
             { id: "templates", label: "Vorlagen", icon: Files },
             { id: "organizations", label: "Organisationen", icon: Building2 },
             { id: "integrations", label: "Integrationen", icon: Plus },
@@ -1072,6 +1138,156 @@ export default function AdminSettingsPage() {
                             </button>
                           </div>
                         )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: Genehmiger */}
+              {activeTab === "approvers" && (
+                <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+                  {/* Genehmiger-Liste */}
+                  <div className="card p-6 space-y-5 shadow-sm">
+                    <h2 className="text-base font-bold flex items-center gap-2">
+                      <ShieldCheck size={18} className="text-[var(--primary)]" />
+                      Genehmiger-E-Mails
+                    </h2>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Hinterlege die E-Mail-Adressen der Genehmiger. Mitarbeiter können diesen dann per Massenzuordnung zugewiesen werden.
+                    </p>
+
+                    {/* Neue Genehmiger hinzufügen */}
+                    <div className="flex items-end gap-3 flex-wrap">
+                      <div className="flex-1 min-w-[160px]">
+                        <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Name</label>
+                        <input
+                          type="text"
+                          placeholder="Max Mustermann"
+                          value={newApproverName}
+                          onChange={(e) => setNewApproverName(e.target.value)}
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:border-[var(--primary)] outline-none"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">E-Mail-Adresse</label>
+                        <input
+                          type="email"
+                          placeholder="genehmiger@firma.de"
+                          value={newApproverEmail}
+                          onChange={(e) => setNewApproverEmail(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleAddApprover()}
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:border-[var(--primary)] outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={handleAddApprover}
+                        disabled={!newApproverEmail.trim()}
+                        className="btn-primary px-4 py-2.5 flex items-center gap-2"
+                      >
+                        <UserPlus size={14} /> Hinzufügen
+                      </button>
+                    </div>
+
+                    {/* Bestehende Genehmiger */}
+                    {approverEmails.length > 0 ? (
+                      <div className="space-y-2">
+                        {approverEmails.map((a) => (
+                          <div
+                            key={a.email}
+                            className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold">{a.name || "–"}</p>
+                              <p className="text-xs text-[var(--text-muted)]">{a.email}</p>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveApprover(a.email)}
+                              className="p-2 rounded-lg btn-ghost text-[var(--danger)] hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[var(--text-muted)] italic">Noch keine Genehmiger hinterlegt.</p>
+                    )}
+
+                    <button
+                      onClick={handleSaveApprovers}
+                      disabled={savingApprovers}
+                      className="btn-primary min-w-[160px] justify-center shadow-md"
+                    >
+                      {savingApprovers ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                      Genehmiger speichern
+                    </button>
+                  </div>
+
+                  {/* Massenzuordnung */}
+                  <div className="card p-6 space-y-5 shadow-sm">
+                    <h2 className="text-base font-bold flex items-center gap-2">
+                      <Users size={18} className="text-[var(--primary)]" />
+                      Mitarbeiter zuordnen
+                    </h2>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Wähle einen Genehmiger und weise ihm Mitarbeiter zu. Die Zuordnung bestimmt, an welche E-Mail-Adresse ein Urlaubsantrag geschickt wird.
+                    </p>
+
+                    {approverEmails.length === 0 ? (
+                      <p className="text-xs text-[var(--text-muted)] italic">Bitte zuerst Genehmiger-E-Mails hinterlegen und speichern.</p>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Genehmiger</label>
+                          <select
+                            value={selectedApproverEmail}
+                            onChange={(e) => setSelectedApproverEmail(e.target.value)}
+                            className="w-full rounded-xl border px-3 py-2.5 text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:border-[var(--primary)] outline-none"
+                          >
+                            {approverEmails.map((a) => (
+                              <option key={a.email} value={a.email}>
+                                {a.name ? `${a.name} (${a.email})` : a.email}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black mb-2 text-[var(--text-muted)] uppercase tracking-wider">Mitarbeiter auswählen</label>
+                          <div className="space-y-1 max-h-64 overflow-y-auto">
+                            {members.map((m) => (
+                              <label key={m.user_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[var(--bg-elevated)] cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={assignTargetUserIds.has(m.user_id)}
+                                  onChange={(e) => {
+                                    setAssignTargetUserIds((prev) => {
+                                      const next = new Set(prev);
+                                      if (e.target.checked) next.add(m.user_id);
+                                      else next.delete(m.user_id);
+                                      return next;
+                                    });
+                                  }}
+                                  className="rounded"
+                                />
+                                <span className="text-sm">{m.email ?? m.user_id}</span>
+                                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold ${ROLE_COLORS[m.role]}`}>
+                                  {ROLE_LABELS[m.role]}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleAssignApprover}
+                          disabled={assigningApprover || assignTargetUserIds.size === 0 || !selectedApproverEmail}
+                          className="btn-primary min-w-[200px] justify-center shadow-md"
+                        >
+                          {assigningApprover ? <Loader size={16} className="animate-spin" /> : <Send size={16} />}
+                          {assignTargetUserIds.size > 0 ? `${assignTargetUserIds.size} Mitarbeiter zuordnen` : "Mitarbeiter auswählen"}
+                        </button>
                       </>
                     )}
                   </div>

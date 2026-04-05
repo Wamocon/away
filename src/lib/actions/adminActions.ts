@@ -421,4 +421,105 @@ export async function updateMemberSettings(
   }
 }
 
+/**
+ * Ordnet mehrere Mitarbeiter einem spezifischen Genehmiger zu.
+ * Schreibt assignedApproverEmail in user_settings per Massen-Upsert.
+ */
+export async function assignApproverToUsers(
+  orgId: string,
+  approverEmail: string,
+  userIds: string[],
+) {
+  try {
+    const supabase = await createServerClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { error: "Nicht authentifiziert." };
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("organization_id", orgId)
+      .single();
+
+    if (roleData?.role !== "admin") {
+      return { error: "Keine Berechtigung." };
+    }
+
+    const adminClient = await createAdminClient();
+
+    // Für jeden User: bestehende Settings laden, mergen, upserten
+    await Promise.all(
+      userIds.map(async (uid) => {
+        const { data: existing } = await adminClient
+          .from("user_settings")
+          .select("settings")
+          .eq("user_id", uid)
+          .eq("organization_id", orgId)
+          .maybeSingle();
+
+        const current = (existing?.settings as Record<string, unknown>) || {};
+        const merged = { ...current, assignedApproverEmail: approverEmail };
+
+        await adminClient
+          .from("user_settings")
+          .upsert(
+            { user_id: uid, organization_id: orgId, settings: merged },
+            { onConflict: "user_id,organization_id" },
+          );
+      }),
+    );
+
+    return { success: true, count: userIds.length };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+/**
+ * Liest den zugeordneten Genehmiger eines Mitarbeiters.
+ * Liefert {name, email} aus den Org-Genehmigerliste oder null wenn nicht gesetzt.
+ */
+export async function getAssignedApprover(
+  userId: string,
+  orgId: string,
+): Promise<{ name: string; email: string } | null> {
+  try {
+    const adminClient = await createAdminClient();
+    const { data } = await adminClient
+      .from("user_settings")
+      .select("settings")
+      .eq("user_id", userId)
+      .eq("organization_id", orgId)
+      .maybeSingle();
+
+    const assignedEmail = (
+      data?.settings as Record<string, string> | undefined
+    )?.assignedApproverEmail;
+    if (!assignedEmail) return null;
+
+    // Suche passendes {name, email} aus der Org-Genehmigerliste
+    const { data: org } = await adminClient
+      .from("organizations")
+      .select("settings")
+      .eq("id", orgId)
+      .single();
+
+    const approverEmails = (
+      (org?.settings as Record<string, unknown>)
+        ?.approverEmails as { name: string; email: string }[]
+    ) || [];
+
+    const found = approverEmails.find((a) => a.email === assignedEmail);
+    if (found) return found;
+
+    // Fallback: E-Mail ohne Namen zurückgeben
+    return { name: "", email: assignedEmail };
+  } catch {
+    return null;
+  }
+}
+
 // Trigger Redeploy: 2026-03-28 (Fix SUPABASE_SERVICE_ROLE_KEY)

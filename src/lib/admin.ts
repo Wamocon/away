@@ -49,3 +49,26 @@ export async function getOrganizationSettings(orgId: string) {
   if (error) throw error;
   return (data?.settings as Record<string, unknown>) || {};
 }
+
+export interface ApproverEmail {
+  name: string;
+  email: string;
+}
+
+/**
+ * Holt die hinterlegten Genehmiger-E-Mails einer Organisation.
+ */
+export async function getApproverEmails(orgId: string): Promise<ApproverEmail[]> {
+  const settings = await getOrganizationSettings(orgId);
+  return (settings.approverEmails as ApproverEmail[]) || [];
+}
+
+/**
+ * Aktualisiert die Genehmiger-E-Mail-Liste einer Organisation.
+ */
+export async function updateApproverEmails(
+  orgId: string,
+  approvers: ApproverEmail[],
+) {
+  return updateOrganizationSettings(orgId, { approverEmails: approvers });
+}

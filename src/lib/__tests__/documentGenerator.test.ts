@@ -21,15 +21,22 @@ const {
     getFields: vi.fn(),
     getTextField: vi.fn().mockReturnValue(mockTextField),
     getCheckBox: vi.fn().mockReturnValue(mockCheckBox),
+    flatten: vi.fn(),
   };
   const mockPage = {
     getSize: vi.fn().mockReturnValue({ width: 595, height: 841 }),
     drawText: vi.fn(),
+    drawLine: vi.fn(),
+    drawImage: vi.fn(),
   };
   const mockPdfDoc = {
     getForm: vi.fn().mockReturnValue(mockForm),
     save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
     addPage: vi.fn().mockReturnValue(mockPage),
+    getPages: vi.fn().mockReturnValue([mockPage]),
+    embedFont: vi.fn().mockResolvedValue({ name: "Helvetica" }),
+    embedPng: vi.fn().mockResolvedValue({ width: 100, height: 50 }),
+    embedJpg: vi.fn().mockResolvedValue({ width: 100, height: 50 }),
   };
   const mockWorkbook = {
     SheetNames: ["Sheet1"],
@@ -59,6 +66,8 @@ vi.mock("pdf-lib", () => ({
     load: vi.fn().mockResolvedValue(mockPdfDoc),
     create: vi.fn().mockResolvedValue(mockPdfDoc),
   },
+  rgb: vi.fn().mockReturnValue({ r: 0, g: 0, b: 0 }),
+  StandardFonts: { Helvetica: "Helvetica" },
 }));
 
 vi.mock("xlsx", () => ({
@@ -161,8 +170,10 @@ describe("documentGenerator", () => {
       const templateBytes = new ArrayBuffer(8);
       vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDoc as any);
       mockForm.getFields.mockReturnValue([
-        { getName: () => "from_date", constructor: { name: "PDFTextField" } },
+        { getName: () => "from_date" },
       ]);
+      // getCheckBox throws so the code falls through to text field handling
+      mockForm.getCheckBox.mockImplementationOnce(() => { throw new Error("not a checkbox"); });
 
       await generatePDF(sampleData, templateBytes);
       expect(mockForm.getTextField).toHaveBeenCalledWith("from_date");
@@ -173,33 +184,43 @@ describe("documentGenerator", () => {
       const { PDFDocument } = await import("pdf-lib");
       const templateBytes = new ArrayBuffer(8);
       vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDoc as any);
+      // "paid_checkbox" contains "paid" → matches VACATION_TYPE_KEYS.paid
       mockForm.getFields.mockReturnValue([
-        { getName: () => "reason_box", constructor: { name: "PDFCheckBox" } },
+        { getName: () => "paid_checkbox" },
       ]);
-      const dataWithBool: DocumentData = {
+      // Ensure getCheckBox returns a fresh spy so check() can be asserted cleanly
+      const checkSpy = vi.fn();
+      const uncheckSpy = vi.fn();
+      mockForm.getCheckBox.mockImplementation(() => ({ check: checkSpy, uncheck: uncheckSpy }));
+      const dataWithPaid: DocumentData = {
         ...sampleData,
-        customFields: { ...sampleData.customFields, reason_box: true },
+        vacationTypes: { bezahlt: true },
       };
 
-      await generatePDF(dataWithBool, templateBytes);
-      expect(mockForm.getCheckBox).toHaveBeenCalled();
-      expect(mockCheckBox.check).toHaveBeenCalled();
+      await generatePDF(dataWithPaid, templateBytes);
+      expect(mockForm.getCheckBox).toHaveBeenCalledWith("paid_checkbox");
+      expect(checkSpy).toHaveBeenCalled();
     });
 
     it("unchecks checkbox for false boolean value", async () => {
       const { PDFDocument } = await import("pdf-lib");
       const templateBytes = new ArrayBuffer(8);
       vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDoc as any);
+      // "paid_checkbox" contains "paid" → matches VACATION_TYPE_KEYS.paid
       mockForm.getFields.mockReturnValue([
-        { getName: () => "reason_box", constructor: { name: "PDFCheckBox" } },
+        { getName: () => "paid_checkbox" },
       ]);
-      const dataWithFalseBool: DocumentData = {
+      const checkSpy = vi.fn();
+      const uncheckSpy = vi.fn();
+      mockForm.getCheckBox.mockImplementation(() => ({ check: checkSpy, uncheck: uncheckSpy }));
+      const dataWithUnpaid: DocumentData = {
         ...sampleData,
-        customFields: { ...sampleData.customFields, reason_box: false },
+        vacationTypes: { paid: false },
       };
 
-      await generatePDF(dataWithFalseBool, templateBytes);
-      expect(mockCheckBox.uncheck).toHaveBeenCalled();
+      await generatePDF(dataWithUnpaid, templateBytes);
+      expect(mockForm.getCheckBox).toHaveBeenCalledWith("paid_checkbox");
+      expect(uncheckSpy).toHaveBeenCalled();
     });
   });
 
@@ -245,4 +266,108 @@ describe("documentGenerator", () => {
       expect(arg.lastName).toBe("Muster");
     });
   });
+
+  // ─── v4.5 – VACATION_TYPE_KEYS + PNG/JPEG detection ───────────────
+
+  describe("VACATION_TYPE_KEYS checkbox matching (v4.5)", () => {
+    it("checks paidLeave checkbox for bezahlt vacation type", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDoc as any);
+
+      mockForm.getFields.mockReturnValue([
+        { getName: () => "paidLeave", constructor: { name: "PDFCheckBox" } },
+        { getName: () => "unpaidLeave", constructor: { name: "PDFCheckBox" } },
+      ]);
+      // Simulate getCheckBox returning mock, getTextField throwing (= checkbox)
+      mockForm.getCheckBox.mockReturnValue(mockCheckBox);
+      mockForm.getTextField.mockImplementation(() => {
+        throw new Error("not a text field");
+      });
+
+      const dataWithPaid: DocumentData = {
+        ...sampleData,
+        vacationTypes: { bezahlt: true, unbezahlt: false },
+      };
+
+      await generatePDF(dataWithPaid, templateBytes);
+      // check should be called for paidLeave (bezahlt=true)
+      expect(mockCheckBox.check).toHaveBeenCalled();
+    });
+
+    it("does not check unpaidLeave when only bezahlt is selected", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDoc as any);
+
+      const checkMock = vi.fn();
+      const uncheckMock = vi.fn();
+      mockForm.getFields.mockReturnValue([
+        { getName: () => "unpaidLeave", constructor: { name: "PDFCheckBox" } },
+      ]);
+      mockForm.getCheckBox.mockReturnValue({ check: checkMock, uncheck: uncheckMock });
+      mockForm.getTextField.mockImplementation(() => {
+        throw new Error("not a text field");
+      });
+
+      const dataWithPaidOnly: DocumentData = {
+        ...sampleData,
+        vacationTypes: { bezahlt: true, unbezahlt: false },
+      };
+
+      await generatePDF(dataWithPaidOnly, templateBytes);
+      // unpaidLeave should be unchecked since unbezahlt=false
+      expect(uncheckMock).toHaveBeenCalled();
+      expect(checkMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("coordinate-based fallback (v4.5)", () => {
+    it("uses coordinate fallback when template has no text fields", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+
+      const drawTextMock = vi.fn();
+      const mockPageFallback = {
+        getSize: vi.fn().mockReturnValue({ width: 595, height: 841 }),
+        drawText: drawTextMock,
+        drawLine: vi.fn(),
+        drawImage: vi.fn(),
+      };
+
+      const mockEmbedFont = vi.fn().mockResolvedValue({});
+      const flattenMock = vi.fn();
+
+      const mockPdfDocFallback = {
+        getForm: vi.fn().mockReturnValue({
+          getFields: vi.fn().mockReturnValue([
+            // Only checkbox fields, no text fields
+            { getName: () => "paidLeave", acroField: { getWidgets: vi.fn().mockReturnValue([{ getRectangle: vi.fn().mockReturnValue({ x: 100, y: 490, width: 10, height: 10 }) }]) } },
+          ]),
+          getCheckBox: vi.fn().mockReturnValue({ check: vi.fn(), uncheck: vi.fn() }),
+          getTextField: vi.fn().mockImplementation(() => { throw new Error("not text"); }),
+          flatten: flattenMock,
+        }),
+        getPages: vi.fn().mockReturnValue([mockPageFallback]),
+        embedFont: mockEmbedFont,
+        save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+      };
+
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDocFallback as any);
+
+      const dataWithName: DocumentData = {
+        ...sampleData,
+        firstName: "Max",
+        lastName: "Mustermann",
+        from: "2026-04-09",
+        to: "2026-04-22",
+      };
+
+      const blob = await generatePDF(dataWithName, templateBytes);
+      expect(blob).toBeInstanceOf(Blob);
+      // drawText should be called at least once for name/dates in fallback mode
+      expect(drawTextMock).toHaveBeenCalled();
+    });
+  });
 });
+

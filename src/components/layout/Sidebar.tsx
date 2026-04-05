@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { getUserRole, UserRole, ROLE_LABELS } from "@/lib/roles";
 import { useSubscription } from "@/components/ui/SubscriptionProvider";
+import { isSuperAdmin } from "@/lib/subscription";
 import { PlanGate } from "@/components/ui/PlanGate";
 import {
   LayoutDashboard,
@@ -56,6 +57,7 @@ function SidebarContent({
   const [userInitial, setUserInitial] = useState("?");
   const [userId, setUserId] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [isSuperAdminUser, setIsSuperAdminUser] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const { planTier, trialDaysLeft } = useSubscription();
@@ -86,6 +88,8 @@ function SidebarContent({
       const email = data.user.email ?? "";
       setUserEmail(email);
       setUserInitial(email.charAt(0).toUpperCase());
+      const superAdmin = await isSuperAdmin(data.user.id);
+      setIsSuperAdminUser(superAdmin);
     } catch {
       /* not logged in */
     }
@@ -397,7 +401,7 @@ function SidebarContent({
         </div>
 
         {/* Genehmiger Sektion */}
-        {(role === "admin" || role === "cio" || role === "approver") &&
+        {(role === "admin" || role === "cio" || role === "approver" || isSuperAdminUser) &&
           isElevatedMode && (
             <div className="px-3 mt-6">
               <p className="section-label px-2 mb-2">Genehmiger</p>
@@ -418,7 +422,7 @@ function SidebarContent({
           )}
 
         {/* Administration Sektion */}
-        {role === "admin" && isElevatedMode && (
+        {(role === "admin" || role === "cio" || isSuperAdminUser) && isElevatedMode && (
           <div className="px-3 mt-6">
             <p className="section-label px-2 mb-2">Administration</p>
             <nav className="flex flex-col gap-0.5">

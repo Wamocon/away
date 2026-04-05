@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { createBrowserClient } from "@supabase/ssr";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -169,7 +170,10 @@ export function getTrialDaysLeft(sub: Subscription | null): number {
  */
 export async function isSuperAdmin(userId: string): Promise<boolean> {
   if (!userId) return false;
-  const supabase = createClient();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return false;
+  const supabase = createBrowserClient(url, key, { db: { schema: "public" } });
   const { data } = await supabase
     .from("super_admins")
     .select("user_id")

@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
-import { getOrganizationsForUser } from "@/lib/organization";
 import { getUserRole, canApprove } from "@/lib/roles";
 import { useLanguage } from "@/components/ui/LanguageProvider";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 
 export interface AppNotification {
   id: string;
@@ -58,24 +58,17 @@ export function NotificationCenter() {
   const router = useRouter();
   const { t, locale } = useLanguage();
   const dateFnsLocale = locale === "en" ? enUS : de;
+  const { currentOrg, userId } = useActiveOrg();
 
   const buildNotifications = useCallback(async () => {
+    if (!userId || !currentOrg) return;
     setLoading(true);
     try {
       const supabase = createClient();
-      // Use getSession() instead of getUser() to avoid auth-token lock contention
-      // when multiple components simultaneously try to refresh the session.
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id;
-      if (!userId) return;
-
-      const orgs = await getOrganizationsForUser(userId);
-      if (orgs.length === 0) return;
-      const org = orgs[0] as { id: string; name: string };
 
       let role: string;
       try {
-        role = await getUserRole(userId, org.id);
+        role = await getUserRole(userId, currentOrg.id);
       } catch {
         role = "employee";
       }
@@ -87,7 +80,7 @@ export function NotificationCenter() {
         const { data: pending } = await supabase
           .from("vacation_requests")
           .select("id, user_id, from, to, reason, created_at")
-          .eq("organization_id", org.id)
+          .eq("organization_id", currentOrg.id)
           .eq("status", "pending")
           .order("created_at", { ascending: false })
           .limit(10);
@@ -133,14 +126,21 @@ export function NotificationCenter() {
         }
       }
 
-      items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      items.sort((a, b) => {
+        const aTime = Date.parse(a.createdAt);
+        const bTime = Date.parse(b.createdAt);
+        if (!Number.isNaN(aTime) && !Number.isNaN(bTime)) {
+          return bTime - aTime;
+        }
+        return b.createdAt.localeCompare(a.createdAt);
+      });
       setNotifications(items.slice(0, 15));
     } catch (err) {
       console.error("[NotificationCenter]", err);
     } finally {
       setLoading(false);
     }
-  }, [t, dateFnsLocale]);
+  }, [t, dateFnsLocale, userId, currentOrg]);
 
   useEffect(() => {
     buildNotifications();

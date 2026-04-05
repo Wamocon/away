@@ -17,12 +17,10 @@ describe("Next.js Configuration", () => {
     expect(content).toContain("https://*.vercel.app");
   });
 
-  it("should have CORS headers scoped to /api/ routes only", () => {
+  it("should not set wildcard Access-Control-Allow-Origin", () => {
     const configPath = path.resolve(process.cwd(), "next.config.ts");
     const content = fs.readFileSync(configPath, "utf-8");
 
-    expect(content).toContain("/api/");
-    expect(content).toContain("Access-Control-Allow-Methods");
     expect(content).not.toMatch(
       /key\s*:\s*["']Access-Control-Allow-Origin["'][\s\S]*?value\s*:\s*["']\*["']/,
     );

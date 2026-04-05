@@ -25,7 +25,7 @@ const ROUTE_LABELS: Record<string, string> = {
 };
 
 function getLabel(segment: string): string {
-  // UUIDs or IDs – show as "Antrag"
+  // UUIDs or IDs – show as "Details"
   if (/^[0-9a-f-]{8,}$/i.test(segment)) return "Details";
   return (
     ROUTE_LABELS[segment] ?? segment.charAt(0).toUpperCase() + segment.slice(1)
@@ -37,6 +37,11 @@ export function Breadcrumbs() {
 
   // Don't show on root, auth, or top-level pages
   if (!pathname || pathname === "/" || pathname.startsWith("/auth"))
+    return null;
+
+  const segments = pathname.split("/").filter(Boolean);
+
+  // Skip the leading "dashboard" segment — the Home icon already represents it
   const crumbStartIndex = segments[0] === "dashboard" ? 1 : 0;
   const crumbSegments = segments.slice(crumbStartIndex);
 
@@ -45,9 +50,6 @@ export function Breadcrumbs() {
     label: getLabel(seg),
     href: "/" + segments.slice(0, crumbStartIndex + i + 1).join("/"),
     isLast: i === crumbSegments.length - 1,
-    label: getLabel(seg),
-    href: "/" + segments.slice(0, i + 1).join("/"),
-    isLast: i === segments.length - 1,
   }));
 
   return (

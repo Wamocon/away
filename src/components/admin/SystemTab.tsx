@@ -73,20 +73,33 @@ export function SystemTab({ orgId }: { orgId: string | null }) {
 
         if (members.status === "fulfilled" && !members.value.error) {
           memberCount = members.value.count ?? 0;
-        } else if (members.status === "rejected") {
+        } else if (
+          members.status === "rejected" ||
+          (members.status === "fulfilled" && members.value.error)
+        ) {
           dbStatus = "error";
         }
 
-        if (requests.status === "fulfilled" && requests.value.data) {
-          const reqs = requests.value.data;
+        if (requests.status === "fulfilled" && !requests.value.error) {
+          const reqs = requests.value.data ?? [];
           requestCount = reqs.length;
           pendingCount = reqs.filter((r) => r.status === "pending").length;
           approvedCount = reqs.filter((r) => r.status === "approved").length;
           rejectedCount = reqs.filter((r) => r.status === "rejected").length;
+        } else if (
+          requests.status === "rejected" ||
+          (requests.status === "fulfilled" && requests.value.error)
+        ) {
+          dbStatus = "error";
         }
 
-        if (templates.status === "fulfilled") {
+        if (templates.status === "fulfilled" && !templates.value.error) {
           templateCount = templates.value.count ?? 0;
+        } else if (
+          templates.status === "rejected" ||
+          (templates.status === "fulfilled" && templates.value.error)
+        ) {
+          dbStatus = "error";
         }
       }
 

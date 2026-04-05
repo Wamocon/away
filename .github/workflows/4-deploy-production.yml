@@ -1,0 +1,100 @@
+# =============================================================================
+# Workflow 4 – Vercel Production Deploy
+# =============================================================================
+# Läuft bei:
+#   • GitHub Release → type: published
+#
+# Secrets (Organisation):  VERCEL_TOKEN, VERCEL_ORG_ID
+# Secrets (Repository):    VERCEL_PROJECT_ID
+#
+# Vercel Git Integration ist deaktiviert (vercel.json → github.enabled: false),
+# daher übernimmt dieses Workflow den Production-Deploy vollständig.
+# =============================================================================
+
+name: Vercel Production Deploy
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-production:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check Vercel credentials
+        id: creds
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ORG_ID" ] && [ -n "$PROJECT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Vercel credentials not configured – production deploy aborted"
+            exit 1
+          fi
+
+      - name: Checkout
+        if: steps.creds.outputs.ready == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: steps.creds.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Vercel CLI
+        if: steps.creds.outputs.ready == 'true'
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment (production)
+        if: steps.creds.outputs.ready == 'true'
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build project (production)
+        if: steps.creds.outputs.ready == 'true'
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel (production)
+        if: steps.creds.outputs.ready == 'true'
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "Deploy attempt $attempt of 3..."
+            if vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} > /tmp/vercel-deploy.txt 2>&1; then
+              cat /tmp/vercel-deploy.txt
+              URL=$(grep -E '^https://' /tmp/vercel-deploy.txt | tail -1)
+              echo "Production URL: $URL"
+              break
+            else
+              cat /tmp/vercel-deploy.txt
+              if [ "$attempt" = "3" ]; then
+                echo "::error::Vercel production deploy failed after 3 attempts"
+                exit 1
+              fi
+              echo "Retrying in 15 seconds..."
+              sleep 15
+            fi
+          done

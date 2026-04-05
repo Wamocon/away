@@ -1,0 +1,107 @@
+# =============================================================================
+# Workflow 2 – Validierung (TypeScript + ESLint + i18n)
+# =============================================================================
+# Läuft bei:
+#   • Push auf main/master
+#   • Jedem PR-Push gegen main/master
+#
+# Jobs:
+#   1. typecheck  – TypeScript-Typfehler (tsc --noEmit)
+#   2. lint       – ESLint (src/**/*.{ts,tsx})
+#   3. i18n       – DE/EN-Übersetzungs-Parität (src/lib/i18n.ts)
+#
+# Blockiert Merge bei Fehlern.
+# =============================================================================
+
+name: Validation
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: validation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  typecheck:
+    name: TypeScript Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript Typecheck
+        run: npm run typecheck
+
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+  i18n:
+    name: i18n DE/EN Key Parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: i18n Coverage Check
+        run: npm run i18n:check
+
+      - name: PR-Kommentar bei fehlendem Key
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **i18n Check Failed**: Einige DE-Übersetzungs-Keys fehlen in EN.\n\nBitte `src/lib/i18n.ts` aktualisieren und die fehlenden englischen Übersetzungen ergänzen.'
+            })

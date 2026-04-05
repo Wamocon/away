@@ -1,8 +1,8 @@
-'use client';
-import { createClient } from '@/lib/supabase/client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plane } from 'lucide-react';
+"use client";
+import { createClient } from "@/lib/supabase/client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Plane } from "lucide-react";
 export default function Home() {
   const router = useRouter();
 
@@ -11,13 +11,13 @@ export default function Home() {
       const supabase = createClient();
       supabase.auth.getUser().then(({ data }) => {
         if (data.user) {
-          router.push('/dashboard');
+          router.push("/dashboard");
         } else {
-          router.push('/auth/login');
+          router.push("/auth/login");
         }
       });
     } catch {
-      router.push('/auth/login');
+      router.push("/auth/login");
     }
   }, [router]);
 
@@ -27,7 +27,9 @@ export default function Home() {
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center mx-auto mb-3">
           <Plane size={22} className="text-white" />
         </div>
-        <p className="text-sm dark:text-white/40 text-gray-400">Weiterleiten...</p>
+        <p className="text-sm dark:text-white/40 text-gray-400">
+          Weiterleiten...
+        </p>
       </div>
     </div>
   );

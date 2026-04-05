@@ -1,6 +1,6 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { getSchema } from './config';
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { getSchema } from "./config";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -11,19 +11,29 @@ export async function createClient() {
     {
       db: { schema },
       cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(
+          cookiesToSet: Array<{
+            name: string;
+            value: string;
+            options?: Record<string, unknown>;
+          }>,
+        ) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, options),
             );
-          } catch { /* In Server Components ignorieren */ }
+          } catch {
+            /* In Server Components ignorieren */
+          }
         },
       },
       cookieOptions: {
-        sameSite: 'lax',
+        sameSite: "lax",
         secure: true,
       },
-    }
+    },
   );
 }

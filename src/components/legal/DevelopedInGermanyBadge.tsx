@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { usePathname } from 'next/navigation';
+import React from "react";
+import { usePathname } from "next/navigation";
 
 export function DevelopedInGermanyBadge() {
   const pathname = usePathname();
-  
+
   // Hide on certain paths if needed
-  if (pathname?.startsWith('/api')) return null;
+  if (pathname?.startsWith("/api")) return null;
 
   return (
-    <div className="flex flex-col items-center gap-3 py-6 opacity-40 hover:opacity-100 transition-opacity">
+    <div className="flex flex-col items-center gap-3 py-6 opacity-30 dark:opacity-55 hover:opacity-90 transition-opacity duration-300 group">
       <div className="relative group">
         <svg
           width="42"
@@ -20,18 +20,36 @@ export function DevelopedInGermanyBadge() {
           xmlns="http://www.w3.org/2000/svg"
         >
           {/* Outer Circles */}
-          <circle cx="100" cy="100" r="96" stroke="currentColor" strokeWidth="4" className="text-[var(--border)] opacity-20" />
-          <circle cx="100" cy="100" r="86" stroke="currentColor" strokeWidth="2" className="text-[var(--border)] opacity-10" />
-          
+          <circle
+            cx="100"
+            cy="100"
+            r="96"
+            stroke="currentColor"
+            strokeWidth="4"
+            className="text-[var(--border)] opacity-20"
+          />
+          <circle
+            cx="100"
+            cy="100"
+            r="86"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="text-[var(--border)] opacity-10"
+          />
+
           {/* Star/Polygon */}
           <polygon
             points="100,28 106,46 124,46 110,56 115,74 100,64 85,74 90,56 76,46 94,46"
             fill="currentColor"
             className="text-[var(--text-base)]"
           />
-          
+
           {/* Curved Text Paths */}
-          <path id="sealTextTop" d="M 30,100 A 70,70 0 0,1 170,100" fill="none" />
+          <path
+            id="sealTextTop"
+            d="M 30,100 A 70,70 0 0,1 170,100"
+            fill="none"
+          />
           <text
             fontFamily="Inter, sans-serif"
             fontSize="16"
@@ -44,8 +62,12 @@ export function DevelopedInGermanyBadge() {
               DEVELOPED IN
             </textPath>
           </text>
-          
-          <path id="sealTextBot" d="M 28,108 A 72,72 0 0,0 172,108" fill="none" />
+
+          <path
+            id="sealTextBot"
+            d="M 28,108 A 72,72 0 0,0 172,108"
+            fill="none"
+          />
           <text
             fontFamily="Inter, sans-serif"
             fontSize="16"
@@ -58,15 +80,18 @@ export function DevelopedInGermanyBadge() {
               GERMANY
             </textPath>
           </text>
-          
+
           {/* Flag */}
           <rect x="70" y="82" width="60" height="8" rx="1" fill="#000000" />
           <rect x="70" y="90" width="60" height="8" fill="#DD0000" />
           <rect x="70" y="98" width="60" height="8" rx="1" fill="#FFCC00" />
         </svg>
       </div>
-      
-      <span className="text-[14px] font-medium tracking-wide text-[var(--text-muted)]">
+
+      <span
+        className="text-[13px] font-bold tracking-wide"
+        style={{ color: "var(--text-base)", opacity: 0.7 }}
+      >
         Entwickelt in Deutschland
       </span>
     </div>

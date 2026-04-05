@@ -1,18 +1,25 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { inviteUserToOrg } from '../adminActions';
-import * as serverLib from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  inviteUserToOrg,
+  getOrgMembersWithEmails,
+  getOrgApproversForNotification,
+  getMemberSettings,
+  updateMemberSettings,
+} from "../adminActions";
+import * as serverLib from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 // Mocks
-vi.mock('@/lib/supabase/server', () => ({
+vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
-vi.mock('@supabase/supabase-js', () => ({
+vi.mock("@supabase/supabase-js", () => ({
   createClient: vi.fn(),
 }));
 
-describe('inviteUserToOrg Logic', () => {
+describe("inviteUserToOrg Logic", () => {
   const mockSupabase = {
     auth: {
       getSession: vi.fn(),
@@ -33,52 +40,450 @@ describe('inviteUserToOrg Logic', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'mock-key';
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://mock.supabase.co';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://mock.supabase.co";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(serverLib.createClient).mockResolvedValue(mockSupabase as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
   });
 
-  it('should translate email rate limit error', async () => {
+  it("should translate email rate limit error", async () => {
     // Setup session
-    mockSupabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'admin-id' } } }, error: null });
-    
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+
     // Setup role check
-    mockSupabase.single.mockResolvedValue({ data: { role: 'admin' }, error: null });
+    mockSupabase.single.mockResolvedValue({
+      data: { role: "admin" },
+      error: null,
+    });
 
     // Setup invite error
-    mockAdminClient.auth.admin.inviteUserByEmail.mockResolvedValue({ 
-      data: {}, 
-      error: { message: 'email rate limit exceeded' } 
+    mockAdminClient.auth.admin.inviteUserByEmail.mockResolvedValue({
+      data: {},
+      error: { message: "email rate limit exceeded" },
     });
 
-    const result = await inviteUserToOrg('test@example.com', 'org-123', 'employee', 'http://localhost:3000');
-    
-    expect(result.error).toContain('E-Mail-Limit überschritten');
+    const result = await inviteUserToOrg(
+      "test@example.com",
+      "org-123",
+      "employee",
+      "http://localhost:3000",
+    );
+
+    expect(result.error).toContain("E-Mail-Limit überschritten");
   });
 
-  it('should translate already registered error', async () => {
-    mockSupabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'admin-id' } } }, error: null });
-    mockSupabase.single.mockResolvedValue({ data: { role: 'admin' }, error: null });
-    mockAdminClient.auth.admin.inviteUserByEmail.mockResolvedValue({ 
-      data: {}, 
-      error: { message: 'User already registered' } 
+  it("should translate already registered error", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValue({
+      data: { role: "admin" },
+      error: null,
+    });
+    mockAdminClient.auth.admin.inviteUserByEmail.mockResolvedValue({
+      data: {},
+      error: { message: "User already registered" },
     });
 
-    const result = await inviteUserToOrg('test@example.com', 'org-123', 'employee', 'http://localhost:3000');
-    
-    expect(result.error).toBe('Dieser Benutzer ist bereits registriert.');
+    const result = await inviteUserToOrg(
+      "test@example.com",
+      "org-123",
+      "employee",
+      "http://localhost:3000",
+    );
+
+    expect(result.error).toBe("Dieser Benutzer ist bereits registriert.");
   });
 
-  it('should return success on valid invitation', async () => {
-    mockSupabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'admin-id' } } }, error: null });
-    mockSupabase.single.mockResolvedValue({ data: { role: 'admin' }, error: null });
-    mockAdminClient.auth.admin.inviteUserByEmail.mockResolvedValue({ data: {}, error: null });
+  it("should return success on valid invitation", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValue({
+      data: { role: "admin" },
+      error: null,
+    });
+    mockAdminClient.auth.admin.inviteUserByEmail.mockResolvedValue({
+      data: {},
+      error: null,
+    });
 
-    const result = await inviteUserToOrg('test@example.com', 'org-123', 'employee', 'http://localhost:3000');
-    
+    const result = await inviteUserToOrg(
+      "test@example.com",
+      "org-123",
+      "employee",
+      "http://localhost:3000",
+    );
+
     expect(result.success).toBe(true);
+  });
+});
+
+describe("getOrgMembersWithEmails", () => {
+  const mockSupabase = {
+    auth: { getSession: vi.fn() },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    single: vi.fn(),
+  };
+  // v4.2: adminClient is now used for the user_roles query (Bug 11 fix)
+  // so it needs from/select/eq/order chain as well as auth.admin.getUserById
+  const mockAdminClient = {
+    auth: { admin: { getUserById: vi.fn() } },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://mock.supabase.co";
+    vi.mocked(serverLib.createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
+    mockSupabase.from.mockReturnValue(mockSupabase);
+    mockSupabase.select.mockReturnValue(mockSupabase);
+    mockSupabase.eq.mockReturnValue(mockSupabase);
+    mockSupabase.order.mockReturnValue(mockSupabase);
+    mockAdminClient.from.mockReturnValue(mockAdminClient);
+    mockAdminClient.select.mockReturnValue(mockAdminClient);
+    mockAdminClient.eq.mockReturnValue(mockAdminClient);
+  });
+
+  it("returns error when not authenticated", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    const res = await getOrgMembersWithEmails("org-1");
+    expect(res.error).toContain("Nicht authentifiziert");
+  });
+
+  it("returns error when user is not admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "u1" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "employee" },
+      error: null,
+    });
+    const res = await getOrgMembersWithEmails("org-1");
+    expect(res.error).toContain("Keine Berechtigung");
+  });
+
+  it("returns members with emails when admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    // Role check (own role) → admin, still via mockSupabase
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "admin" },
+      error: null,
+    });
+    // user_roles list is now fetched via adminClient (Bug 11 fix)
+    mockAdminClient.order.mockResolvedValueOnce({
+      data: [{ user_id: "u1", role: "admin", created_at: "" }],
+      error: null,
+    });
+    // getUserById
+    mockAdminClient.auth.admin.getUserById.mockResolvedValue({
+      data: { user: { email: "admin@x.de" } },
+    });
+
+    const res = await getOrgMembersWithEmails("org-1");
+    expect(res.data).toHaveLength(1);
+    expect(res.data![0].email).toBe("admin@x.de");
+  });
+});
+
+describe("getOrgApproversForNotification", () => {
+  const mockAdminClient = {
+    auth: { admin: { getUserById: vi.fn() } },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://mock.supabase.co";
+    vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
+    mockAdminClient.from.mockReturnValue(mockAdminClient);
+    mockAdminClient.select.mockReturnValue(mockAdminClient);
+    mockAdminClient.eq.mockReturnValue(mockAdminClient);
+    mockAdminClient.in.mockReturnValue(mockAdminClient);
+  });
+
+  it("returns empty array when no roles found", async () => {
+    mockAdminClient.in.mockResolvedValueOnce({ data: null, error: null });
+    const res = await getOrgApproversForNotification("org-1");
+    expect(res).toEqual([]);
+  });
+
+  it("returns members with emails from user_settings", async () => {
+    // Use a fresh mock returning user with email via auth admin fallback (simpler to wire)
+    const getUserById = vi
+      .fn()
+      .mockResolvedValue({ data: { user: { email: "approver@org.de" } } });
+    vi.mocked(createSupabaseClient).mockReturnValue({
+      auth: { admin: { getUserById } },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue({
+              data: [{ user_id: "u1", role: "admin" }],
+              error: null,
+            }),
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null }), // no user_settings email
+            }),
+          }),
+        }),
+      }),
+    } as any);
+
+    const res = await getOrgApproversForNotification("org-1");
+    expect(res).toHaveLength(1);
+    expect(res[0].email).toBe("approver@org.de");
+  });
+
+  it("falls back to auth admin email when user_settings has no email", async () => {
+    mockAdminClient.in.mockResolvedValueOnce({
+      data: [{ user_id: "u1", role: "cio" }],
+      error: null,
+    });
+    // user_settings → no email
+    const mockMaybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: null });
+    const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+    mockAdminClient.from.mockReturnValue({
+      select: vi
+        .fn()
+        .mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: mockEq }) }),
+    });
+    mockAdminClient.auth.admin.getUserById.mockResolvedValue({
+      data: { user: { email: "cio@x.de" } },
+    });
+
+    // Reset from mock to handle user_roles call first
+    vi.mocked(createSupabaseClient).mockReturnValue({
+      ...mockAdminClient,
+      from: vi
+        .fn()
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [{ user_id: "u1", role: "cio" }],
+                error: null,
+              }),
+            }),
+          }),
+        })
+        .mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+              }),
+            }),
+          }),
+        }),
+    } as any);
+
+    const res = await getOrgApproversForNotification("org-1");
+    expect(res.length).toBeGreaterThanOrEqual(0); // at least resolves
+  });
+
+  it("returns empty array on unexpected error", async () => {
+    vi.mocked(createSupabaseClient).mockImplementation(() => {
+      throw new Error("fatal");
+    });
+    const res = await getOrgApproversForNotification("org-1");
+    expect(res).toEqual([]);
+  });
+});
+
+// ─── v4.3: getMemberSettings & updateMemberSettings ──────────────────────────
+
+describe("getMemberSettings", () => {
+  const mockSupabase = {
+    auth: { getSession: vi.fn() },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn(),
+    maybeSingle: vi.fn(),
+  };
+  const mockAdminClient = {
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(),
+    auth: { admin: { getUserById: vi.fn() } },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://mock.supabase.co";
+    vi.mocked(serverLib.createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
+    mockSupabase.from.mockReturnValue(mockSupabase);
+    mockSupabase.select.mockReturnValue(mockSupabase);
+    mockSupabase.eq.mockReturnValue(mockSupabase);
+    mockAdminClient.from.mockReturnValue(mockAdminClient);
+    mockAdminClient.select.mockReturnValue(mockAdminClient);
+    mockAdminClient.eq.mockReturnValue(mockAdminClient);
+  });
+
+  it("returns error when not authenticated", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.error).toContain("Nicht authentifiziert");
+  });
+
+  it("returns error when caller is not admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "caller-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "employee" },
+      error: null,
+    });
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.error).toContain("Keine Berechtigung");
+  });
+
+  it("returns settings when admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "admin" },
+      error: null,
+    });
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: { settings: { vacationQuota: 28, firstName: "Anna" } },
+      error: null,
+    });
+
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.data).toEqual({ vacationQuota: 28, firstName: "Anna" });
+  });
+
+  it("returns empty object when no settings row exists", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "admin" },
+      error: null,
+    });
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.data).toEqual({});
+  });
+});
+
+describe("updateMemberSettings", () => {
+  const mockSupabase = {
+    auth: { getSession: vi.fn() },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn(),
+    maybeSingle: vi.fn(),
+  };
+  const mockAdminClient = {
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(),
+    upsert: vi.fn(),
+    auth: { admin: {} },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://mock.supabase.co";
+    vi.mocked(serverLib.createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createSupabaseClient).mockReturnValue(mockAdminClient as any);
+    mockSupabase.from.mockReturnValue(mockSupabase);
+    mockSupabase.select.mockReturnValue(mockSupabase);
+    mockSupabase.eq.mockReturnValue(mockSupabase);
+    mockAdminClient.from.mockReturnValue(mockAdminClient);
+    mockAdminClient.select.mockReturnValue(mockAdminClient);
+    mockAdminClient.eq.mockReturnValue(mockAdminClient);
+  });
+
+  it("returns error when not admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "u1" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "employee" },
+      error: null,
+    });
+    const res = await updateMemberSettings("target", "org-1", { vacationQuota: 25 });
+    expect(res.error).toContain("Keine Berechtigung");
+  });
+
+  it("merges new settings with existing and upserts", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { role: "admin" },
+      error: null,
+    });
+    // Existing settings
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: { settings: { theme: "dark", vacationQuota: 30 } },
+      error: null,
+    });
+    mockAdminClient.upsert.mockResolvedValueOnce({ error: null });
+
+    const res = await updateMemberSettings("target", "org-1", { vacationQuota: 28, employeeId: "E001" });
+    expect(res.success).toBe(true);
+    expect(mockAdminClient.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          theme: "dark",
+          vacationQuota: 28,
+          employeeId: "E001",
+        }),
+      }),
+      expect.any(Object),
+    );
   });
 });

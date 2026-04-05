@@ -1,8 +1,8 @@
-'use client';
-import { Plane, Menu, LogOut } from 'lucide-react';
-import { useTheme } from '@/components/ui/ThemeProvider';
-import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+"use client";
+import { Plane, Menu, LogOut } from "lucide-react";
+import { useTheme } from "@/components/ui/ThemeProvider";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export function Header({ onMenuToggle }: { onMenuToggle: () => void }) {
   const { theme } = useTheme();
@@ -15,15 +15,16 @@ export function Header({ onMenuToggle }: { onMenuToggle: () => void }) {
     } catch {
       // Supabase nicht konfiguriert
     }
-    router.push('/auth/login');
+    router.push("/auth/login");
   };
 
   return (
     <header
       className="shrink-0 flex items-center justify-between px-4 py-3 border-b"
       style={{
-        background: theme === 'dark' ? '#0a0f1a' : '#ffffff',
-        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)',
+        background: theme === "dark" ? "#0a0f1a" : "#ffffff",
+        borderColor:
+          theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)",
       }}
     >
       <div className="flex items-center gap-3">

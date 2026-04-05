@@ -36,8 +36,11 @@ export function LegalConsentFields({
             />
           </div>
           <span className="leading-tight group-hover:text-[var(--text-base)] transition-colors">
-            Ich akzeptiere die {" "}
-            <Link href="/legal/agb" className="font-bold text-[var(--primary)] hover:underline decoration-2 underline-offset-4 decoration-[var(--primary)]/30 transition-all">
+            Ich akzeptiere die{" "}
+            <Link
+              href="/legal/agb"
+              className="font-bold text-[var(--primary)] hover:underline decoration-2 underline-offset-4 decoration-[var(--primary)]/30 transition-all"
+            >
               Allgemeinen Geschäftsbedingungen (AGB)
             </Link>
             .
@@ -55,9 +58,12 @@ export function LegalConsentFields({
             />
           </div>
           <span className="leading-tight group-hover:text-[var(--text-base)] transition-colors">
-            Ich akzeptiere die {" "}
-            <Link href="/legal/datenschutz" className="font-bold text-[var(--primary)] hover:underline decoration-2 underline-offset-4 decoration-[var(--primary)]/30 transition-all">
-               Datenschutzerklärung
+            Ich akzeptiere die{" "}
+            <Link
+              href="/legal/datenschutz"
+              className="font-bold text-[var(--primary)] hover:underline decoration-2 underline-offset-4 decoration-[var(--primary)]/30 transition-all"
+            >
+              Datenschutzerklärung
             </Link>
             .
           </span>
@@ -74,7 +80,8 @@ export function LegalConsentFields({
             />
           </div>
           <span className="leading-tight group-hover:text-[var(--text-base)] transition-colors">
-            Ich willige in die Verarbeitung meiner personenbezogenen Daten gemäß DSGVO ein, um die Dienste von AWAY nutzen zu können.
+            Ich willige in die Verarbeitung meiner personenbezogenen Daten gemäß
+            DSGVO ein, um die Dienste von AWAY nutzen zu können.
           </span>
         </label>
       </div>

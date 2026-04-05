@@ -1,9 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { MailPlus, Check, Copy } from 'lucide-react';
+import { useState } from "react";
+import { MailPlus, Check, Copy } from "lucide-react";
 
-export default function InviteUser({ organizationId }: { organizationId: string }) {
+export default function InviteUser({
+  organizationId,
+}: {
+  organizationId: string;
+}) {
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -30,7 +34,7 @@ export default function InviteUser({ organizationId }: { organizationId: string 
       <h3 className="text-sm font-semibold flex items-center gap-1.5 text-blue-400 mb-3">
         <MailPlus size={16} /> Kollege einladen
       </h3>
-      
+
       {!inviteLink ? (
         <button
           onClick={handleGenerateLink}
@@ -56,7 +60,7 @@ export default function InviteUser({ organizationId }: { organizationId: string 
             </button>
           </div>
           {copied && <p className="text-xs text-green-500">Link kopiert!</p>}
-          <button 
+          <button
             onClick={() => setInviteLink(null)}
             className="text-xs text-gray-500 hover:text-gray-400 self-start"
           >

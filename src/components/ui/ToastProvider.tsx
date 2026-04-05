@@ -4,9 +4,12 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
+  useRef,
   ReactNode,
 } from "react";
 import { CheckCircle, XCircle, AlertCircle, Info, X } from "lucide-react";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -52,19 +55,35 @@ const STYLES: Record<ToastType, string> = {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const { t } = useLanguage();
 
   const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    const timer = timers.current.get(id);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timers.current.delete(id);
+    }
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
   const showToast = useCallback(
     (message: string, type: ToastType = "info") => {
       const id = Math.random().toString(36).slice(2) + Date.now();
       setToasts((prev) => [...prev.slice(-4), { id, message, type }]);
-      setTimeout(() => dismiss(id), 4500);
+      const timer = setTimeout(() => dismiss(id), 4500);
+      timers.current.set(id, timer);
     },
     [dismiss],
   );
+
+  useEffect(() => {
+    const currentTimers = timers.current;
+    return () => {
+      currentTimers.forEach((timer) => clearTimeout(timer));
+      currentTimers.clear();
+    };
+  }, []);
 
   const showSuccess = useCallback(
     (m: string) => showToast(m, "success"),
@@ -108,7 +127,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 onClick={() => dismiss(toast.id)}
                 className="shrink-0 opacity-70 hover:opacity-100 transition-opacity p-0.5 rounded"
-                aria-label="Schließen"
+                aria-label={t.common.close}
               >
                 <X size={14} />
               </button>

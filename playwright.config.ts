@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
  * AWAY – Playwright GUI Test Configuration
  * ─────────────────────────────────────────
  * WICHTIG: Diese Tests sind NUR für die lokale Ausführung!
- * Sie werden NICHT committed, gepusht oder in CI ausgeführt.
+ * Die Konfiguration ist committet, aber Tests werden NICHT in CI ausgeführt.
  *
  * Ausführung:  npx playwright test
  * Report:      npx playwright show-report playwright-report

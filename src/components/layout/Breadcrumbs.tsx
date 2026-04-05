@@ -37,12 +37,14 @@ export function Breadcrumbs() {
 
   // Don't show on root, auth, or top-level pages
   if (!pathname || pathname === "/" || pathname.startsWith("/auth"))
-    return null;
-
-  const segments = pathname.split("/").filter(Boolean);
+  const crumbStartIndex = segments[0] === "dashboard" ? 1 : 0;
+  const crumbSegments = segments.slice(crumbStartIndex);
 
   // Build crumb list
-  const crumbs = segments.map((seg, i) => ({
+  const crumbs = crumbSegments.map((seg, i) => ({
+    label: getLabel(seg),
+    href: "/" + segments.slice(0, crumbStartIndex + i + 1).join("/"),
+    isLast: i === crumbSegments.length - 1,
     label: getLabel(seg),
     href: "/" + segments.slice(0, i + 1).join("/"),
     isLast: i === segments.length - 1,

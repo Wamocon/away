@@ -59,7 +59,7 @@ function SidebarContent({
   const [role, setRole] = useState<UserRole | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const { planTier, trialDaysLeft, isActive } = useSubscription();
+  const { planTier, trialDaysLeft } = useSubscription();
   const [isElevatedMode, setIsElevatedMode] = useState(true);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
 

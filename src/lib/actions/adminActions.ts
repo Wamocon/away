@@ -27,6 +27,31 @@ async function createAdminClient() {
 }
 
 /**
+ * Prüft ob ein User ein plattformweiter Super-Admin ist.
+ * Nutzt public.super_admins (schema-unabhängig).
+ */
+async function isCallerSuperAdmin(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return false;
+    const client = createSupabaseClient(url, key, {
+      db: { schema: "public" },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data } = await client
+      .from("super_admins")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return data !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Holt alle Mitglieder einer Organisation inklusive E-Mails via Admin-API
  */
 export async function getOrgMembersWithEmails(orgId: string) {
@@ -48,7 +73,7 @@ export async function getOrgMembersWithEmails(orgId: string) {
       .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== "admin") {
+    if (roleData?.role !== "admin" && !(await isCallerSuperAdmin(session.user.id))) {
       return {
         error:
           "Keine Berechtigung: Nur Administratoren können die Benutzerliste einsehen.",
@@ -124,7 +149,7 @@ export async function inviteUserToOrg(
       .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== "admin") {
+    if (roleData?.role !== "admin" && !(await isCallerSuperAdmin(session.user.id))) {
       return {
         error:
           "Keine Berechtigung: Nur Administratoren können Personen einladen.",
@@ -244,7 +269,7 @@ export async function getAllAuthUsers(orgId: string) {
       .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== "admin") {
+    if (roleData?.role !== "admin" && !(await isCallerSuperAdmin(session.user.id))) {
       return { error: "Keine Berechtigung." };
     }
 
@@ -298,7 +323,7 @@ export async function assignUsersToOrg(
       .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== "admin") {
+    if (roleData?.role !== "admin" && !(await isCallerSuperAdmin(session.user.id))) {
       return { error: "Keine Berechtigung." };
     }
 
@@ -349,7 +374,7 @@ export async function getMemberSettings(targetUserId: string, orgId: string) {
       .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== "admin") {
+    if (roleData?.role !== "admin" && !(await isCallerSuperAdmin(session.user.id))) {
       return { error: "Keine Berechtigung." };
     }
 
@@ -390,7 +415,7 @@ export async function updateMemberSettings(
       .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== "admin") {
+    if (roleData?.role !== "admin" && !(await isCallerSuperAdmin(session.user.id))) {
       return { error: "Keine Berechtigung." };
     }
 
@@ -444,7 +469,7 @@ export async function assignApproverToUsers(
       .eq("organization_id", orgId)
       .single();
 
-    if (roleData?.role !== "admin") {
+    if (roleData?.role !== "admin" && !(await isCallerSuperAdmin(session.user.id))) {
       return { error: "Keine Berechtigung." };
     }
 

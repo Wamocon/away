@@ -31,6 +31,8 @@ import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import OrganizationSwitcher from "@/components/OrganizationSwitcher";
 import { SystemTab } from "@/components/admin/SystemTab";
+import SuperAdminSubscriptionsPanel from "@/components/admin/SuperAdminSubscriptionsPanel";
+import { isSuperAdmin } from "@/lib/subscription";
 import {
   Users,
   ShieldCheck,
@@ -78,6 +80,7 @@ export default function AdminSettingsPage() {
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isSuperAdminUser, setIsSuperAdminUser] = useState(false);
 
   // Tabs
   const [activeTab, setActiveTab] = useState<
@@ -90,6 +93,7 @@ export default function AdminSettingsPage() {
     | "organizations"
     | "integrations"
     | "system"
+    | "subscriptions"
   >("general");
 
   // New Organization Settings States
@@ -188,6 +192,9 @@ export default function AdminSettingsPage() {
         return;
       }
       setCurrentUserId(data.user.id);
+      // Super-Admin-Status prüfen (einmalig beim Laden)
+      const superAdmin = await isSuperAdmin(data.user.id);
+      setIsSuperAdminUser(superAdmin);
     });
   }, [router]);
 
@@ -604,6 +611,19 @@ export default function AdminSettingsPage() {
             </button>
           );
         })}
+        {/* Super-Admin exklusiv: Aboverwaltung */}
+        {isSuperAdminUser && (
+          <button
+            onClick={() => setActiveTab("subscriptions")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
+              activeTab === "subscriptions"
+                ? "bg-white dark:bg-gray-800 shadow-md text-amber-500"
+                : "text-[var(--text-muted)] hover:text-amber-400"
+            }`}
+          >
+            <ShieldCheck size={14} /> Aboverwaltung
+          </button>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -1635,6 +1655,13 @@ export default function AdminSettingsPage() {
           )}
 
           {activeTab === "system" && <SystemTab orgId={orgId} />}
+
+          {/* TAB: Aboverwaltung (Super-Admin only) */}
+          {activeTab === "subscriptions" && isSuperAdminUser && (
+            <div className="card p-6 animate-in slide-in-from-bottom-2 duration-300">
+              <SuperAdminSubscriptionsPanel />
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">

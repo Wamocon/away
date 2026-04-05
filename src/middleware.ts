@@ -81,12 +81,40 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // ── Super-Admin-Check ─────────────────────────────────────────────────────
+  // Lazy ausgeführt: nur wenn ein Check den Zugang verweigern würde.
+  // Vermeidet unnötige DB-Abfragen für normale Nutzer.
+  const checkIsSuperAdmin = async (): Promise<boolean> => {
+    try {
+      const pubClient = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          db: { schema: "public" },
+          cookies: {
+            getAll: () => request.cookies.getAll(),
+            setAll: () => {},
+          },
+        },
+      );
+      const { data } = await pubClient
+        .from("super_admins")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      return data !== null;
+    } catch {
+      return false;
+    }
+  };
+
   // ── Subscription-Check ─────────────────────────────────────────────────────
   // Routen die immer erreichbar sein sollen (auch ohne aktives Abo)
   const subscriptionFreeRoutes = [
     "/settings/subscription",
     "/legal",
     "/auth",
+    "/admin", // Super-Admin-Routen sollen nie durch Abo geblockt werden
   ];
   const isSubscriptionFreeRoute = subscriptionFreeRoutes.some((r) =>
     pathname.startsWith(r),
@@ -119,8 +147,9 @@ export async function middleware(request: NextRequest) {
         const sub = subData as Subscription | null;
         const active = isPlanActive(sub);
 
-        // Kein aktives Abo → nur Abo-Seite erlaubt
+        // Kein aktives Abo → nur Abo-Seite erlaubt (Super-Admin ausgenommen)
         if (!active) {
+          if (await checkIsSuperAdmin()) return supabaseResponse;
           return NextResponse.redirect(
             new URL("/settings/subscription", request.url),
           );
@@ -160,6 +189,7 @@ export async function middleware(request: NextRequest) {
       }
 
       if (!roles || roles.length === 0) {
+        if (await checkIsSuperAdmin()) return supabaseResponse;
         console.warn(
           "Middleware: Zugriff verweigert auf:",
           pathname,

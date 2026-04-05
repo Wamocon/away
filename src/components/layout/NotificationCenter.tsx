@@ -98,7 +98,7 @@ export function NotificationCenter() {
               id: `pending-${req.id}`,
               type: "new_request",
               title: t.notifications.newRequest,
-              message: `${format(parseISO(req.from), "dd.MM.", { locale: dateFnsLocale })} – ${format(parseISO(req.to), "dd.MM.yyyy", { locale: dateFnsLocale })}`,
+              message: `${format(parseISO(req.from), "P", { locale: dateFnsLocale })} – ${format(parseISO(req.to), "P", { locale: dateFnsLocale })}`,
               createdAt: req.created_at,
               read: readIds.has(`pending-${req.id}`),
               requestId: req.id,
@@ -125,7 +125,7 @@ export function NotificationCenter() {
               req.status === "approved"
                 ? t.notifications.approved
                 : t.notifications.rejected,
-            message: `${format(parseISO(req.from), "dd.MM.", { locale: dateFnsLocale })} – ${format(parseISO(req.to), "dd.MM.yyyy", { locale: dateFnsLocale })}`,
+            message: `${format(parseISO(req.from), "P", { locale: dateFnsLocale })} – ${format(parseISO(req.to), "P", { locale: dateFnsLocale })}`,
             createdAt: req.updated_at,
             read: readIds.has(notifId),
             requestId: req.id,

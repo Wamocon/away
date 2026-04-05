@@ -101,10 +101,18 @@ export function SystemTab({ orgId }: { orgId: string | null }) {
         sessionUser: user?.email ?? "–",
         sessionRole: user?.role ?? "authenticated",
         buildEnv: process.env.NODE_ENV ?? "production",
-        supabaseUrl:
-          (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")
-            .replace(/https?:\/\//, "")
-            .split(".")[0] + ".supabase.co",
+        supabaseUrl: (() => {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+
+          if (!supabaseUrl) {
+            return "–";
+          }
+
+          return (
+            supabaseUrl.replace(/https?:\/\//, "").split(".")[0] +
+            ".supabase.co"
+          );
+        })(),
         now: new Date(),
       });
       setLastRefresh(new Date());

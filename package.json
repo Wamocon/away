@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run test",
     "validate": "npm run typecheck && npm run test:coverage",
-    "i18n:check": "ts-node --compiler-options '{\"module\":\"commonjs\"}' src/scripts/check-i18n-coverage.ts",
+    "i18n:check": "tsx src/scripts/check-i18n-coverage.ts",
     "test:gui": "playwright test",
     "test:gui:report": "playwright show-report playwright-report"
   },

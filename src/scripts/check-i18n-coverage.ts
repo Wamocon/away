@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env tsx
 /**
  * i18n Coverage Check
  *
@@ -6,12 +6,13 @@
  *   1. Alle deutschen Strings (de) eine englische Entsprechung (en) haben – gleiche Schlüssel.
  *   2. Keine deutschen Rohstrings (z.B. "Genehmigen", "Ausstehend") als Hardcode in TSX-Dateien verbleiben.
  *
- * Verwendung: npx ts-node src/scripts/check-i18n-coverage.ts
- * Wird im CI durch .github/workflows/5-i18n-check.yml ausgeführt.
+ * Verwendung: npx tsx src/scripts/check-i18n-coverage.ts
+ * Wird im CI durch .github/workflows/2-validation.yml ausgeführt.
  */
 
 import * as fs from "fs";
 import * as path from "path";
+import { createRequire } from "node:module";
 
 // ─── 1. Key-Parität prüfen ────────────────────────────────────────────────────
 
@@ -23,10 +24,10 @@ function flattenKeys(obj: unknown, prefix = ""): string[] {
 }
 
 function checkKeyParity(): boolean {
-  // Dynamic import – resolve relative to repo root
+  // createRequire ist die ESM-kompatible Alternative zu require()
+  const _require = createRequire(__filename);
   const i18nPath = path.resolve(__dirname, "../lib/i18n");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const { translations } = require(i18nPath) as {
+  const { translations } = _require(i18nPath) as {
     translations: { de: unknown; en: unknown };
   };
 

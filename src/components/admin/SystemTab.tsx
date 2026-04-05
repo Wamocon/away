@@ -71,22 +71,38 @@ export function SystemTab({ orgId }: { orgId: string | null }) {
             .eq("organization_id", orgId),
         ]);
 
-        if (members.status === "fulfilled" && !members.value.error) {
-          memberCount = members.value.count ?? 0;
-        } else if (members.status === "rejected") {
+        if (members.status === "fulfilled") {
+          if (members.value.error) {
+            dbStatus = "error";
+          } else {
+            memberCount = members.value.count ?? 0;
+          }
+        } else {
           dbStatus = "error";
         }
 
-        if (requests.status === "fulfilled" && requests.value.data) {
-          const reqs = requests.value.data;
-          requestCount = reqs.length;
-          pendingCount = reqs.filter((r) => r.status === "pending").length;
-          approvedCount = reqs.filter((r) => r.status === "approved").length;
-          rejectedCount = reqs.filter((r) => r.status === "rejected").length;
+        if (requests.status === "fulfilled") {
+          if (requests.value.error) {
+            dbStatus = "error";
+          } else if (requests.value.data) {
+            const reqs = requests.value.data;
+            requestCount = reqs.length;
+            pendingCount = reqs.filter((r) => r.status === "pending").length;
+            approvedCount = reqs.filter((r) => r.status === "approved").length;
+            rejectedCount = reqs.filter((r) => r.status === "rejected").length;
+          }
+        } else {
+          dbStatus = "error";
         }
 
         if (templates.status === "fulfilled") {
-          templateCount = templates.value.count ?? 0;
+          if (templates.value.error) {
+            dbStatus = "error";
+          } else {
+            templateCount = templates.value.count ?? 0;
+          }
+        } else {
+          dbStatus = "error";
         }
       }
 

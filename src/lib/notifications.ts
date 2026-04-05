@@ -5,6 +5,8 @@ import { getApproverEmails } from "@/lib/admin";
 import { getTemplatesForOrg, getTemplateBytes, DocumentTemplate } from "@/lib/template";
 import { generatePDF, DocumentData } from "@/lib/documentGenerator";
 import { VacationRequest } from "@/lib/vacation";
+import { format, parseISO } from "date-fns";
+import { de } from "date-fns/locale";
 
 /** Safe base URL – works on both client and server */
 function getAppBaseUrl(): string {
@@ -320,8 +322,6 @@ export async function submitVacationRequestByEmail(
       attachment: {
         filename: (() => {
           try {
-            const { format, parseISO } = require("date-fns");
-            const { de } = require("date-fns/locale");
             const tf = (request.template_fields ?? {}) as Record<string, string>;
             const monatJahr = format(parseISO(request.from), "MMMMyyyy", { locale: de });
             const antragsteller = [tf.firstName, tf.lastName].filter(Boolean).join("_") || "Unbekannt";

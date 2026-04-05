@@ -143,7 +143,7 @@ export default function RequestDetailPage() {
           vacationTypes[vt.id] = !!vt.checked;
         }
       }
-      let docData: DocumentData = {
+      const docData: DocumentData = {
         from: request.from,
         to: request.to,
         reason: request.reason ?? "",

@@ -25,7 +25,7 @@ function flattenKeys(obj: unknown, prefix = ""): string[] {
 function checkKeyParity(): boolean {
   // Dynamic import – resolve relative to repo root
   const i18nPath = path.resolve(__dirname, "../lib/i18n");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const { translations } = require(i18nPath) as {
     translations: { de: unknown; en: unknown };
   };

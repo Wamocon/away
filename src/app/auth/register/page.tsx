@@ -279,7 +279,7 @@ export default function RegisterPage() {
 
             {/* Legal */}
             <LegalConsentFields
-              consent={legalConsent}
+              value={legalConsent}
               onChange={setLegalConsent}
             />
 

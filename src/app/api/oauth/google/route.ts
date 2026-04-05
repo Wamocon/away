@@ -8,7 +8,7 @@ export async function GET() {
   const redirectUri =
     process.env.NEXT_PUBLIC_BASE_URL + "/api/oauth/google/callback";
   const scope = "https://www.googleapis.com/auth/gmail.send";
-  const state = Math.random().toString(36).substring(2);
+  const state = crypto.randomUUID();
 
   const cookieStore = await cookies();
   cookieStore.set("oauth_state", state, {

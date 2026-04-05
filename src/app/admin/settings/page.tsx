@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -903,9 +903,8 @@ export default function AdminSettingsPage() {
                         </thead>
                         <tbody>
                           {members.map((m) => (
-                            <>
+                            <Fragment key={m.user_id}>
                             <tr
-                              key={m.user_id}
                               className={`border-b hover:bg-[var(--bg-elevated)]/50 transition-colors cursor-pointer ${expandedMember === m.user_id ? "bg-[var(--primary-light)]" : ""}`}
                               style={{ borderColor: "var(--border)" }}
                               onClick={() => handleExpandMember(m.user_id)}
@@ -945,7 +944,7 @@ export default function AdminSettingsPage() {
                             </tr>
                             {/* Inline-Bearbeitungszeile */}
                             {expandedMember === m.user_id && (
-                              <tr key={`${m.user_id}-expand`} className="border-b" style={{ borderColor: "var(--border)" }}>
+                              <tr className="border-b" style={{ borderColor: "var(--border)" }}>
                                 <td colSpan={3} className="px-6 py-4 bg-[var(--bg-elevated)]/40">
                                   {loadingMemberSettings === m.user_id ? (
                                     <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
@@ -1030,7 +1029,7 @@ export default function AdminSettingsPage() {
                                 </td>
                               </tr>
                             )}
-                            </>
+                            </Fragment>
                           ))}
                         </tbody>
                       </table>

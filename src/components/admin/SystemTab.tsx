@@ -239,7 +239,7 @@ export function SystemTab({ orgId }: { orgId: string | null }) {
               name: "Next.js Server",
               icon: Server,
               status: "online" as const,
-              detail: `${stats?.buildEnv ?? "–"} · Next.js 15`,
+              detail: stats?.buildEnv ?? "–",
             },
             {
               name: "Edge Functions",

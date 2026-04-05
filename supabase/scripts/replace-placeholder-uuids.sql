@@ -57,6 +57,18 @@ SET user_id = m.new_uuid
 FROM _uuid_map m
 WHERE sa.user_id = m.old_uuid;
 
+-- ── 5b. auth.sessions aktualisieren (sonst bleiben Sessions ungültig) ───────
+UPDATE auth.sessions s
+SET user_id = m.new_uuid
+FROM _uuid_map m
+WHERE s.user_id = m.old_uuid;
+
+-- ── 5c. auth.refresh_tokens aktualisieren ────────────────────────────────────
+UPDATE auth.refresh_tokens rt
+SET user_id = m.new_uuid
+FROM _uuid_map m
+WHERE rt.user_id = m.old_uuid;
+
 -- ── 6. Alle App-Schemas aktualisieren ───────────────────────────────────────
 DO $$
 DECLARE

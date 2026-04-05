@@ -1,6 +1,10 @@
 const fs = require("fs");
-const path = "d:/IDEA/Projekt/away/src/app/admin/settings/page.tsx";
+const path = process.argv[2];
 
+if (!path) {
+  console.error("Usage: node fix-encoding2.js <target-file>");
+  process.exit(1);
+}
 // Read as UTF-8 text (which is what the file actually contains)
 const text = fs.readFileSync(path, "utf8");
 

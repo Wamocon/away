@@ -90,7 +90,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"
-        aria-live="off"
         aria-atomic="false"
       >
         {toasts.map((toast) => {

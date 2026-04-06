@@ -1,14 +1,34 @@
-import { describe, it, expect } from "vitest";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   isPlanActive,
   hasFeature,
   getPlanTier,
   getTrialDaysLeft,
+  getSubscription,
+  isSuperAdmin,
   LITE_FEATURES,
   PRO_FEATURES,
   type Subscription,
   type SubscriptionPlan,
 } from "@/lib/subscription";
+
+// ── Supabase client mock (for getSubscription) ────────────────────────────────
+
+const mockMaybeSingle = vi.fn();
+const mockEq = vi.fn();
+const mockSelect = vi.fn();
+const mockFrom = vi.fn();
+const mockGetSession = vi.fn();
+
+const mockSupabase = {
+  from: mockFrom,
+  auth: { getSession: mockGetSession },
+};
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => mockSupabase,
+}));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -167,5 +187,129 @@ describe("getTrialDaysLeft", () => {
     const pastEnd = new Date(Date.now() - 1000).toISOString();
     const sub = makeSub({ status: "trial", trial_end: pastEnd });
     expect(getTrialDaysLeft(sub)).toBe(0);
+  });
+});
+
+// ── getSubscription ───────────────────────────────────────────────────────────
+
+describe("getSubscription", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ select: mockSelect });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
+  });
+
+  it("returns null for empty orgId", async () => {
+    const result = await getSubscription("");
+    expect(result).toBeNull();
+  });
+
+  it("returns subscription data on success", async () => {
+    const subData = makeSub({}, "pro");
+    mockMaybeSingle.mockResolvedValue({ data: subData, error: null });
+    const result = await getSubscription("org-1");
+    expect(result).toEqual(subData);
+  });
+
+  it("returns null on supabase error", async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: null,
+      error: new Error("DB failure"),
+    });
+    const result = await getSubscription("org-1");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when data is null", async () => {
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    const result = await getSubscription("org-1");
+    expect(result).toBeNull();
+  });
+});
+
+// ── isSuperAdmin ──────────────────────────────────────────────────────────────
+
+describe("isSuperAdmin", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://mock.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+  });
+
+  it("returns false for empty userId", async () => {
+    expect(await isSuperAdmin("")).toBe(false);
+  });
+
+  it("returns false when env vars are missing", async () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    expect(await isSuperAdmin("user-1")).toBe(false);
+  });
+
+  it("returns false when no session", async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: null },
+    });
+    const result = await isSuperAdmin("user-1");
+    expect(result).toBe(false);
+  });
+
+  it("returns true when RPC returns true", async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: "token-123" } },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => true,
+      }),
+    );
+    const result = await isSuperAdmin("super-user-1");
+    expect(result).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it("returns false when RPC returns false", async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: "token-123" } },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => false,
+      }),
+    );
+    const result = await isSuperAdmin("regular-user");
+    expect(result).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("returns false when fetch response is not ok", async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: "token-123" } },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false }),
+    );
+    const result = await isSuperAdmin("user-1");
+    expect(result).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("returns false on fetch exception", async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: "token-123" } },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("network error")),
+    );
+    const result = await isSuperAdmin("user-1");
+    expect(result).toBe(false);
+    vi.unstubAllGlobals();
   });
 });

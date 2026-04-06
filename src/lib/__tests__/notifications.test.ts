@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   notifyApproversOfSubmission,
   notifyApplicantOfStatusChange,
+  submitVacationRequestByEmail,
+  notifyApplicantWithSignedDocument,
 } from "../notifications";
 import type { VacationRequest } from "../vacation";
 
@@ -26,10 +28,27 @@ vi.mock("@/lib/calendarSync", () => ({
 
 vi.mock("@/lib/actions/adminActions", () => ({
   getOrgApproversForNotification: vi.fn(),
+  getAssignedApprover: vi.fn(),
+}));
+
+vi.mock("@/lib/admin", () => ({
+  getApproverEmails: vi.fn(),
+}));
+
+vi.mock("@/lib/template", () => ({
+  getTemplatesForOrg: vi.fn(),
+  getTemplateBytes: vi.fn(),
+}));
+
+vi.mock("@/lib/documentGenerator", () => ({
+  generatePDF: vi.fn(),
 }));
 
 import { getOAuthSettings } from "@/lib/calendarSync";
-import { getOrgApproversForNotification } from "@/lib/actions/adminActions";
+import { getOrgApproversForNotification, getAssignedApprover } from "@/lib/actions/adminActions";
+import { getApproverEmails } from "@/lib/admin";
+import { getTemplatesForOrg, getTemplateBytes } from "@/lib/template";
+import { generatePDF } from "@/lib/documentGenerator";
 
 const sampleRequest: VacationRequest = {
   id: "req-1",
@@ -150,6 +169,42 @@ describe("notifications", () => {
       expect(mockFunctions.invoke).not.toHaveBeenCalled();
     });
 
+    it("handles getEmailForUser exception gracefully", async () => {
+      // Make the supabase query throw an exception
+      mockFrom.mockImplementation(() => {
+        throw new Error("DB connection error");
+      });
+      // Should resolve (catch block returns null → skips sending)
+      await expect(
+        notifyApplicantOfStatusChange(sampleRequest, "approved", "approver-1"),
+      ).resolves.not.toThrow();
+      expect(mockFunctions.invoke).not.toHaveBeenCalled();
+    });
+
+    it("handles outer catch when getOAuthSettings throws unexpectedly", async () => {
+      // Setup email to be found
+      const mockMaybeSingle = vi.fn().mockResolvedValue({
+        data: { settings: { email: "emp@x.de" } },
+        error: null,
+      });
+      const mockEqInner = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+      const mockEqOuter = vi.fn().mockReturnValue({ eq: mockEqInner });
+      const mockSelect = vi.fn().mockReturnValue({ eq: mockEqOuter });
+      mockFrom.mockReturnValue({ select: mockSelect });
+      // getOAuthSettings throws → sendEmail propagates → outer catch fires
+      vi.mocked(getOAuthSettings).mockRejectedValue(new Error("OAuth crash"));
+
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await expect(
+        notifyApplicantOfStatusChange(sampleRequest, "approved", "approver-1"),
+      ).resolves.not.toThrow();
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Fehler in notifyApplicantOfStatusChange"),
+        expect.anything(),
+      );
+      errorSpy.mockRestore();
+    });
+
     it("skips if approver has no OAuth connection", async () => {
       const mockMaybeSingle = vi.fn().mockResolvedValue({
         data: { settings: { email: "emp@x.de" } },
@@ -204,5 +259,384 @@ describe("notifications", () => {
       );
       warnSpy.mockRestore();
     });
+  });
+});
+
+// ── submitVacationRequestByEmail ─────────────────────────────────────────────
+
+describe("submitVacationRequestByEmail", () => {
+  const sampleReq: VacationRequest = {
+    id: "req-submit",
+    user_id: "user-1",
+    organization_id: "org-1",
+    from: "2026-07-01",
+    to: "2026-07-10",
+    reason: "Urlaub",
+    status: "pending",
+    created_at: "2026-04-01T08:00:00Z",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getOAuthSettings).mockResolvedValue(null);
+    vi.mocked(getAssignedApprover).mockResolvedValue(null);
+    vi.mocked(getApproverEmails).mockResolvedValue([]);
+    vi.mocked(getTemplatesForOrg).mockResolvedValue([]);
+    vi.mocked(getTemplateBytes).mockResolvedValue(new ArrayBuffer(0));
+    vi.mocked(generatePDF).mockResolvedValue(
+      new Blob(["pdf-content"], { type: "application/pdf" }),
+    );
+    // Mock FileReader used in blobToBase64
+    const mockFileReader = {
+      readAsDataURL: vi.fn(function (this: { onloadend?: () => void; result?: string }) {
+        this.result = "data:application/pdf;base64,dGVzdA==";
+        if (this.onloadend) this.onloadend();
+      }),
+      onloadend: null as (() => void) | null,
+      onerror: null,
+      result: null as string | null,
+    };
+    vi.stubGlobal("FileReader", vi.fn(() => mockFileReader));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns error when no approver is configured", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue(null);
+    vi.mocked(getApproverEmails).mockResolvedValue([]);
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    expect(res.success).toBe(false);
+    expect(res.error).toContain("Kein Genehmiger");
+  });
+
+  it("sends email when assigned approver is available", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    expect(res.success).toBe(true);
+    expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.to).toBe("boss@company.de");
+  });
+
+  it("falls back to getApproverEmails when no assigned approver", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue(null);
+    vi.mocked(getApproverEmails).mockResolvedValue([
+      { name: "Fallback Boss", email: "fallback@company.de" },
+    ]);
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    expect(res.success).toBe(true);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.to).toBe("fallback@company.de");
+  });
+
+  it("returns error when sendEmail fails", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({
+      error: new Error("SMTP failure"),
+    });
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    expect(res.success).toBe(false);
+  });
+
+  it("includes PDF attachment in the email", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.attachment).toBeDefined();
+    expect(body.attachment.mimeType).toBe("application/pdf");
+  });
+
+  it("builds document data with vacationTypes array from template_fields", async () => {
+    const reqWithVacTypes: VacationRequest = {
+      ...sampleReq,
+      template_fields: {
+        vacationTypes: [
+          { id: "paid", checked: true },
+          { id: "sick", checked: false },
+        ],
+      },
+    };
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(reqWithVacTypes, "Max Mustermann");
+    expect(res.success).toBe(true);
+  });
+
+  it("uses org template bytes when template is available", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    // Return a mock template so getTemplateBytes is called
+    vi.mocked(getTemplatesForOrg).mockResolvedValue([
+      { id: "t1", storage_path: "templates/form.pdf" } as any,
+    ]);
+    vi.mocked(getTemplateBytes).mockResolvedValue(new ArrayBuffer(100));
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    expect(res.success).toBe(true);
+    expect(getTemplateBytes).toHaveBeenCalledWith("templates/form.pdf");
+  });
+
+  it("handles loadOrgTemplateBytes catch when getTemplatesForOrg throws", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    // getTemplatesForOrg throws → loadOrgTemplateBytes catch → returns null → generatePDF without template
+    vi.mocked(getTemplatesForOrg).mockRejectedValue(new Error("template fetch failed"));
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    // Still succeeds because null templateBytes is handled gracefully
+    expect(res.success).toBe(true);
+  });
+
+  it("uses fallback filename when date parsing fails", async () => {
+    const reqInvalidDate: VacationRequest = {
+      ...sampleReq,
+      from: "not-a-date",
+      to: "also-not-a-date",
+    };
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(
+      reqInvalidDate,
+      "Max Mustermann",
+    );
+    expect(res.success).toBe(true);
+    // The fallback filename should be used (catch in IIFE)
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.attachment.filename).toContain("Urlaubsantrag_");
+  });
+
+  it("handles outer exception (catch block) when generatePDF throws", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(generatePDF).mockRejectedValue(new Error("PDF crash"));
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    expect(res.success).toBe(false);
+    expect(res.error).toContain("PDF crash");
+  });
+});
+
+// ── notifyApplicantWithSignedDocument ─────────────────────────────────────────
+
+describe("notifyApplicantWithSignedDocument", () => {
+  const sampleReq: VacationRequest = {
+    id: "req-signed",
+    user_id: "user-1",
+    organization_id: "org-1",
+    from: "2026-07-01",
+    to: "2026-07-10",
+    reason: "Urlaub",
+    status: "approved",
+    created_at: "2026-04-01T08:00:00Z",
+    template_fields: {
+      firstName: "Max",
+      lastName: "Mustermann",
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getOAuthSettings).mockResolvedValue(null);
+    vi.mocked(getTemplatesForOrg).mockResolvedValue([]);
+    vi.mocked(generatePDF).mockResolvedValue(
+      new Blob(["pdf-content"], { type: "application/pdf" }),
+    );
+    const mockFileReader = {
+      readAsDataURL: vi.fn(function (this: { onloadend?: () => void; result?: string }) {
+        this.result = "data:application/pdf;base64,dGVzdA==";
+        if (this.onloadend) this.onloadend();
+      }),
+      onloadend: null as (() => void) | null,
+      onerror: null,
+      result: null as string | null,
+    };
+    vi.stubGlobal("FileReader", vi.fn(() => mockFileReader));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("skips gracefully when applicant has no email in user_settings", async () => {
+    const noEmailMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const noEmailEqInner = vi.fn().mockReturnValue({ maybeSingle: noEmailMaybeSingle });
+    const noEmailEqOuter = vi.fn().mockReturnValue({ eq: noEmailEqInner });
+    const noEmailSelect = vi.fn().mockReturnValue({ eq: noEmailEqOuter });
+    mockFrom.mockReturnValue({ select: noEmailSelect });
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await notifyApplicantWithSignedDocument(sampleReq, "approver-1", "Anna Boss");
+    expect(mockFunctions.invoke).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("sends signed PDF email to applicant when email found", async () => {
+    const emailMaybeSingle = vi.fn().mockResolvedValue({
+      data: { settings: { email: "max@company.de" } },
+      error: null,
+    });
+    const emailEqInner = vi.fn().mockReturnValue({ maybeSingle: emailMaybeSingle });
+    const emailEqOuter = vi.fn().mockReturnValue({ eq: emailEqInner });
+    const emailSelect = vi.fn().mockReturnValue({ eq: emailEqOuter });
+    mockFrom.mockReturnValue({ select: emailSelect });
+
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "approver@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    await notifyApplicantWithSignedDocument(sampleReq, "approver-1", "Anna Boss");
+
+    expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.to).toBe("max@company.de");
+    expect(body.attachment).toBeDefined();
+    expect(body.attachment.mimeType).toBe("application/pdf");
+  });
+
+  it("logs warning when sendEmail fails", async () => {
+    const emailMaybeSingle = vi.fn().mockResolvedValue({
+      data: { settings: { email: "max@company.de" } },
+      error: null,
+    });
+    const emailEqInner = vi.fn().mockReturnValue({ maybeSingle: emailMaybeSingle });
+    const emailEqOuter = vi.fn().mockReturnValue({ eq: emailEqInner });
+    const emailSelect = vi.fn().mockReturnValue({ eq: emailEqOuter });
+    mockFrom.mockReturnValue({ select: emailSelect });
+
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "approver@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: new Error("SMTP fail") });
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await notifyApplicantWithSignedDocument(sampleReq, "approver-1", "Anna Boss");
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("notifyApplicantWithSignedDocument fehlgeschlagen"),
+      expect.anything(),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it("uses Mitarbeiter as name when template_fields has no firstName or lastName", async () => {
+    const reqNoName: VacationRequest = {
+      ...sampleReq,
+      template_fields: {},
+    };
+
+    const emailMaybeSingle = vi.fn().mockResolvedValue({
+      data: { settings: { email: "worker@company.de" } },
+      error: null,
+    });
+    const emailEqInner = vi.fn().mockReturnValue({ maybeSingle: emailMaybeSingle });
+    const emailEqOuter = vi.fn().mockReturnValue({ eq: emailEqInner });
+    const emailSelect = vi.fn().mockReturnValue({ eq: emailEqOuter });
+    mockFrom.mockReturnValue({ select: emailSelect });
+
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "approver@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    await notifyApplicantWithSignedDocument(reqNoName, "approver-1", "Anna Boss");
+
+    expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("Mitarbeiter");
+  });
+
+  it("handles outer exception gracefully (catch block)", async () => {
+    // Set up email to be found first
+    const emailMaybeSingle = vi.fn().mockResolvedValue({
+      data: { settings: { email: "max@company.de" } },
+      error: null,
+    });
+    const emailEqInner = vi.fn().mockReturnValue({ maybeSingle: emailMaybeSingle });
+    const emailEqOuter = vi.fn().mockReturnValue({ eq: emailEqInner });
+    const emailSelect = vi.fn().mockReturnValue({ eq: emailEqOuter });
+    mockFrom.mockReturnValue({ select: emailSelect });
+
+    // Make generatePDF throw to trigger the outer catch block
+    vi.mocked(generatePDF).mockRejectedValue(new Error("PDF generation failed"));
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(
+      notifyApplicantWithSignedDocument(sampleReq, "approver-1", "Boss"),
+    ).resolves.not.toThrow();
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Fehler in notifyApplicantWithSignedDocument"),
+      expect.anything(),
+    );
+    errorSpy.mockRestore();
   });
 });

@@ -166,8 +166,7 @@ export function getTrialDaysLeft(sub: Subscription | null): number {
 
 /**
  * Check if the current user is a Super-Admin (client-side).
- * Uses the PostgREST Accept-Profile header to query public.super_admins
- * with the user's current JWT – avoids separate client instantiation.
+ * Uses the SECURITY DEFINER function public.is_super_admin() to bypass RLS.
  */
 export async function isSuperAdmin(userId: string): Promise<boolean> {
   if (!userId) return false;
@@ -175,25 +174,24 @@ export async function isSuperAdmin(userId: string): Promise<boolean> {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !key) return false;
-
-    // Get the current JWT from the existing client
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return false;
 
-    const res = await fetch(
-      `${url}/rest/v1/super_admins?user_id=eq.${encodeURIComponent(userId)}&select=user_id&limit=1`,
-      {
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${session.access_token}`,
-          "Accept-Profile": "public",
-        },
+    // Ruft public.is_super_admin(uid) auf – SECURITY DEFINER umgeht RLS
+    const res = await fetch(`${url}/rest/v1/rpc/is_super_admin`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+        "Content-Profile": "public",
       },
-    );
+      body: JSON.stringify({ uid: userId }),
+    });
     if (!res.ok) return false;
-    const data = await res.json();
-    return Array.isArray(data) && data.length > 0;
+    const result = await res.json();
+    return result === true;
   } catch {
     return false;
   }

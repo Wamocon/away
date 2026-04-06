@@ -761,29 +761,6 @@ describe("getMyOrganizations", () => {
     });
 
     // isCallerSuperAdmin → false (not super admin)
-    const superAdminChainMock = {
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null }),
-          }),
-        }),
-      }),
-      from2: undefined,
-    };
-
-    const adminClientForUser = {
-      ...superAdminChainMock,
-      eq: vi.fn().mockResolvedValue({
-        data: [
-          {
-            organization_id: "org-1",
-            organizations: { id: "org-1", name: "Org One" },
-          },
-        ],
-      }),
-    };
-
     vi.mocked(createSupabaseClient).mockReturnValue({
       from: vi.fn()
         .mockReturnValueOnce({

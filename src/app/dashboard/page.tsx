@@ -30,7 +30,7 @@ import WizardVacationRequest from "@/components/WizardVacationRequest";
 export default function Dashboard() {
   const { viewMode, setViewMode } = useViewMode();
   const { t } = useLanguage();
-  const { currentOrg: activeOrg, userId: activeUserId, loading: orgLoading } = useActiveOrg();
+  const { currentOrg: activeOrg, loading: orgLoading } = useActiveOrg();
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [org, setOrg] = useState<{ id: string; name: string } | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);

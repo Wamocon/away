@@ -44,7 +44,7 @@ function RequestsPageContent() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const initialFilter = (searchParams.get("filter") || "all") as StatusFilter;
-  const { currentOrg: activeOrg, userId: activeUserId, loading: orgLoading } = useActiveOrg();
+  const { currentOrg: activeOrg, loading: orgLoading } = useActiveOrg();
 
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [org, setOrg] = useState<{ id: string; name: string } | null>(null);

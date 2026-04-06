@@ -100,7 +100,7 @@ export default function RequestDetailPage() {
       setRequest(req as VacationRequest);
       setLoading(false);
     });
-  }, [id, router]);
+  }, [id, router, activeOrgId, activeUserId]);
 
   const [approverSignature, setApproverSignature] = useState<string | null>(
     null,

@@ -38,6 +38,7 @@ import Modal from "./ui/Modal";
 import AlertModal from "./ui/AlertModal";
 import { notifyApproversOfSubmission } from "@/lib/notifications";
 import { VacationRequest } from "@/lib/vacation";
+import { useSubscription } from "@/components/ui/SubscriptionProvider";
 
 interface WizardProps {
   userId: string;
@@ -117,14 +118,27 @@ export default function WizardVacationRequest({
   const [generatingDocId, setGeneratingDocId] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
+  const { hasFeature, loading: subLoading } = useSubscription();
+  const canUseTemplates = !subLoading && hasFeature("document_templates");
+
+  // Lite-User: Vorlage-Schritt automatisch überspringen
+  useEffect(() => {
+    if (!subLoading && !hasFeature("document_templates") && step === 1) {
+      setStep(2);
+    }
+  }, [subLoading, hasFeature, step]);
+
   useEffect(() => {
     const supabase = createClient();
     if (orgId) {
-      supabase
-        .from("document_templates")
-        .select("*")
-        .eq("organization_id", orgId)
-        .then(({ data }) => setTemplates((data as Template[]) || []));
+      // Vorlagen nur für Pro-Plan laden
+      if (canUseTemplates) {
+        supabase
+          .from("document_templates")
+          .select("*")
+          .eq("organization_id", orgId)
+          .then(({ data }) => setTemplates((data as Template[]) || []));
+      }
 
       // Fetch profile settings for pre-filling (Bug 7)
       getUserSettings(userId, orgId).then((data) => {

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { getOrganizationsForUser } from "@/lib/organization";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import {
   getVacationRequestsForOrg,
   updateVacationStatus,
@@ -44,6 +44,7 @@ function RequestsPageContent() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const initialFilter = (searchParams.get("filter") || "all") as StatusFilter;
+  const { currentOrg: activeOrg, userId: activeUserId, loading: orgLoading } = useActiveOrg();
 
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [org, setOrg] = useState<{ id: string; name: string } | null>(null);
@@ -76,25 +77,9 @@ function RequestsPageContent() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
+    const currentOrg = activeOrg;
     try {
       setLoading(true);
-      const orgs = await getOrganizationsForUser(user.id);
-
-      let currentOrg: { id: string; name: string } | null = null;
-
-      if (orgs.length > 0) {
-        currentOrg = orgs[0] as { id: string; name: string };
-      } else {
-        // Fallback: Erste Organisation im System suchen (für Debugging ohne explizite Rollen)
-        const supabase = createClient();
-        const { data: fallbackOrgs } = await supabase
-          .from("organizations")
-          .select("id, name")
-          .limit(1);
-        if (fallbackOrgs && fallbackOrgs.length > 0) {
-          currentOrg = fallbackOrgs[0];
-        }
-      }
 
       setOrg(currentOrg);
 
@@ -114,11 +99,11 @@ function RequestsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, activeOrg]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!orgLoading) loadData();
+  }, [loadData, orgLoading]);
 
   const handleStatus = async (id: string, status: "approved" | "rejected") => {
     setActionId(id);

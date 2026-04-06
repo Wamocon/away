@@ -60,7 +60,7 @@ function SidebarContent({
   const [isSuperAdminUser, setIsSuperAdminUser] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const { planTier, trialDaysLeft } = useSubscription();
+  const { planTier, trialDaysLeft, isActive: subIsActive, loading: subLoading } = useSubscription();
   const [isElevatedMode, setIsElevatedMode] = useState(true);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
 
@@ -435,23 +435,27 @@ function SidebarContent({
       </div>
 
       {/* ─── Trial / Plan Banner ───────────────────────── */}
-      {mounted && (
+      {mounted && !subLoading && (
         <div className="px-3 pb-1">
           <Link
             href="/settings/subscription"
             className={`block w-full rounded-xl px-3 py-2 text-center text-[10px] font-black uppercase tracking-wider transition-colors ${
-              planTier === "pro"
-                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                : trialDaysLeft > 0
-                  ? "bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20"
-                  : "bg-[var(--danger-light)] text-[var(--danger)] border border-[var(--danger)]/30"
+              subIsActive
+                ? planTier === "pro"
+                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  : trialDaysLeft > 0
+                    ? "bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20"
+                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                : "bg-[var(--danger-light)] text-[var(--danger)] border border-[var(--danger)]/30"
             }`}
           >
-            {planTier === "pro"
-              ? "✦ Pro Plan"
-              : trialDaysLeft > 0
-                ? `Lite Trial – ${trialDaysLeft}d übrig`
-                : "Trial abgelaufen"}
+            {subIsActive
+              ? planTier === "pro"
+                ? "✦ Pro Plan"
+                : trialDaysLeft > 0
+                  ? `Lite Trial – ${trialDaysLeft}d übrig`
+                  : "⚡ Lite Plan"
+              : "Trial abgelaufen"}
           </Link>
         </div>
       )}

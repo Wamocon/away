@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { getOrganizationsForUser } from "@/lib/organization";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { getVacationRequestsForOrg, VacationRequest } from "@/lib/vacation";
 import {
   format,
@@ -48,6 +48,7 @@ interface CalendarEvent {
 }
 
 export default function CalendarPage() {
+  const { currentOrgId: activeOrgId, userId: activeUserId, loading: orgLoading } = useActiveOrg();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [requests, setRequests] = useState<VacationRequest[]>([]);
@@ -65,24 +66,11 @@ export default function CalendarPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data }) => {
-      try {
-        const uid = data.user?.id;
-        if (!uid) return;
-        setUserId(uid);
-        const orgs = await getOrganizationsForUser(uid);
-        const firstOrg = orgs.find((o) => o !== null) as
-          | { id: string; name: string }
-          | undefined;
-        if (firstOrg) {
-          setOrgId(firstOrg.id);
-        }
-      } finally {
-        setLoading(false);
-      }
-    });
-  }, []);
+    if (orgLoading) return;
+    if (activeOrgId) setOrgId(activeOrgId);
+    if (activeUserId) setUserId(activeUserId);
+    setLoading(false);
+  }, [activeOrgId, activeUserId, orgLoading]);
 
   const loadData = useCallback(async () => {
     if (!orgId) {

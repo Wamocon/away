@@ -18,6 +18,13 @@ import {
   assignUsersToOrg,
   getMemberSettings,
   updateMemberSettings,
+  removeUserFromOrg,
+  superAdminCreateOrg,
+  superAdminRenameOrg,
+  superAdminDeleteOrg,
+  superAdminSetOrgAdmin,
+  getOrgAdmins,
+  getMyOrganizations,
 } from "@/lib/actions/adminActions";
 import {
   getOrganizationSettings,
@@ -33,6 +40,7 @@ import OrganizationSwitcher from "@/components/OrganizationSwitcher";
 import { SystemTab } from "@/components/admin/SystemTab";
 import SuperAdminSubscriptionsPanel from "@/components/admin/SuperAdminSubscriptionsPanel";
 import { isSuperAdmin } from "@/lib/subscription";
+import { useSubscription } from "@/components/ui/SubscriptionProvider";
 import {
   Users,
   ShieldCheck,
@@ -73,6 +81,7 @@ interface OrgMember {
 export default function AdminSettingsPage() {
   const router = useRouter();
   const { currentOrgId, currentOrg, switchOrg, userId: activeUserId, reload: reloadOrgs } = useActiveOrg();
+  const { hasFeature } = useSubscription();
   const { showSuccess, showError, showInfo } = useToast();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
@@ -147,6 +156,17 @@ export default function AdminSettingsPage() {
   const [selectedApproverEmail, setSelectedApproverEmail] = useState("");
   const [assignTargetUserIds, setAssignTargetUserIds] = useState<Set<string>>(new Set());
   const [assigningApprover, setAssigningApprover] = useState(false);
+
+  // Super-Admin: Alle Organisationen + Verwaltung
+  const [allOrgs, setAllOrgs] = useState<{ id: string; name: string }[]>([]);
+  const [loadingAllOrgs, setLoadingAllOrgs] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [creatingOrg, setCreatingOrg] = useState(false);
+  const [renamingOrgId, setRenamingOrgId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [orgAdmins, setOrgAdmins] = useState<Record<string, { user_id: string; email: string }[]>>({});
+  const [newAdminEmail, setNewAdminEmail] = useState<Record<string, string>>({});
+  const [expandedOrgId, setExpandedOrgId] = useState<string | null>(null);
 
   // Modal control
   const [confirmModal, setConfirmModal] = useState<{
@@ -269,6 +289,27 @@ export default function AdminSettingsPage() {
     }
   }, [orgId, orgName, loadMembers, loadTemplates, loadOrgSettings]);
 
+  // Super-Admin: alle Organisationen laden
+  const loadAllOrgs = useCallback(async () => {
+    if (!isSuperAdminUser) return;
+    setLoadingAllOrgs(true);
+    try {
+      const list = await getMyOrganizations();
+      setAllOrgs(list);
+    } finally {
+      setLoadingAllOrgs(false);
+    }
+  }, [isSuperAdminUser]);
+
+  useEffect(() => {
+    if (isSuperAdminUser) loadAllOrgs();
+  }, [isSuperAdminUser, loadAllOrgs]);
+
+  const loadOrgAdmins = async (targetOrgId: string) => {
+    const admins = await getOrgAdmins(targetOrgId);
+    setOrgAdmins((prev) => ({ ...prev, [targetOrgId]: admins }));
+  };
+
   const toggleCompanyWorkDay = (day: number) => {
     setCompanyWorkDays((prev) =>
       prev.includes(day)
@@ -348,6 +389,22 @@ export default function AdminSettingsPage() {
       showError("Rolle konnte nicht aktualisiert werden: " + (err as Error).message);
     } finally {
       setUpdatingRole(null);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!orgId) return;
+    if (!window.confirm("Mitarbeiter wirklich aus der Organisation entfernen?")) return;
+    try {
+      const result = await removeUserFromOrg(memberId, orgId);
+      if (result.error) {
+        showError(result.error);
+      } else {
+        setMembers((prev) => prev.filter((m) => m.user_id !== memberId));
+        showSuccess("Mitarbeiter wurde erfolgreich entfernt.");
+      }
+    } catch (err) {
+      showError((err as Error).message);
     }
   };
 
@@ -508,10 +565,9 @@ export default function AdminSettingsPage() {
 
   const handleAddApprover = () => {
     if (!newApproverEmail.trim()) return;
-    setApproverEmails((prev) => [
-      ...prev,
-      { name: newApproverName.trim(), email: newApproverEmail.trim() },
-    ]);
+    const newEntry = { name: newApproverName.trim(), email: newApproverEmail.trim() };
+    setApproverEmails((prev) => [...prev, newEntry]);
+    if (!selectedApproverEmail) setSelectedApproverEmail(newEntry.email);
     setNewApproverName("");
     setNewApproverEmail("");
   };
@@ -587,13 +643,14 @@ export default function AdminSettingsPage() {
             { id: "policies", label: "Richtlinien", icon: Zap },
             { id: "users", label: "Mitarbeiter", icon: Users },
             { id: "approvers", label: "Genehmiger", icon: ShieldCheck },
-            { id: "templates", label: "Vorlagen", icon: Files },
+            { id: "templates", label: "Vorlagen", icon: Files, proOnly: true },
             { id: "organizations", label: "Organisationen", icon: Building2 },
             { id: "integrations", label: "Integrationen", icon: Plus },
             { id: "system", label: "System", icon: Monitor },
           ] as const
         ).map((tab) => {
           const isDisabled = tab.id !== "organizations" && !orgId;
+          const isProLocked = "proOnly" in tab && tab.proOnly && !hasFeature("document_templates");
           return (
             <button
               key={tab.id}
@@ -608,6 +665,11 @@ export default function AdminSettingsPage() {
               }`}
             >
               <tab.icon size={14} /> {tab.label}
+              {isProLocked && (
+                <span className="ml-0.5 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                  Pro
+                </span>
+              )}
             </button>
           );
         })}
@@ -939,6 +1001,16 @@ export default function AdminSettingsPage() {
                                   <span className="text-[var(--text-muted)] text-[10px]">
                                     {expandedMember === m.user_id ? "▲" : "▼"}
                                   </span>
+                                  {m.user_id !== currentUserId && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleRemoveMember(m.user_id); }}
+                                      className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-light)] transition-colors"
+                                      title="Mitarbeiter entfernen"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -1166,17 +1238,75 @@ export default function AdminSettingsPage() {
               {/* TAB: Genehmiger */}
               {activeTab === "approvers" && (
                 <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
-                  {/* Genehmiger-Liste */}
-                  <div className="card p-6 space-y-5 shadow-sm">
-                    <h2 className="text-base font-bold flex items-center gap-2">
-                      <ShieldCheck size={18} className="text-[var(--primary)]" />
-                      Genehmiger-E-Mails
-                    </h2>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      Hinterlege die E-Mail-Adressen der Genehmiger. Mitarbeiter können diesen dann per Massenzuordnung zugewiesen werden.
-                    </p>
 
-                    {/* Neue Genehmiger hinzufügen */}
+                  {/* ── 1. Genehmiger-Rolle vergeben ── */}
+                  <div className="card p-6 space-y-5 shadow-sm">
+                    <div>
+                      <h2 className="text-base font-bold flex items-center gap-2">
+                        <ShieldCheck size={18} className="text-[var(--primary)]" />
+                        Genehmiger in dieser Organisation
+                      </h2>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">
+                        Weise bestehenden Mitarbeitern die Rolle „Genehmiger" zu. Mehrere Genehmiger sind erlaubt.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      {members.length === 0 && (
+                        <p className="text-xs text-[var(--text-muted)] italic">Noch keine Mitglieder geladen.</p>
+                      )}
+                      {members.map((m) => (
+                        <div
+                          key={m.user_id}
+                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                            m.role === "approver"
+                              ? "border-[var(--warning)] bg-[var(--warning-light)]/30"
+                              : "border-[var(--border)] bg-[var(--bg-elevated)]"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                              m.role === "approver" ? "bg-[var(--warning)] text-white" : "bg-[var(--primary)]/10 text-[var(--primary)]"
+                            }`}>
+                              {(m.email ?? "?").charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold truncate">{m.email ?? m.user_id}</p>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${ROLE_COLORS[m.role]}`}>
+                                {ROLE_LABELS[m.role]}
+                              </span>
+                            </div>
+                          </div>
+                          {m.role !== "admin" && m.user_id !== currentUserId && (
+                            <button
+                              onClick={() => handleUpdateRole(m.user_id, m.role === "approver" ? "employee" : "approver")}
+                              className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all shrink-0 ml-3 ${
+                                m.role === "approver"
+                                  ? "bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--danger)] hover:border-[var(--danger)]"
+                                  : "bg-[var(--primary-light)] text-[var(--primary)] hover:opacity-80"
+                              }`}
+                            >
+                              {m.role === "approver" ? "Rolle entziehen" : "Als Genehmiger setzen"}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── 2. Externe Genehmiger-E-Mails (optional) ── */}
+                  <div className="card p-6 space-y-5 shadow-sm">
+                    <div>
+                      <h2 className="text-base font-bold flex items-center gap-2">
+                        <Send size={18} className="text-[var(--primary)]" />
+                        Externe Genehmiger-E-Mails
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border)]">Optional</span>
+                      </h2>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">
+                        Für Genehmiger ohne System-Account (z. B. externe Vorgesetzte). Diese werden nur für E-Mail-Benachrichtigungen verwendet.
+                      </p>
+                    </div>
+
                     <div className="flex items-end gap-3 flex-wrap">
                       <div className="flex-1 min-w-[160px]">
                         <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Name</label>
@@ -1192,7 +1322,7 @@ export default function AdminSettingsPage() {
                         <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">E-Mail-Adresse</label>
                         <input
                           type="email"
-                          placeholder="genehmiger@firma.de"
+                          placeholder="externe@firma.de"
                           value={newApproverEmail}
                           onChange={(e) => setNewApproverEmail(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && handleAddApprover()}
@@ -1208,7 +1338,6 @@ export default function AdminSettingsPage() {
                       </button>
                     </div>
 
-                    {/* Bestehende Genehmiger */}
                     {approverEmails.length > 0 ? (
                       <div className="space-y-2">
                         {approverEmails.map((a) => (
@@ -1221,6 +1350,7 @@ export default function AdminSettingsPage() {
                               <p className="text-xs text-[var(--text-muted)]">{a.email}</p>
                             </div>
                             <button
+                              title="Entfernen"
                               onClick={() => handleRemoveApprover(a.email)}
                               className="p-2 rounded-lg btn-ghost text-[var(--danger)] hover:bg-red-50 dark:hover:bg-red-900/20"
                             >
@@ -1228,87 +1358,124 @@ export default function AdminSettingsPage() {
                             </button>
                           </div>
                         ))}
+                        <button
+                          onClick={handleSaveApprovers}
+                          disabled={savingApprovers}
+                          className="btn-primary min-w-[160px] justify-center shadow-md mt-2"
+                        >
+                          {savingApprovers ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                          Externe Genehmiger speichern
+                        </button>
                       </div>
                     ) : (
-                      <p className="text-xs text-[var(--text-muted)] italic">Noch keine Genehmiger hinterlegt.</p>
+                      <p className="text-xs text-[var(--text-muted)] italic">Keine externen Genehmiger hinterlegt.</p>
                     )}
-
-                    <button
-                      onClick={handleSaveApprovers}
-                      disabled={savingApprovers}
-                      className="btn-primary min-w-[160px] justify-center shadow-md"
-                    >
-                      {savingApprovers ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                      Genehmiger speichern
-                    </button>
                   </div>
 
-                  {/* Massenzuordnung */}
+                  {/* ── 3. Mitarbeiter einem Genehmiger zuordnen ── */}
                   <div className="card p-6 space-y-5 shadow-sm">
-                    <h2 className="text-base font-bold flex items-center gap-2">
-                      <Users size={18} className="text-[var(--primary)]" />
-                      Mitarbeiter zuordnen
-                    </h2>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      Wähle einen Genehmiger und weise ihm Mitarbeiter zu. Die Zuordnung bestimmt, an welche E-Mail-Adresse ein Urlaubsantrag geschickt wird.
-                    </p>
+                    <div>
+                      <h2 className="text-base font-bold flex items-center gap-2">
+                        <Users size={18} className="text-[var(--primary)]" />
+                        Mitarbeiter zuordnen
+                      </h2>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">
+                        Wähle einen Genehmiger und weise ihm Mitarbeiter zu. Jeder Mitarbeiter kann einem anderen Genehmiger zugeordnet werden.
+                      </p>
+                    </div>
 
-                    {approverEmails.length === 0 ? (
-                      <p className="text-xs text-[var(--text-muted)] italic">Bitte zuerst Genehmiger-E-Mails hinterlegen und speichern.</p>
-                    ) : (
-                      <>
-                        <div>
-                          <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Genehmiger</label>
-                          <select
-                            value={selectedApproverEmail}
-                            onChange={(e) => setSelectedApproverEmail(e.target.value)}
-                            className="w-full rounded-xl border px-3 py-2.5 text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:border-[var(--primary)] outline-none"
-                          >
-                            {approverEmails.map((a) => (
-                              <option key={a.email} value={a.email}>
-                                {a.name ? `${a.name} (${a.email})` : a.email}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                    {(() => {
+                      // Kombinierte Genehmiger-Liste: Mitglieder mit Rolle approver/admin + externe E-Mails
+                      const memberApprovers = members
+                        .filter((m) => m.role === "approver" || m.role === "admin")
+                        .map((m) => ({ name: m.email ?? "", email: m.email ?? "", fromRole: true }));
+                      const externalApprovers = approverEmails
+                        .filter((ae) => !memberApprovers.find((ma) => ma.email === ae.email))
+                        .map((ae) => ({ ...ae, fromRole: false }));
+                      const allApprovers = [...memberApprovers, ...externalApprovers];
 
-                        <div>
-                          <label className="block text-[10px] font-black mb-2 text-[var(--text-muted)] uppercase tracking-wider">Mitarbeiter auswählen</label>
-                          <div className="space-y-1 max-h-64 overflow-y-auto">
-                            {members.map((m) => (
-                              <label key={m.user_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[var(--bg-elevated)] cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={assignTargetUserIds.has(m.user_id)}
-                                  onChange={(e) => {
-                                    setAssignTargetUserIds((prev) => {
-                                      const next = new Set(prev);
-                                      if (e.target.checked) next.add(m.user_id);
-                                      else next.delete(m.user_id);
-                                      return next;
-                                    });
-                                  }}
-                                  className="rounded"
-                                />
-                                <span className="text-sm">{m.email ?? m.user_id}</span>
-                                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-bold ${ROLE_COLORS[m.role]}`}>
-                                  {ROLE_LABELS[m.role]}
-                                </span>
-                              </label>
-                            ))}
+                      if (allApprovers.length === 0) {
+                        return (
+                          <div className="p-4 rounded-xl bg-[var(--warning-light)] border border-[var(--warning)]/30 text-xs font-medium text-[var(--warning)]">
+                            Bitte zuerst einen Genehmiger definieren: Mitarbeiter-Rolle oben ändern oder externe E-Mail hinzufügen.
                           </div>
-                        </div>
+                        );
+                      }
 
-                        <button
-                          onClick={handleAssignApprover}
-                          disabled={assigningApprover || assignTargetUserIds.size === 0 || !selectedApproverEmail}
-                          className="btn-primary min-w-[200px] justify-center shadow-md"
-                        >
-                          {assigningApprover ? <Loader size={16} className="animate-spin" /> : <Send size={16} />}
-                          {assignTargetUserIds.size > 0 ? `${assignTargetUserIds.size} Mitarbeiter zuordnen` : "Mitarbeiter auswählen"}
-                        </button>
-                      </>
-                    )}
+                      return (
+                        <>
+                          <div>
+                            <label className="block text-[10px] font-black mb-1 text-[var(--text-muted)] uppercase tracking-wider">Genehmiger auswählen</label>
+                            <select
+                              value={selectedApproverEmail}
+                              onChange={(e) => setSelectedApproverEmail(e.target.value)}
+                              className="w-full rounded-xl border px-3 py-2.5 text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:border-[var(--primary)] outline-none"
+                            >
+                              <option value="">– Genehmiger auswählen –</option>
+                              {memberApprovers.length > 0 && (
+                                <optgroup label="Mitglieder mit Genehmiger-Rolle">
+                                  {memberApprovers.map((a) => (
+                                    <option key={a.email} value={a.email}>{a.email}</option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {externalApprovers.length > 0 && (
+                                <optgroup label="Externe Genehmiger">
+                                  {externalApprovers.map((a) => (
+                                    <option key={a.email} value={a.email}>
+                                      {a.name && a.name !== a.email ? `${a.name} (${a.email})` : a.email}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black mb-2 text-[var(--text-muted)] uppercase tracking-wider">
+                              Mitarbeiter auswählen
+                            </label>
+                            <div className="space-y-1 max-h-64 overflow-y-auto rounded-xl border border-[var(--border)] p-2 bg-[var(--bg-elevated)]">
+                              {members.map((m) => (
+                                <label
+                                  key={m.user_id}
+                                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer transition-all"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={assignTargetUserIds.has(m.user_id)}
+                                    onChange={(e) => {
+                                      setAssignTargetUserIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (e.target.checked) next.add(m.user_id);
+                                        else next.delete(m.user_id);
+                                        return next;
+                                      });
+                                    }}
+                                    className="rounded"
+                                  />
+                                  <span className="text-sm flex-1 truncate">{m.email ?? m.user_id}</span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${ROLE_COLORS[m.role]}`}>
+                                    {ROLE_LABELS[m.role]}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={handleAssignApprover}
+                            disabled={assigningApprover || assignTargetUserIds.size === 0 || !selectedApproverEmail}
+                            className="btn-primary min-w-[200px] justify-center shadow-md"
+                          >
+                            {assigningApprover ? <Loader size={16} className="animate-spin" /> : <Send size={16} />}
+                            {assignTargetUserIds.size > 0
+                              ? `${assignTargetUserIds.size} Mitarbeiter zuordnen`
+                              : "Mitarbeiter auswählen"}
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -1316,139 +1483,369 @@ export default function AdminSettingsPage() {
               {/* TAB: Vorlagen */}
               {activeTab === "templates" && (
                 <div className="card p-6 space-y-6 animate-in slide-in-from-bottom-2 duration-300 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-base font-bold flex items-center gap-2">
-                        <Files size={18} className="text-[var(--primary)]" />{" "}
-                        Dokumentvorlagen
-                      </h2>
-                      <p className="text-[11px] text-[var(--text-muted)] mt-1 italic">
-                        Lade .docx, .xlsx oder .pdf Dateien hoch (Platzhalter:{" "}
-                        {"{firstName}"}, {"{lastName}"}, etc.)
-                      </p>
-                    </div>
-                    <label
-                      className={`btn-primary cursor-pointer flex items-center gap-2 ${uploading ? "opacity-50 pointer-events-none" : ""}`}
-                    >
-                      {uploading ? (
-                        <Loader size={16} className="animate-spin" />
-                      ) : (
-                        <Plus size={16} />
-                      )}
-                      {uploading ? "Hochladen..." : "Neu"}
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={handleUploadTemplate}
-                        accept=".pdf,.docx,.xlsx"
-                        disabled={uploading}
-                      />
-                    </label>
-                  </div>
-
-                  {uploadError && (
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[10px] font-black uppercase tracking-widest rounded-xl animate-in shake-1">
-                      {uploadError}
-                    </div>
-                  )}
-
-                  <div
-                    className="grid md:grid-cols-2 gap-4 pt-4 border-t"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    {templates.map((t) => (
-                      <div
-                        key={t.id}
-                        className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] flex items-center justify-between hover:border-[var(--primary)] transition-all shadow-sm"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${t.type === "pdf" ? "bg-red-500/10 text-red-500" : "bg-blue-500/10 text-blue-500"}`}
-                          >
-                            <FileText size={20} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-black">{t.name}</p>
-                            <p className="text-[9px] uppercase tracking-widest text-[var(--text-subtle)] font-black opacity-60">
-                              {t.type}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveTemplate(t)}
-                          className="p-2 text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-light)] rounded-xl transition-all"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                  {!hasFeature("document_templates") ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                        <Files size={28} className="text-amber-500" />
                       </div>
-                    ))}
-                    {templates.length === 0 && (
-                      <div className="md:col-span-2 py-12 text-center border-2 border-dashed border-[var(--border)] rounded-3xl opacity-50">
-                        <Files size={32} className="mx-auto mb-3 opacity-20" />
-                        <p className="text-xs font-bold uppercase tracking-widest">
-                          Keine Vorlagen vorhanden
+                      <div>
+                        <p className="text-sm font-black text-[var(--text-base)]">Dokumentvorlagen sind Pro-only</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-1 max-w-xs">
+                          Lade eigene .docx, .xlsx oder .pdf Vorlagen hoch und nutze sie im Antragsassistenten.
+                          Verfügbar ab dem Pro-Plan.
                         </p>
                       </div>
-                    )}
-                  </div>
+                      <a
+                        href="/settings/subscription"
+                        className="btn-primary text-xs"
+                      >
+                        Jetzt auf Pro upgraden
+                      </a>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-base font-bold flex items-center gap-2">
+                            <Files size={18} className="text-[var(--primary)]" />{" "}
+                            Dokumentvorlagen
+                          </h2>
+                          <p className="text-[11px] text-[var(--text-muted)] mt-1 italic">
+                            Lade .docx, .xlsx oder .pdf Dateien hoch (Platzhalter:{" "}
+                            {"{firstName}"}, {"{lastName}"}, etc.)
+                          </p>
+                        </div>
+                        <label
+                          className={`btn-primary cursor-pointer flex items-center gap-2 ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+                        >
+                          {uploading ? (
+                            <Loader size={16} className="animate-spin" />
+                          ) : (
+                            <Plus size={16} />
+                          )}
+                          {uploading ? "Hochladen..." : "Neu"}
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={handleUploadTemplate}
+                            accept=".pdf,.docx,.xlsx"
+                            disabled={uploading}
+                          />
+                        </label>
+                      </div>
+
+                      {uploadError && (
+                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[10px] font-black uppercase tracking-widest rounded-xl animate-in shake-1">
+                          {uploadError}
+                        </div>
+                      )}
+
+                      <div
+                        className="grid md:grid-cols-2 gap-4 pt-4 border-t"
+                        style={{ borderColor: "var(--border)" }}
+                      >
+                        {templates.map((t) => (
+                          <div
+                            key={t.id}
+                            className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] flex items-center justify-between hover:border-[var(--primary)] transition-all shadow-sm"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${t.type === "pdf" ? "bg-red-500/10 text-red-500" : "bg-blue-500/10 text-blue-500"}`}
+                              >
+                                <FileText size={20} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black">{t.name}</p>
+                                <p className="text-[9px] uppercase tracking-widest text-[var(--text-subtle)] font-black opacity-60">
+                                  {t.type}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveTemplate(t)}
+                              className="p-2 text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-light)] rounded-xl transition-all"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                        {templates.length === 0 && (
+                          <div className="md:col-span-2 py-12 text-center border-2 border-dashed border-[var(--border)] rounded-3xl opacity-50">
+                            <Files size={32} className="mx-auto mb-3 opacity-20" />
+                            <p className="text-xs font-bold uppercase tracking-widest">
+                              Keine Vorlagen vorhanden
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </>
           )}
 
           {activeTab === "organizations" && currentUserId && (
-            <div className="card animate-in slide-in-from-bottom-2 duration-300 shadow-sm overflow-hidden">
-              <div
-                className="p-6 border-b"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <h2 className="text-base font-bold flex items-center gap-2">
-                  <Building2 size={18} className="text-[var(--primary)]" />{" "}
-                  Organisationen verwalten
-                </h2>
-                <p className="text-[11px] text-[var(--text-muted)] mt-1 italic">
-                  Wechsle zwischen deinen Organisationen oder erstelle eine
-                  neue.
-                </p>
-              </div>
+            <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
 
-              <div className="p-6 space-y-8 bg-[var(--bg-elevated)]/30">
-                <section>
-                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 text-[var(--text-muted)]">
-                    Aktiv anpassen
-                  </h3>
-                  <OrganizationSwitcher
-                    userId={currentUserId ?? activeUserId ?? ""}
-                    onOrgChange={(id: string, r: string, name?: string) => {
-                      setOrgId(id);
-                      setOrgName(name || "");
-                      switchOrg(id); // globalen Context aktualisieren
-                    }}
-                  />
-                </section>
-
-                <section
-                  className="pt-6 border-t"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 text-[var(--text-muted)]">
-                    Organisationen Verlassen / Beitreten
-                  </h3>
-                  <p className="text-xs mb-4 text-[var(--text-subtle)]">
-                    Falls du nicht mehr Teil einer Organisation sein möchtest,
-                    kannst du diese hier verlassen (demnächst). Um einer neuen
-                    beizutreten, lass dich von einem Administrator einladen.
-                  </p>
-                  <div className="p-6 rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center opacity-40">
-                    <Plus size={24} className="mb-2" />
-                    <p className="text-[10px] font-black uppercase tracking-widest">
-                      Neue Organisation Erstellen
-                    </p>
-                    <p className="text-[9px] mt-1 italic">
-                      Nutzte das 'Neu' Menü oben oder kontaktiere den CIO.
-                    </p>
+              {/* ── Super-Admin: Vollständige Org-Verwaltung ── */}
+              {isSuperAdminUser && (
+                <div className="card p-6 space-y-6 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold flex items-center gap-2">
+                        <Building2 size={18} className="text-amber-500" /> Alle Organisationen
+                      </h2>
+                      <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                        Super-Admin: Organisationen erstellen, umbenennen, löschen und Admins zuweisen.
+                      </p>
+                    </div>
+                    <button
+                      onClick={loadAllOrgs}
+                      disabled={loadingAllOrgs}
+                      className="btn-secondary text-xs"
+                    >
+                      {loadingAllOrgs ? <Loader size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                      Aktualisieren
+                    </button>
                   </div>
-                </section>
+
+                  {/* Neue Org erstellen */}
+                  <div className="flex gap-2">
+                    <input
+                      value={newOrgName}
+                      onChange={(e) => setNewOrgName(e.target.value)}
+                      placeholder="Name der neuen Organisation..."
+                      className="form-input-lux flex-1 text-sm"
+                    />
+                    <button
+                      disabled={creatingOrg || !newOrgName.trim()}
+                      onClick={async () => {
+                        setCreatingOrg(true);
+                        try {
+                          const org = await superAdminCreateOrg(newOrgName);
+                          setAllOrgs((prev) => [...prev, org].sort((a, b) => a.name.localeCompare(b.name)));
+                          setNewOrgName("");
+                          showSuccess(`Organisation "${org.name}" erstellt.`);
+                        } catch (e) {
+                          showError((e as Error).message);
+                        } finally {
+                          setCreatingOrg(false);
+                        }
+                      }}
+                      className="btn-primary text-xs shrink-0"
+                    >
+                      {creatingOrg ? <Loader size={13} className="animate-spin" /> : <Plus size={13} />}
+                      Erstellen
+                    </button>
+                  </div>
+
+                  {/* Org-Liste */}
+                  <div className="space-y-3">
+                    {loadingAllOrgs ? (
+                      <div className="space-y-2">
+                        {[1, 2, 3].map((i) => <div key={i} className="skeleton h-14 rounded-xl" />)}
+                      </div>
+                    ) : allOrgs.map((org) => (
+                      <div key={org.id} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden">
+                        {/* Org-Zeile */}
+                        <div className="flex items-center gap-3 p-4">
+                          <div className="w-8 h-8 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center shrink-0">
+                            <Building2 size={14} className="text-[var(--primary)]" />
+                          </div>
+                          {renamingOrgId === org.id ? (
+                            <input
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              className="form-input-lux flex-1 text-sm py-1"
+                              autoFocus
+                              onKeyDown={async (e) => {
+                                if (e.key === "Enter") {
+                                  await superAdminRenameOrg(org.id, renameValue);
+                                  setAllOrgs((prev) => prev.map((o) => o.id === org.id ? { ...o, name: renameValue } : o));
+                                  setRenamingOrgId(null);
+                                  showSuccess("Organisation umbenannt.");
+                                } else if (e.key === "Escape") {
+                                  setRenamingOrgId(null);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span className="flex-1 text-sm font-bold truncate">{org.name}</span>
+                          )}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {renamingOrgId === org.id ? (
+                              <>
+                                <button
+                                  onClick={async () => {
+                                    await superAdminRenameOrg(org.id, renameValue);
+                                    setAllOrgs((prev) => prev.map((o) => o.id === org.id ? { ...o, name: renameValue } : o));
+                                    setRenamingOrgId(null);
+                                    showSuccess("Organisation umbenannt.");
+                                  }}
+                                  className="btn-primary text-xs py-1 px-2"
+                                >
+                                  <CheckCircle size={12} /> Speichern
+                                </button>
+                                <button onClick={() => setRenamingOrgId(null)} className="btn-secondary text-xs py-1 px-2">
+                                  Abbrechen
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  title="Umbenennen"
+                                  onClick={() => { setRenamingOrgId(org.id); setRenameValue(org.name); }}
+                                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] transition-all"
+                                >
+                                  <Send size={13} />
+                                </button>
+                                <button
+                                  title="Admins verwalten"
+                                  onClick={async () => {
+                                    const next = expandedOrgId === org.id ? null : org.id;
+                                    setExpandedOrgId(next);
+                                    if (next && !orgAdmins[next]) await loadOrgAdmins(next);
+                                  }}
+                                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-amber-500 hover:bg-amber-500/10 transition-all"
+                                >
+                                  <Users size={13} />
+                                </button>
+                                <button
+                                  title="Organisation löschen"
+                                  onClick={() =>
+                                    showConfirm(
+                                      "Organisation löschen",
+                                      `Willst du "${org.name}" wirklich löschen? Alle Mitglieder werden entfernt.`,
+                                      async () => {
+                                        await superAdminDeleteOrg(org.id);
+                                        setAllOrgs((prev) => prev.filter((o) => o.id !== org.id));
+                                        showSuccess(`Organisation "${org.name}" gelöscht.`);
+                                      }
+                                    )
+                                  }
+                                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-light)] transition-all"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Admin-Panel (expandierbar) */}
+                        {expandedOrgId === org.id && (
+                          <div className="border-t border-[var(--border)] p-4 bg-[var(--bg-surface)] space-y-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                              Administratoren dieser Organisation
+                            </p>
+                            {(orgAdmins[org.id] ?? []).length === 0 ? (
+                              <p className="text-xs text-[var(--text-subtle)] italic">Kein Admin zugewiesen.</p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {(orgAdmins[org.id] ?? []).map((admin) => (
+                                  <div key={admin.user_id} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-[var(--bg-elevated)]">
+                                    <span className="font-medium truncate">{admin.email}</span>
+                                    <button
+                                      title="Admin entfernen"
+                                      onClick={async () => {
+                                        await removeUserFromOrg(admin.user_id, org.id);
+                                        setOrgAdmins((prev) => ({
+                                          ...prev,
+                                          [org.id]: prev[org.id].filter((a) => a.user_id !== admin.user_id),
+                                        }));
+                                        showSuccess("Admin entfernt.");
+                                      }}
+                                      className="ml-2 p-1 rounded text-[var(--text-muted)] hover:text-[var(--danger)] transition-all shrink-0"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Admin hinzufügen */}
+                            <div className="flex gap-2 pt-1">
+                              <input
+                                value={newAdminEmail[org.id] ?? ""}
+                                onChange={(e) => setNewAdminEmail((prev) => ({ ...prev, [org.id]: e.target.value }))}
+                                placeholder="E-Mail des neuen Admins..."
+                                className="form-input-lux flex-1 text-xs py-1.5"
+                              />
+                              <button
+                                disabled={!newAdminEmail[org.id]?.trim()}
+                                onClick={async () => {
+                                  try {
+                                    await superAdminSetOrgAdmin(org.id, newAdminEmail[org.id] ?? "");
+                                    await loadOrgAdmins(org.id);
+                                    setNewAdminEmail((prev) => ({ ...prev, [org.id]: "" }));
+                                    showSuccess("Admin zugewiesen.");
+                                  } catch (e) {
+                                    showError((e as Error).message);
+                                  }
+                                }}
+                                className="btn-primary text-xs py-1.5 px-3 shrink-0"
+                              >
+                                <UserPlus size={12} /> Zuweisen
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {!loadingAllOrgs && allOrgs.length === 0 && (
+                      <div className="text-center py-8 opacity-40">
+                        <Building2 size={32} className="mx-auto mb-2" />
+                        <p className="text-xs font-bold uppercase tracking-widest">Keine Organisationen vorhanden</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Standard: Org-Wechsler für normale Admins ── */}
+              <div className="card animate-in slide-in-from-bottom-2 duration-300 shadow-sm overflow-hidden">
+                <div className="p-6 border-b" style={{ borderColor: "var(--border)" }}>
+                  <h2 className="text-base font-bold flex items-center gap-2">
+                    <Building2 size={18} className="text-[var(--primary)]" />{" "}
+                    {isSuperAdminUser ? "Aktive Organisation wechseln" : "Organisationen verwalten"}
+                  </h2>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-1 italic">
+                    Wechsle zwischen deinen Organisationen oder erstelle eine neue.
+                  </p>
+                </div>
+                <div className="p-6 space-y-8 bg-[var(--bg-elevated)]/30">
+                  <section>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 text-[var(--text-muted)]">
+                      Aktiv anpassen
+                    </h3>
+                    <OrganizationSwitcher
+                      userId={currentUserId ?? activeUserId ?? ""}
+                      onOrgChange={(id: string, r: string, name?: string) => {
+                        setOrgId(id);
+                        setOrgName(name || "");
+                        switchOrg(id);
+                      }}
+                    />
+                  </section>
+                  {!isSuperAdminUser && (
+                    <section className="pt-6 border-t" style={{ borderColor: "var(--border)" }}>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest mb-4 text-[var(--text-muted)]">
+                        Organisationen Verlassen / Beitreten
+                      </h3>
+                      <p className="text-xs mb-4 text-[var(--text-subtle)]">
+                        Falls du nicht mehr Teil einer Organisation sein möchtest, kannst du diese hier verlassen (demnächst).
+                        Um einer neuen beizutreten, lass dich von einem Administrator einladen.
+                      </p>
+                      <div className="p-6 rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center opacity-40">
+                        <Plus size={24} className="mb-2" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">Neue Organisation Erstellen</p>
+                        <p className="text-[9px] mt-1 italic">Nutze das 'Neu' Menü oben oder kontaktiere den CIO.</p>
+                      </div>
+                    </section>
+                  )}
+                </div>
               </div>
             </div>
           )}

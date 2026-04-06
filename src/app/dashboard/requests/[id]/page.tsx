@@ -10,6 +10,7 @@ import {
   notifyApplicantWithSignedDocument,
 } from "@/lib/notifications";
 import { getOrganizationsForUser } from "@/lib/organization";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { getTemplatesForOrg, getTemplateBytes, DocumentTemplate } from "@/lib/template";
 import { generatePDF, DocumentData } from "@/lib/documentGenerator";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
@@ -38,6 +39,7 @@ export default function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { t } = useLanguage();
+  const { currentOrgId: activeOrgId, userId: activeUserId } = useActiveOrg();
   const [request, setRequest] = useState<VacationRequest | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,10 +66,10 @@ export default function RequestDetailPage() {
         return;
       }
 
-      const orgs = await getOrganizationsForUser(data.user.id);
+      const orgs = activeOrgId ? [{ id: activeOrgId }] : await getOrganizationsForUser(data.user.id);
       if (orgs.length > 0) {
         const org = orgs[0] as { id: string; name: string };
-        const r = await getUserRole(data.user.id, org.id).catch(
+        const r = await getUserRole(activeUserId ?? data.user.id, org.id).catch(
           () => "employee" as UserRole,
         );
         setRole(r);

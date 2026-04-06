@@ -177,5 +177,16 @@ describe("documentNumbers lib", () => {
         registerDocumentId("org-1", "user-1", "DOC-WARN"),
       ).resolves.toBeUndefined();
     });
+
+    it("returns early without throw on PGRST error code (table unavailable)", async () => {
+      // Reset module to restore isTableAvailable state
+      mockSupabase.insert.mockResolvedValue({
+        error: { code: "PGRST", message: "table not found" },
+      });
+      // Should not throw, just mark table unavailable
+      await expect(
+        registerDocumentId("org-1-pgrst", "user-1", "DOC-PGRST-TEST"),
+      ).resolves.toBeUndefined();
+    });
   });
 });

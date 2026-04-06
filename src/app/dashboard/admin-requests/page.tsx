@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { getOrganizationsForUser } from "@/lib/organization";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import {
   getVacationRequestsForOrg,
   updateVacationStatus,
@@ -32,6 +32,7 @@ export default function AdminRequestsPage() {
   const { viewMode, setViewMode } = useViewMode();
   const router = useRouter();
   const { t } = useLanguage();
+  const { currentOrg: activeOrg, loading: orgLoading } = useActiveOrg();
 
   const statusConfig = {
     all: { label: t.common.all, cls: "badge-primary", Icon: SlidersHorizontal },
@@ -57,14 +58,11 @@ export default function AdminRequestsPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    if (!user) return;
+    if (!user || !activeOrg) return;
     try {
       setLoading(true);
-      const orgs = await getOrganizationsForUser(user.id);
-      if (orgs.length === 0) return;
-      const firstOrg = orgs[0] as { id: string; name: string };
-      setOrg(firstOrg);
-      const r = await getUserRole(user.id, firstOrg.id).catch(
+      setOrg(activeOrg);
+      const r = await getUserRole(user.id, activeOrg.id).catch(
         () => "employee" as UserRole,
       );
       setRole(r);
@@ -72,16 +70,16 @@ export default function AdminRequestsPage() {
         router.push("/dashboard");
         return;
       }
-      const data = await getVacationRequestsForOrg(firstOrg.id);
+      const data = await getVacationRequestsForOrg(activeOrg.id);
       setRequests(data);
     } finally {
       setLoading(false);
     }
-  }, [user, router]);
+  }, [user, activeOrg, router]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!orgLoading) loadData();
+  }, [loadData, orgLoading]);
 
   const handleStatus = async (id: string, status: "approved" | "rejected") => {
     setActionId(id);

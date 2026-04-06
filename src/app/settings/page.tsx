@@ -13,6 +13,7 @@ import {
   UserCheck,
   Upload,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { saveUserSettings, getUserSettings } from "@/lib/userSettings";
@@ -22,6 +23,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useViewMode } from "@/components/ui/ViewModeProvider";
 import { useLanguage } from "@/components/ui/LanguageProvider";
 import { Locale } from "@/lib/i18n";
+import ProductTour from "@/components/ui/ProductTour";
+import { useSubscription } from "@/components/ui/SubscriptionProvider";
 
 interface UserSettingsData {
   email?: string;
@@ -39,12 +42,15 @@ interface UserSettingsData {
   notifyOnApproval?: boolean;
   notifyOnRejection?: boolean;
   notifyOnReminder?: boolean;
+  tourCompleted?: boolean;
 }
 
 export default function SettingsPage() {
   const { viewMode, setViewMode } = useViewMode();
   const { locale, setLocale } = useLanguage();
   const { currentOrgId } = useActiveOrg();
+  const { planTier } = useSubscription();
+  const [tourOpen, setTourOpen] = useState(false);
   const { showSuccess, showError } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
@@ -806,6 +812,32 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          {/* Interactive Guide */}
+          <section className="card p-5 space-y-3">
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <Sparkles size={16} className="text-[var(--primary)]" />
+              {locale === "en" ? "Interactive Guide" : "Interaktiver Guide"}
+            </h2>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {locale === "en"
+                ? "Start the interactive product tour to discover all features step by step."
+                : "Starte den interaktiven Produktguide und entdecke alle Funktionen Schritt für Schritt."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setTourOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
+              style={{
+                background: "var(--primary-glow)",
+                color: "var(--primary)",
+                border: "1px solid rgba(59,130,246,0.3)",
+              }}
+            >
+              <Sparkles size={14} />
+              {locale === "en" ? "Start Tour" : "Guide starten"}
+            </button>
+          </section>
+
           {/* Save Button */}
           <div className="flex justify-end pt-2">
             <button
@@ -822,6 +854,23 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Product Tour Overlay */}
+      {tourOpen && (
+        <ProductTour
+          planTier={planTier ?? "lite"}
+          onComplete={async () => {
+            setTourOpen(false);
+            if (userId) {
+              await saveUserSettings(userId, orgId || null, emailInput, {
+                tourCompleted: true,
+              });
+            }
+            showSuccess(locale === "en" ? "Tour completed!" : "Guide abgeschlossen!");
+          }}
+          onSkip={() => setTourOpen(false)}
+        />
       )}
     </div>
   );

@@ -8,7 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { getOrganizationsForUser } from "@/lib/organization";
+import { getMyOrganizations } from "@/lib/actions/adminActions";
 
 const ORG_STORAGE_KEY = "away-active-org-id";
 
@@ -57,7 +57,7 @@ export function ActiveOrgProvider({ children }: { children: ReactNode }) {
     setUserId(data.user.id);
 
     try {
-      const list = await getOrganizationsForUser(data.user.id);
+      const list = await getMyOrganizations();
       const filtered = (list || []).filter(
         (o): o is OrgInfo => o !== null && typeof o.id === "string",
       );

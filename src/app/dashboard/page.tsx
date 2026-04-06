@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { getOrganizationsForUser } from "@/lib/organization";
+import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { getVacationRequestsForOrg, VacationRequest } from "@/lib/vacation";
 import { getUserRole, UserRole, canApprove, ROLE_LABELS } from "@/lib/roles";
 import { format, parseISO, differenceInCalendarDays, isFuture } from "date-fns";
@@ -30,6 +30,7 @@ import WizardVacationRequest from "@/components/WizardVacationRequest";
 export default function Dashboard() {
   const { viewMode, setViewMode } = useViewMode();
   const { t } = useLanguage();
+  const { currentOrg: activeOrg, loading: orgLoading } = useActiveOrg();
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [org, setOrg] = useState<{ id: string; name: string } | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
@@ -59,12 +60,10 @@ export default function Dashboard() {
   }, [router]);
 
   const loadData = useCallback(async () => {
-    if (!user) return;
+    if (!user || !activeOrg) return;
     try {
       setLoading(true);
-      const orgs = await getOrganizationsForUser(user.id);
-      if (orgs.length === 0) return;
-      const firstOrg = orgs[0] as { id: string; name: string };
+      const firstOrg = activeOrg;
       setOrg(firstOrg);
       const [userRole, reqs] = await Promise.all([
         getUserRole(user.id, firstOrg.id).catch(() => "employee" as UserRole),
@@ -75,11 +74,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, activeOrg]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!orgLoading) loadData();
+  }, [loadData, orgLoading]);
 
   // Re-load when role mode changes (sidebar toggle)
   useEffect(() => {

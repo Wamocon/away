@@ -7,7 +7,9 @@ import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import { getUserRole, UserRole, ROLE_LABELS } from "@/lib/roles";
-import SchemaRoleSwitcher from "@/components/SchemaRoleSwitcher";
+import { useSubscription } from "@/components/ui/SubscriptionProvider";
+import { isSuperAdmin } from "@/lib/subscription";
+import { PlanGate } from "@/components/ui/PlanGate";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -55,8 +57,10 @@ function SidebarContent({
   const [userInitial, setUserInitial] = useState("?");
   const [userId, setUserId] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [isSuperAdminUser, setIsSuperAdminUser] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const { planTier, trialDaysLeft, isActive: subIsActive, loading: subLoading } = useSubscription();
   const [isElevatedMode, setIsElevatedMode] = useState(true);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
 
@@ -84,6 +88,8 @@ function SidebarContent({
       const email = data.user.email ?? "";
       setUserEmail(email);
       setUserInitial(email.charAt(0).toUpperCase());
+      const superAdmin = await isSuperAdmin(data.user.id);
+      setIsSuperAdminUser(superAdmin);
     } catch {
       /* not logged in */
     }
@@ -395,20 +401,28 @@ function SidebarContent({
         </div>
 
         {/* Genehmiger Sektion */}
-        {(role === "admin" || role === "cio" || role === "approver") &&
+        {(role === "admin" || role === "cio" || role === "approver" || isSuperAdminUser) &&
           isElevatedMode && (
             <div className="px-3 mt-6">
               <p className="section-label px-2 mb-2">Genehmiger</p>
               <nav className="flex flex-col gap-0.5">
-                {genehmigerItems.map((item) => (
-                  <NavLink key={item.href} item={item} />
-                ))}
+                {genehmigerItems.map((item) =>
+                  item.href === "/dashboard/reports" ? (
+                    <PlanGate key={item.href} feature="reports" fallback={
+                      <NavLink item={{ ...item, href: "/settings/subscription?upgrade=1" }} />
+                    }>
+                      <NavLink item={item} />
+                    </PlanGate>
+                  ) : (
+                    <NavLink key={item.href} item={item} />
+                  )
+                )}
               </nav>
             </div>
           )}
 
         {/* Administration Sektion */}
-        {role === "admin" && isElevatedMode && (
+        {(role === "admin" || role === "cio" || isSuperAdminUser) && isElevatedMode && (
           <div className="px-3 mt-6">
             <p className="section-label px-2 mb-2">Administration</p>
             <nav className="flex flex-col gap-0.5">
@@ -420,15 +434,37 @@ function SidebarContent({
         )}
       </div>
 
+      {/* ─── Trial / Plan Banner ───────────────────────── */}
+      {mounted && !subLoading && (
+        <div className="px-3 pb-1">
+          <Link
+            href="/settings/subscription"
+            className={`block w-full rounded-xl px-3 py-2 text-center text-[10px] font-black uppercase tracking-wider transition-colors ${
+              subIsActive
+                ? planTier === "pro"
+                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  : trialDaysLeft > 0
+                    ? "bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20"
+                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                : "bg-[var(--danger-light)] text-[var(--danger)] border border-[var(--danger)]/30"
+            }`}
+          >
+            {subIsActive
+              ? planTier === "pro"
+                ? "✦ Pro Plan"
+                : trialDaysLeft > 0
+                  ? `Lite Trial – ${trialDaysLeft}d übrig`
+                  : "⚡ Lite Plan"
+              : "Trial abgelaufen"}
+          </Link>
+        </div>
+      )}
+
       {/* ─── Footer with Role Switcher ─────────────────── */}
       <div
         className="shrink-0 border-t"
         style={{ borderColor: "var(--border)" }}
       >
-        {/* Visual 1:1 TeamRadar Switcher */}
-        {mounted && process.env.NODE_ENV !== "production" && (
-          <SchemaRoleSwitcher />
-        )}
 
         <div className="px-3 py-2">
           <div

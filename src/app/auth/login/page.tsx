@@ -287,12 +287,12 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   minLength={6}
                   required
-                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  autoComplete={isSignUp ? "new-password" : "off"}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 btn-ghost p-0"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}

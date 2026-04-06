@@ -5,6 +5,7 @@ import { ViewModeProvider } from "@/components/ui/ViewModeProvider";
 import { LanguageProvider } from "@/components/ui/LanguageProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { ActiveOrgProvider } from "@/components/ui/ActiveOrgProvider";
+import { SubscriptionProvider } from "@/components/ui/SubscriptionProvider";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -21,10 +22,10 @@ export const metadata: Metadata = {
     "EFFIZIENTE URLAUBSPLANUNG FÜR TEAMS – ANTRÄGE, GENEHMIGUNGEN, KALENDER",
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png" },
       { url: "/favicon.ico" },
     ],
-    apple: "/icon.svg",
+    apple: "/favicon.png",
   },
 };
 
@@ -46,11 +47,13 @@ export default function RootLayout({
         <ThemeProvider>
           <LanguageProvider>
             <ActiveOrgProvider>
-              <ToastProvider>
-                <ViewModeProvider>
-                  <AppShell>{children}</AppShell>
-                </ViewModeProvider>
-              </ToastProvider>
+              <SubscriptionProvider>
+                <ToastProvider>
+                  <ViewModeProvider>
+                    <AppShell>{children}</AppShell>
+                  </ViewModeProvider>
+                </ToastProvider>
+              </SubscriptionProvider>
             </ActiveOrgProvider>
           </LanguageProvider>
         </ThemeProvider>

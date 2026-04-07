@@ -59,7 +59,16 @@ jobs:
 
       - name: Install Vercel CLI
         if: steps.creds.outputs.ready == 'true'
-        run: npm install --global vercel@latest
+        run: |
+          # Retry-Schleife wegen bekanntem ETXTBSY-Bug (esbuild race condition)
+          for attempt in 1 2 3; do
+            echo "Install attempt $attempt of 3..."
+            npm install --global vercel@latest && break || {
+              echo "Attempt $attempt failed, retrying in 10s..."
+              sleep 10
+            }
+          done
+          vercel --version
 
       - name: Pull Vercel environment (production)
         if: steps.creds.outputs.ready == 'true'

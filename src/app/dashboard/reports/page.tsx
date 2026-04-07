@@ -157,7 +157,7 @@ export default function ReportsPage() {
       });
     }
     return result;
-  }, [filtered]);
+  }, [filtered, MONTH_NAMES]);
 
   const maxMonth = Math.max(...monthlyData.map((m) => m.count), 1);
 

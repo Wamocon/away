@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { X, ChevronRight, ChevronLeft, Check, Sparkles } from "lucide-react";
-import { useLanguage } from "@/components/ui/LanguageProvider";
 
 interface TourStep {
   title: string;
@@ -80,7 +79,6 @@ export default function ProductTour({
   onComplete,
   onSkip,
 }: ProductTourProps) {
-  const { t } = useLanguage();
   const steps = useMemo(
     () =>
       planTier === "pro"

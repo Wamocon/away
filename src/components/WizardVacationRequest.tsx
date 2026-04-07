@@ -396,7 +396,7 @@ export default function WizardVacationRequest({
       setStep(4);
     } catch (err: unknown) {
       console.error("Submission error:", err);
-      let msg = t.wizard.error.unknown;
+      let msg: string = t.wizard.error.unknown;
       const e = err as { message?: string; code?: string };
       if (e.message && typeof e.message === "string") {
         msg = e.message;
@@ -817,13 +817,13 @@ export default function WizardVacationRequest({
 
                 <div className="space-y-1.5 border-t border-[var(--border-subtle)] pt-4">
                   <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                    {t.wizard.reasonOptional}
+                    {t.wizard.fields.reasonOptional}
                   </label>
                   <textarea
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     className="form-input-lux min-h-[70px] py-3 resize-none font-medium"
-                    placeholder={t.wizard.reasonPlaceholder}
+                    placeholder={t.wizard.fields.reasonPlaceholder}
                   />
                 </div>
               </div>

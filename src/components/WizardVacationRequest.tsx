@@ -39,6 +39,7 @@ import AlertModal from "./ui/AlertModal";
 import { notifyApproversOfSubmission } from "@/lib/notifications";
 import { VacationRequest } from "@/lib/vacation";
 import { useSubscription } from "@/components/ui/SubscriptionProvider";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 interface WizardProps {
   userId: string;
@@ -76,6 +77,7 @@ export default function WizardVacationRequest({
   initialFrom,
   initialTo,
 }: WizardProps) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<Step>(1);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
@@ -300,7 +302,7 @@ export default function WizardVacationRequest({
 
   const handleSubmit = async () => {
     if (!from || !to) {
-      setError("Bitte Von- und Bis-Datum angeben");
+      setError(t.wizard.error.datesMissing);
       return;
     }
     setError("");
@@ -308,9 +310,7 @@ export default function WizardVacationRequest({
     try {
       const supabase = createClient();
       if (!orgId)
-        throw new Error(
-          "Keine Organisation ausgewählt. Bitte tritt einer Organisation bei.",
-        );
+        throw new Error(t.wizard.error.noOrg);
 
       // Check if Belegnummer is already taken
       if (documentId.trim()) {
@@ -396,7 +396,7 @@ export default function WizardVacationRequest({
       setStep(4);
     } catch (err: unknown) {
       console.error("Submission error:", err);
-      let msg = "Ein unbekannter Fehler ist aufgetreten.";
+      let msg = t.wizard.error.unknown;
       const e = err as { message?: string; code?: string };
       if (e.message && typeof e.message === "string") {
         msg = e.message;
@@ -417,7 +417,7 @@ export default function WizardVacationRequest({
 
   const handlePressSubmit = () => {
     if (!from || !to) {
-      setError("Bitte Von- und Bis-Datum angeben");
+      setError(t.wizard.error.datesMissing);
       return;
     }
     setIsConfirmOpen(true);
@@ -446,7 +446,7 @@ export default function WizardVacationRequest({
           onClick={() => setStep((step - 1) as Step)}
           className="px-6 py-3 rounded-2xl bg-[var(--bg-elevated)] text-[var(--text-muted)] font-bold text-xs uppercase tracking-widest border border-[var(--border)] hover:bg-[var(--bg-surface)] transition-all flex items-center gap-2"
         >
-          <ChevronLeft size={16} /> Zurück
+          <ChevronLeft size={16} /> {t.common.back}
         </button>
       )}
       <button
@@ -461,9 +461,9 @@ export default function WizardVacationRequest({
         {submitting ? (
           <Loader size={16} className="animate-spin" />
         ) : step === 3 ? (
-          "Einreichen"
+          t.wizard.submit
         ) : (
-          "Weiter"
+          t.common.next
         )}
         {step < 3 && <ChevronRight size={16} />}
       </button>
@@ -474,8 +474,8 @@ export default function WizardVacationRequest({
     <Modal
       isOpen={true}
       onClose={onClose}
-      title="Neuer Urlaubsantrag"
-      subtitle={`Schritt ${step} von 4`}
+      title={t.wizard.title}
+      subtitle={`${t.wizard.step} ${step} ${t.wizard.stepOf}`}
       footer={footer}
       maxWidth="max-w-2xl"
     >
@@ -499,7 +499,7 @@ export default function WizardVacationRequest({
                 <span
                   className={`text-[9px] font-black uppercase tracking-widest transition-opacity duration-500 ${step === i ? "text-indigo-400 opacity-100" : "opacity-30"}`}
                 >
-                  {["Vorlage", "Details", "Überprüfen", "Fertig"][i - 1]}
+                  {[t.wizard.steps.template, t.wizard.steps.details, t.wizard.steps.review, t.wizard.steps.done][i - 1]}
                 </span>
               </div>
               {i < 4 && (
@@ -515,23 +515,23 @@ export default function WizardVacationRequest({
 
         {step === 1 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-right-4">
-            {templates.map((t) => (
+            {templates.map((tmpl) => (
               <button
-                key={t.id}
+                key={tmpl.id}
                 onClick={() => {
-                  setSelectedTemplate(t);
+                  setSelectedTemplate(tmpl);
                   setStep(2);
                 }}
-                className={`p-5 rounded-2xl border-2 text-left transition-all ${selectedTemplate?.id === t.id ? "border-[var(--primary)] bg-[var(--primary-light)]" : "border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--text-muted)]"}`}
+                className={`p-5 rounded-2xl border-2 text-left transition-all ${selectedTemplate?.id === tmpl.id ? "border-[var(--primary)] bg-[var(--primary-light)]" : "border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--text-muted)]"}`}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
                     <FileIcon size={20} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black truncate">{t.name}</p>
+                    <p className="text-sm font-black truncate">{tmpl.name}</p>
                     <p className="text-[9px] font-black uppercase tracking-widest opacity-50">
-                      {t.type}
+                      {tmpl.type}
                     </p>
                   </div>
                 </div>
@@ -543,7 +543,7 @@ export default function WizardVacationRequest({
                 size={24}
               />
               <p className="text-[10px] font-black uppercase tracking-widest">
-                Eigene Vorlage
+                {t.wizard.step1.customTemplate}
               </p>
               <input
                 type="file"
@@ -563,7 +563,7 @@ export default function WizardVacationRequest({
             >
               <Plus className="mx-auto mb-2 text-indigo-500" size={24} />
               <p className="text-[10px] font-black uppercase tracking-widest">
-                Ohne Vorlage fortfahren
+                {t.wizard.step1.noTemplate}
               </p>
             </button>
           </div>
@@ -576,14 +576,14 @@ export default function WizardVacationRequest({
               <div className="flex items-center gap-2 mb-1 px-1">
                 <div className="w-1 h-4 bg-[var(--primary)] rounded-full" />
                 <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70">
-                  Identität & Personal
+                  {t.wizard.step2.identity}
                 </h4>
               </div>
               <div className="card-glass p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                      Vorname *
+                      {t.form.firstNameRequired}
                     </label>
                     <input
                       value={firstName}
@@ -594,7 +594,7 @@ export default function WizardVacationRequest({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                      Nachname *
+                      {t.form.lastNameRequired}
                     </label>
                     <input
                       value={lastName}
@@ -607,7 +607,7 @@ export default function WizardVacationRequest({
                 <div className="grid grid-cols-2 gap-4 border-t border-[var(--border-subtle)] pt-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                      Personalnummer
+                      {t.wizard.fields.employeeId}
                     </label>
                     <input
                       value={employeeId}
@@ -618,7 +618,7 @@ export default function WizardVacationRequest({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                      Belegnummer
+                      {t.form.documentId}
                     </label>
                     <div className="relative">
                       <input
@@ -633,7 +633,7 @@ export default function WizardVacationRequest({
                           generateBelegnummer();
                         }}
                         className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-indigo-500 hover:bg-indigo-500/10 rounded-lg transition-all"
-                        title="Neu generieren"
+                        title={t.wizard.generateNew}
                         disabled={generatingDocId}
                       >
                         {generatingDocId ? (
@@ -653,14 +653,14 @@ export default function WizardVacationRequest({
               <div className="flex items-center gap-2 mb-1 px-1">
                 <div className="w-1 h-4 bg-emerald-500 rounded-full" />
                 <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70">
-                  Zeitraum & Dauer
+                  {t.wizard.step2.period}
                 </h4>
               </div>
               <div className="card-glass p-5 space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                      Von *
+                      {t.form.fromRequired}
                     </label>
                     <input
                       type="date"
@@ -671,7 +671,7 @@ export default function WizardVacationRequest({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                      Bis *
+                      {t.form.toRequired}
                     </label>
                     <input
                       type="date"
@@ -689,10 +689,10 @@ export default function WizardVacationRequest({
                     </div>
                     <div>
                       <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block">
-                        Gesamt Urlaubstage
+                        {t.wizard.totalDays}
                       </span>
                       <span className="text-[9px] opacity-60">
-                        Automatisch berechnet (Werktage)
+                        {t.wizard.autoCalculated}
                       </span>
                     </div>
                   </div>
@@ -704,7 +704,7 @@ export default function WizardVacationRequest({
                       className="w-14 bg-white dark:bg-slate-900 rounded-xl px-2 py-1.5 text-center font-black text-sm border-2 border-emerald-500/30 text-slate-900 dark:text-white"
                     />
                     <span className="text-[10px] font-bold opacity-40 uppercase">
-                      Tage
+                      {t.vacation.days}
                     </span>
                   </div>
                 </div>
@@ -716,20 +716,20 @@ export default function WizardVacationRequest({
               <div className="flex items-center gap-2 mb-1 px-1">
                 <div className="w-1 h-4 bg-amber-500 rounded-full" />
                 <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70">
-                  Art & Details
+                  {t.wizard.step2.typeDetails}
                 </h4>
               </div>
               <div className="card-glass p-5 space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-black uppercase tracking-widest opacity-60">
-                      Urlaubsart wählen
+                      {t.wizard.vacationType.select}
                     </label>
                     <div className="flex items-center gap-1.5 bg-[var(--bg-elevated)] p-1.5 rounded-xl border border-[var(--border)]">
                       <input
                         value={newTypeName}
                         onChange={(e) => setNewTypeName(e.target.value)}
-                        placeholder="Eigene..."
+                        placeholder={t.wizard.vacationType.custom}
                         className="bg-transparent text-[10px] outline-none w-20 px-1 font-bold !border-none !ring-0 !box-shadow-none"
                       />
                       <button
@@ -741,30 +741,35 @@ export default function WizardVacationRequest({
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {vacationTypes.map((t) => (
-                      <div key={t.id} className="group relative">
+                    {vacationTypes.map((vt) => (
+                      <div key={vt.id} className="group relative">
                         <label
-                          className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${t.checked ? "border-[var(--primary)] bg-[var(--primary-light)]" : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:border-[var(--border)]"}`}
+                          className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer ${vt.checked ? "border-[var(--primary)] bg-[var(--primary-light)]" : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:border-[var(--border)]"}`}
                         >
                           <div
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${t.checked ? "bg-[var(--primary)] border-[var(--primary)]" : "border-[var(--text-subtle)]"}`}
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${vt.checked ? "bg-[var(--primary)] border-[var(--primary)]" : "border-[var(--text-subtle)]"}`}
                           >
-                            {t.checked && (
+                            {vt.checked && (
                               <CheckCircle size={10} className="text-white" />
                             )}
                           </div>
                           <input
                             type="checkbox"
-                            checked={t.checked}
-                            onChange={() => toggleVacationType(t.id)}
+                            checked={vt.checked}
+                            onChange={() => toggleVacationType(vt.id)}
                             className="hidden"
                           />
                           <span className="text-[11px] font-black truncate">
-                            {t.label}
+                            {({
+                              bezahlt: t.wizard.vacationType.paid,
+                              unbezahlt: t.wizard.vacationType.unpaid,
+                              ausgleich: t.wizard.vacationType.compensatory,
+                              sonder: t.wizard.vacationType.special,
+                            } as Record<string, string>)[vt.id] ?? vt.label}
                           </span>
                         </label>
                         <button
-                          onClick={() => removeVacationType(t.id)}
+                          onClick={() => removeVacationType(vt.id)}
                           className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 hover:scale-100"
                         >
                           <X size={10} />
@@ -777,7 +782,7 @@ export default function WizardVacationRequest({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-widest">
-                      Bundesland (Feiertage)
+                      {t.form.state}
                     </label>
                     <select
                       value={selectedState}
@@ -804,7 +809,7 @@ export default function WizardVacationRequest({
                         className="text-indigo-400 mr-2"
                       />
                       <span className="text-xs font-bold text-indigo-100">
-                        {vacationDays} Netto-Urlaubstage
+                        {vacationDays} {t.wizard.netDays}
                       </span>
                     </div>
                   </div>
@@ -812,13 +817,13 @@ export default function WizardVacationRequest({
 
                 <div className="space-y-1.5 border-t border-[var(--border-subtle)] pt-4">
                   <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                    Grund (optional)
+                    {t.wizard.reasonOptional}
                   </label>
                   <textarea
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     className="form-input-lux min-h-[70px] py-3 resize-none font-medium"
-                    placeholder="z.B. Erholungsurlaub..."
+                    placeholder={t.wizard.reasonPlaceholder}
                   />
                 </div>
               </div>
@@ -829,14 +834,14 @@ export default function WizardVacationRequest({
               <div className="flex items-center gap-2 mb-1 px-1">
                 <div className="w-1 h-4 bg-indigo-500 rounded-full" />
                 <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70">
-                  Finalisierung
+                  {t.wizard.step2.finalization}
                 </h4>
               </div>
               <div className="card-glass p-5 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                      Ort
+                      {t.form.location}
                     </label>
                     <input
                       value={location}
@@ -847,7 +852,7 @@ export default function WizardVacationRequest({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-50 ml-1">
-                      Datum
+                      {t.form.date}
                     </label>
                     <input
                       type="date"
@@ -861,7 +866,7 @@ export default function WizardVacationRequest({
                 <div className="grid grid-cols-1 gap-6 pt-2">
                   <div className="space-y-3">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-60 text-center block">
-                      Unterschrift (Mitarbeiter)
+                      {t.wizard.signature.employee}
                     </label>
                     <div className="aspect-[3/2] rounded-2xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center bg-[var(--bg-elevated)] relative overflow-hidden transition-all hover:bg-[var(--primary-light)] hover:border-[var(--primary)] group">
                       {employeeSignature ? (
@@ -877,7 +882,7 @@ export default function WizardVacationRequest({
                         <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-70 group-hover:scale-110 transition-all">
                           <Upload size={24} />
                           <span className="text-[8px] font-black uppercase tracking-widest">
-                            PNG Hochladen
+                            {t.wizard.signature.upload}
                           </span>
                         </div>
                       )}
@@ -917,7 +922,7 @@ export default function WizardVacationRequest({
             <div className="bg-indigo-500/5 rounded-3xl p-6 border-2 border-indigo-500/20 space-y-4">
               <div className="flex justify-between border-b border-indigo-500/10 pb-3">
                 <span className="text-[10px] font-black uppercase opacity-60">
-                  Mitarbeiter
+                  {t.wizard.review.employee}
                 </span>
                 <span className="text-sm font-black">
                   {firstName} {lastName}
@@ -925,7 +930,7 @@ export default function WizardVacationRequest({
               </div>
               <div className="flex justify-between border-b border-indigo-500/10 pb-3">
                 <span className="text-[10px] font-black uppercase opacity-60">
-                  Zeitraum
+                  {t.wizard.review.period}
                 </span>
                 <span className="text-sm font-black">
                   {from} – {to}
@@ -933,15 +938,15 @@ export default function WizardVacationRequest({
               </div>
               <div className="flex justify-between border-b border-indigo-500/10 pb-3">
                 <span className="text-[10px] font-black uppercase opacity-60">
-                  Dauer
+                  {t.wizard.review.duration}
                 </span>
                 <span className="text-sm font-black">
-                  {vacationDays} Werktage
+                  {vacationDays} {t.wizard.workdays}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[10px] font-black uppercase opacity-60">
-                  Grund
+                  {t.wizard.review.reason}
                 </span>
                 <span className="text-sm font-black truncate max-w-[200px]">
                   {reason || "–"}
@@ -958,7 +963,7 @@ export default function WizardVacationRequest({
               ) : (
                 <Download size={14} />
               )}{" "}
-              Vorschau Dokument
+              {t.wizard.previewDocument}
             </button>
           </div>
         )}
@@ -969,17 +974,16 @@ export default function WizardVacationRequest({
               <CheckCircle size={48} />
             </div>
             <h3 className="text-3xl font-black text-[var(--text-base)] mb-3 tracking-tight">
-              Antrag eingereicht!
+              {t.wizard.success.title}
             </h3>
             <p className="text-sm font-medium text-[var(--text-muted)] mb-10 max-w-sm mx-auto">
-              Dein Urlaubsantrag wurde erfolgreich erstellt und zur Genehmigung
-              weitergeleitet.
+              {t.wizard.success.description}
             </p>
             <button
               onClick={onSuccess}
               className="px-12 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-xl active:scale-95"
             >
-              Fenster Schließen
+              {t.wizard.success.close}
             </button>
           </div>
         )}
@@ -995,17 +999,17 @@ export default function WizardVacationRequest({
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleFinalConfirm}
-        title="Antrag einreichen?"
-        subtitle="Bestätigung erforderlich"
+        title={t.wizard.confirm.title}
+        subtitle={t.wizard.confirm.subtitle}
         message={
           <>
-            Möchtest du deinen Urlaubsantrag von{" "}
+            {t.wizard.confirm.message}{" "}
             <span className="text-[var(--primary)] font-bold">{from}</span> bis{" "}
-            <span className="text-[var(--primary)] font-bold">{to}</span> jetzt verbindlich
-            einreichen?
+            <span className="text-[var(--primary)] font-bold">{to}</span>{" "}
+            {t.wizard.confirm.messageEnd}
           </>
         }
-        confirmText="Ja, Absenden"
+        confirmText={t.wizard.confirm.confirmText}
         type="info"
       />
     </Modal>

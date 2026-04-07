@@ -30,21 +30,7 @@ import {
   BarChart2,
   FileText,
 } from "lucide-react";
-
-const MONTH_NAMES = [
-  "Jan",
-  "Feb",
-  "Mär",
-  "Apr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Dez",
-];
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 type DateRangePreset =
   | "this_year"
@@ -52,14 +38,6 @@ type DateRangePreset =
   | "last_90"
   | "last_year"
   | "all";
-
-const DATE_RANGE_LABELS: Record<DateRangePreset, string> = {
-  this_year: "Dieses Jahr",
-  last_30: "Letzte 30 Tage",
-  last_90: "Letzte 90 Tage",
-  last_year: "Letztes Jahr",
-  all: "Gesamtzeitraum",
-};
 
 function getDateRange(preset: DateRangePreset): { from: Date; to: Date } {
   const now = new Date();
@@ -75,6 +53,15 @@ function getDateRange(preset: DateRangePreset): { from: Date; to: Date } {
 }
 
 export default function ReportsPage() {
+  const { t } = useLanguage();
+  const MONTH_NAMES = t.reports.monthNames as readonly string[];
+  const DATE_RANGE_LABELS: Record<DateRangePreset, string> = {
+    this_year: t.reports.dateRange.thisYear,
+    last_30:   t.reports.dateRange.last30,
+    last_90:   t.reports.dateRange.last90,
+    last_year: t.reports.dateRange.lastYear,
+    all:       t.reports.dateRange.all,
+  };
   const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [memberCount, setMemberCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -320,35 +307,35 @@ export default function ReportsPage() {
             border: "border-[var(--primary)]",
           },
           {
-            label: "Mitarbeiter",
+            label: t.reports.kpi.employees,
             value: memberCount,
             Icon: Users,
             color: "#3b82f6",
             border: "border-blue-500",
           },
           {
-            label: "Ausstehend",
+            label: t.reports.kpi.pending,
             value: pending,
             Icon: Clock,
             color: "var(--warning)",
             border: "border-amber-500",
           },
           {
-            label: "Genehmigt",
+            label: t.reports.kpi.approved,
             value: approved,
             Icon: CheckCircle,
             color: "var(--success)",
             border: "border-emerald-500",
           },
           {
-            label: "Abgelehnt",
+            label: t.reports.kpi.rejected,
             value: rejected,
             Icon: XCircle,
             color: "var(--danger)",
             border: "border-red-500",
           },
           {
-            label: "Ø Dauer (Tage)",
+            label: t.reports.kpi.avgDays,
             value: avgDays,
             Icon: BarChart2,
             color: "#8b5cf6",
@@ -379,8 +366,7 @@ export default function ReportsPage() {
           className="text-xs font-black uppercase tracking-widest mb-5 flex items-center gap-2"
           style={{ color: "var(--text-subtle)" }}
         >
-          <TrendingUp size={14} style={{ color: "var(--primary)" }} /> Anträge
-          pro Monat (letzte 12 Monate)
+          <TrendingUp size={14} style={{ color: "var(--primary)" }} /> {t.reports.sections.monthly}
         </h2>
         <div className="flex items-end gap-1 h-36">
           {monthlyData.map((m, i) => (
@@ -420,7 +406,7 @@ export default function ReportsPage() {
             style={{ color: "var(--text-subtle)" }}
           >
             <ClipboardList size={14} style={{ color: "var(--primary)" }} />{" "}
-            Status-Verteilung
+            {t.reports.sections.statusBreakdown}
           </h2>
           {filtered.length === 0 ? (
             <p
@@ -433,16 +419,16 @@ export default function ReportsPage() {
             <div className="space-y-3">
               {[
                 {
-                  label: "Genehmigt",
+                  label: t.reports.kpi.approved,
                   count: approved,
                   color: "var(--success)",
                 },
                 {
-                  label: "Ausstehend",
+                  label: t.reports.kpi.pending,
                   count: pending,
                   color: "var(--warning)",
                 },
-                { label: "Abgelehnt", count: rejected, color: "var(--danger)" },
+                { label: t.reports.kpi.rejected, count: rejected, color: "var(--danger)" },
               ].map(({ label, count, color }) => (
                 <div key={label}>
                   <div className="flex justify-between text-xs mb-1">
@@ -479,15 +465,14 @@ export default function ReportsPage() {
             className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2"
             style={{ color: "var(--text-subtle)" }}
           >
-            <Users size={14} style={{ color: "var(--primary)" }} /> Top 5 nach
-            genehmigten Tagen
+            <Users size={14} style={{ color: "var(--primary)" }} /> {t.reports.sections.topEmployees}
           </h2>
           {employeeStats.length === 0 ? (
             <p
               className="text-sm text-center py-8"
               style={{ color: "var(--text-muted)" }}
             >
-              Keine genehmigten Anträge im Zeitraum
+              {t.reports.empty.noApproved}
             </p>
           ) : (
             <div className="space-y-2">
@@ -514,14 +499,14 @@ export default function ReportsPage() {
                       className="text-[10px] ml-2"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      {e.count} Anträge
+                      {e.count} {t.reports.requestCount}
                     </span>
                   </div>
                   <span
                     className="text-xs font-bold"
                     style={{ color: "var(--primary)" }}
                   >
-                    {e.days} Tage
+                    {e.days} {t.common.days}
                   </span>
                 </div>
               ))}
@@ -535,8 +520,7 @@ export default function ReportsPage() {
             className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2"
             style={{ color: "var(--text-subtle)" }}
           >
-            <Calendar size={14} style={{ color: "var(--primary)" }} /> Letzte
-            Anträge im Zeitraum
+            <Calendar size={14} style={{ color: "var(--primary)" }} /> {t.reports.sections.recent}
           </h2>
           {filtered.length === 0 ? (
             <p
@@ -553,14 +537,7 @@ export default function ReportsPage() {
                     className="border-b"
                     style={{ borderColor: "var(--border)" }}
                   >
-                    {[
-                      "Von",
-                      "Bis",
-                      "Tage",
-                      "Grund",
-                      "Status",
-                      "Eingereicht",
-                    ].map((h) => (
+                    {[t.reports.table.from, t.reports.table.to, t.reports.table.days, t.reports.table.reason, t.reports.table.status, t.reports.table.submitted].map((h) => (
                       <th
                         key={h}
                         className="text-left pb-2 pr-4 font-black uppercase tracking-wider text-[9px]"
@@ -630,10 +607,10 @@ export default function ReportsPage() {
                               }}
                             >
                               {r.status === "approved"
-                                ? "Genehmigt"
+                                ? t.status.approved
                                 : r.status === "rejected"
-                                  ? "Abgelehnt"
-                                  : "Ausstehend"}
+                                  ? t.status.rejected
+                                  : t.status.pending}
                             </span>
                           </td>
                           <td

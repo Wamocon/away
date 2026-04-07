@@ -2,38 +2,40 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
-
-const ROUTE_LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
-  requests: "Anträge",
-  calendar: "Kalender",
-  reports: "Berichte",
-  organizations: "Organisationen",
-  settings: "Einstellungen",
-  admin: "Administration",
-  email: "E-Mail",
-  invite: "Einladung",
-  legal: "Rechtliches",
-  agb: "AGB",
-  datenschutz: "Datenschutz",
-  impressum: "Impressum",
-  imprint: "Impressum",
-  privacy: "Datenschutz",
-  terms: "AGB",
-  faq: "FAQ",
-  help: "Hilfe",
-};
-
-function getLabel(segment: string): string {
-  // UUIDs or IDs – show as "Details"
-  if (/^[0-9a-f-]{8,}$/i.test(segment)) return "Details";
-  return (
-    ROUTE_LABELS[segment] ?? segment.charAt(0).toUpperCase() + segment.slice(1)
-  );
-}
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 export function Breadcrumbs() {
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const ROUTE_LABELS: Record<string, string> = {
+    dashboard: t.nav.dashboard,
+    requests: t.approvals.title,
+    calendar: t.nav.calendar,
+    reports: t.nav.reports,
+    organizations: t.nav.organizations,
+    settings: t.nav.settings,
+    admin: t.nav.admin,
+    "admin-requests": t.approvals.title,
+    email: "E-Mail",
+    invite: "Invite",
+    legal: "Legal",
+    agb: "T&C",
+    datenschutz: "Privacy",
+    impressum: "Imprint",
+    imprint: "Imprint",
+    privacy: "Privacy",
+    terms: "T&C",
+    faq: "FAQ",
+    help: "Help",
+  };
+
+  function getLabel(segment: string): string {
+    if (/^[0-9a-f-]{8,}$/i.test(segment)) return t.common.details;
+    return (
+      ROUTE_LABELS[segment] ?? segment.charAt(0).toUpperCase() + segment.slice(1)
+    );
+  }
 
   // Don't show on root, auth, or top-level pages
   if (!pathname || pathname === "/" || pathname.startsWith("/auth"))

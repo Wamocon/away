@@ -12,11 +12,13 @@ import { createClient } from "@/lib/supabase/client";
 import { saveUserSettings, getUserSettings } from "@/lib/userSettings";
 import OrganizationSwitcher from "@/components/OrganizationSwitcher";
 import { useViewMode } from "@/components/ui/ViewModeProvider";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 type Provider = "google" | "microsoft" | null;
 
 export default function EmailPage() {
   const { viewMode, setViewMode } = useViewMode();
+  const { t } = useLanguage();
   const [userId, setUserId] = useState<string | null>(null);
   const [connectedProvider, setConnectedProvider] = useState<Provider>(null);
   const [saving, setSaving] = useState(false);
@@ -86,14 +88,14 @@ export default function EmailPage() {
           <button
             onClick={() => setViewMode("list")}
             className={`p-1.5 rounded-lg transition-all ${viewMode === "list" ? "bg-white dark:bg-gray-800 shadow-sm text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-base)]"}`}
-            title="Listenansicht"
+            title={t.view.listView}
           >
             <List size={14} />
           </button>
           <button
             onClick={() => setViewMode("grid")}
             className={`p-1.5 rounded-lg transition-all ${viewMode === "grid" ? "bg-white dark:bg-gray-800 shadow-sm text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-base)]"}`}
-            title="Rasteransicht"
+            title={t.view.gridView}
           >
             <LayoutGrid size={14} />
           </button>

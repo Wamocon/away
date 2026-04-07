@@ -56,6 +56,7 @@ export const translations = {
       uploading: "Hochladen...",
       saveChanges: "Änderungen speichern",
       saveSettings: "Einstellungen speichern",
+      more: "mehr",
     },
     // Status
     status: {
@@ -371,6 +372,16 @@ export const translations = {
       selectEndHint: "Endtag wählen…",
       createRequest: "Urlaub beantragen",
       clearSelection: "Auswahl zurücksetzen",
+      month: "Monat",
+      week: "Woche",
+      today: "Heute",
+      syncLabel: "Synchronisiert",
+      syncedEvent: "Synchronisierter Termin",
+      noOrg: "Keine Organisation aktiv",
+      upcomingRequests: "Aktuelle Anträge",
+      employees: "Mitarbeiter",
+      moreLabel: "mehr",
+      period: "Zeitraum",
     },
     // Approvals
     approvals: {
@@ -494,6 +505,11 @@ export const translations = {
         messageEnd: "jetzt verbindlich einreichen?",
         confirmText: "Ja, Absenden",
       },
+      fields: {
+        employeeId: "Personalnummer",
+        reasonOptional: "Grund (optional)",
+        reasonPlaceholder: "z.B. Erholungsurlaub...",
+      },
       error: {
         datesMissing: "Bitte Von- und Bis-Datum angeben",
         noOrg: "Keine Organisation ausgewählt. Bitte tritt einer Organisation bei.",
@@ -515,6 +531,46 @@ export const translations = {
       sendError: "Fehler beim Senden",
       sendInviteError: "Fehler beim Senden des Invites",
       inviteSubject: "Urlaubsabwesenheit",
+    },
+    // Reports
+    reports: {
+      title: "Berichte",
+      monthNames: ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"],
+      dateRange: {
+        thisYear: "Dieses Jahr",
+        last30: "Letzte 30 Tage",
+        last90: "Letzte 90 Tage",
+        lastYear: "Letztes Jahr",
+        all: "Gesamtzeitraum",
+      },
+      kpi: {
+        requests: "Urlaubsanträge",
+        employees: "Mitarbeiter",
+        pending: "Ausstehend",
+        approved: "Genehmigt",
+        rejected: "Abgelehnt",
+        avgDays: "Ø Dauer (Tage)",
+      },
+      sections: {
+        monthly: "Anträge pro Monat (letzte 12 Monate)",
+        statusBreakdown: "Status-Verteilung",
+        topEmployees: "Top 5 nach genehmigten Tagen",
+        recent: "Letzte Anträge im Zeitraum",
+      },
+      table: {
+        from: "Von",
+        to: "Bis",
+        days: "Tage",
+        reason: "Grund",
+        status: "Status",
+        submitted: "Eingereicht",
+      },
+      empty: {
+        noPeriod: "Keine Anträge im gewählten Zeitraum",
+        noApproved: "Keine genehmigten Anträge im Zeitraum",
+      },
+      requestCount: "Anträge",
+      noOrg: "Keine Organisation ausgewählt",
     },
     // Errors
     errors: {
@@ -577,6 +633,7 @@ export const translations = {
       uploading: "Uploading...",
       saveChanges: "Save changes",
       saveSettings: "Save settings",
+      more: "more",
     },
     status: {
       pending: "Pending",
@@ -882,6 +939,16 @@ export const translations = {
       selectEndHint: "Select end date…",
       createRequest: "Request vacation",
       clearSelection: "Clear selection",
+      month: "Month",
+      week: "Week",
+      today: "Today",
+      syncLabel: "Synchronized",
+      syncedEvent: "Synced Event",
+      noOrg: "No active organization",
+      upcomingRequests: "Current Requests",
+      employees: "Employees",
+      moreLabel: "more",
+      period: "Period",
     },
     approvals: {
       title: "Approvals",
@@ -1000,6 +1067,11 @@ export const translations = {
         messageEnd: "now as a binding submission?",
         confirmText: "Yes, submit",
       },
+      fields: {
+        employeeId: "Employee number",
+        reasonOptional: "Reason (optional)",
+        reasonPlaceholder: "e.g. recreational leave...",
+      },
       error: {
         datesMissing: "Please provide from and to dates",
         noOrg: "No organization selected. Please join an organization.",
@@ -1019,6 +1091,45 @@ export const translations = {
       sendError: "Error while sending",
       sendInviteError: "Error while sending the invite",
       inviteSubject: "Vacation absence",
+    },
+    reports: {
+      title: "Reports",
+      monthNames: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+      dateRange: {
+        thisYear: "This year",
+        last30: "Last 30 days",
+        last90: "Last 90 days",
+        lastYear: "Last year",
+        all: "All time",
+      },
+      kpi: {
+        requests: "Vacation requests",
+        employees: "Employees",
+        pending: "Pending",
+        approved: "Approved",
+        rejected: "Rejected",
+        avgDays: "Avg. duration (days)",
+      },
+      sections: {
+        monthly: "Requests per month (last 12 months)",
+        statusBreakdown: "Status breakdown",
+        topEmployees: "Top 5 by approved days",
+        recent: "Recent requests in period",
+      },
+      table: {
+        from: "From",
+        to: "To",
+        days: "Days",
+        reason: "Reason",
+        status: "Status",
+        submitted: "Submitted",
+      },
+      empty: {
+        noPeriod: "No requests in selected period",
+        noApproved: "No approved requests in period",
+      },
+      requestCount: "requests",
+      noOrg: "No organization selected",
     },
     errors: {
       notFound: "Page not found",

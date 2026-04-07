@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { X, ChevronRight, ChevronLeft, Check, Sparkles } from "lucide-react";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 interface TourStep {
   title: string;
@@ -26,7 +27,7 @@ const LITE_STEPS: TourStep[] = [
   {
     title: "Neuen Antrag stellen",
     description:
-      'Klicke auf "Neuer Antrag" im Dashboard. Wähle Start- und Enddatum, traga optional einen Grund ein und sende den Antrag ab. Der Genehmiger wird automatisch informiert.',
+      'Click "New Request" on the dashboard. Select start and end date, optionally add a reason, and submit. The approver is notified automatically.',
     icon: "📝",
   },
   {
@@ -79,6 +80,7 @@ export default function ProductTour({
   onComplete,
   onSkip,
 }: ProductTourProps) {
+  const { t } = useLanguage();
   const steps = useMemo(
     () =>
       planTier === "pro"

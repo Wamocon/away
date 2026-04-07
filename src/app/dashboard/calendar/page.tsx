@@ -34,6 +34,26 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CalendarSync from "@/components/CalendarSync";
+import { useLanguage } from "@/components/ui/LanguageProvider";
+
+// Distinct colour palette for per-employee colouring (border-left on events)
+const EMPLOYEE_COLORS = [
+  "#6366f1", // indigo
+  "#ec4899", // pink
+  "#14b8a6", // teal
+  "#f59e0b", // amber
+  "#8b5cf6", // violet
+  "#10b981", // emerald
+  "#f97316", // orange
+  "#3b82f6", // blue
+  "#ef4444", // red
+  "#06b6d4", // cyan
+];
+
+function getEmployeeColor(userId: string, sortedIds: string[]): string {
+  const idx = sortedIds.indexOf(userId);
+  return EMPLOYEE_COLORS[(idx < 0 ? 0 : idx) % EMPLOYEE_COLORS.length];
+}
 
 type ViewMode = "month" | "week";
 
@@ -48,6 +68,7 @@ interface CalendarEvent {
 }
 
 export default function CalendarPage() {
+  const { t } = useLanguage();
   const { currentOrgId: activeOrgId, userId: activeUserId, loading: orgLoading } = useActiveOrg();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -123,7 +144,7 @@ export default function CalendarPage() {
   const allEvents: CalendarEvent[] = [
     ...requests.map((r) => ({
       id: r.id,
-      title: r.reason || "Urlaub",
+      title: r.reason || t.vacation.types.vacation,
       from: r.from,
       to: r.to,
       type: r.status as "approved" | "pending" | "rejected",
@@ -140,18 +161,21 @@ export default function CalendarPage() {
       return date >= from && date <= to;
     });
 
+  // Sorted unique user IDs for stable colour assignment
+  const sortedEmployeeIds = [...new Set(requests.map((r) => r.user_id))].sort();
+
   const today = new Date();
   const weekdays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
   const eventTypeConfig = {
     approved: {
-      label: "Genehmigt",
+      label: t.status.approved,
       cls: "cal-event-approved",
       Icon: CheckCircle,
     },
-    pending: { label: "Ausstehend", cls: "cal-event-pending", Icon: Clock },
-    rejected: { label: "Abgelehnt", cls: "cal-event-rejected", Icon: XCircle },
-    sync: { label: "Synchronisiert", cls: "cal-event-sync", Icon: RefreshCw },
+    pending: { label: t.status.pending, cls: "cal-event-pending", Icon: Clock },
+    rejected: { label: t.status.rejected, cls: "cal-event-rejected", Icon: XCircle },
+    sync: { label: t.calendar.syncLabel, cls: "cal-event-sync", Icon: RefreshCw },
   };
 
   // Month grid
@@ -229,17 +253,17 @@ export default function CalendarPage() {
             {rangeEnd && (
               <> → <span style={{ color: "var(--primary)" }}>{format(rangeEnd, "dd.MM.yyyy")}</span></>
             )}
-            {!rangeEnd && " (Endtag wählen…)"}
+            {!rangeEnd && ` (${t.calendar.selectEndHint})`}
           </div>
           {rangeEnd && (
             <button onClick={handleCreateRequest} className="btn-primary text-xs">
-              <Plus size={13} /> Urlaub beantragen
+              <Plus size={13} /> {t.calendar.createRequest}
             </button>
           )}
           <button
             onClick={() => { setRangeStart(null); setRangeEnd(null); }}
             className="btn-ghost p-1"
-            title="Auswahl zurücksetzen"
+            title={t.calendar.clearSelection}
           >
             ✕
           </button>
@@ -254,10 +278,10 @@ export default function CalendarPage() {
             style={{ color: "var(--text-base)" }}
           >
             <CalendarDays size={22} style={{ color: "var(--primary)" }} />
-            Kalender
+            {t.calendar.title}
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            Urlaubsübersicht und Termine
+            {t.calendar.desc}
           </p>
         </div>
 
@@ -281,7 +305,7 @@ export default function CalendarPage() {
                     viewMode === v ? "var(--primary)" : "var(--bg-surface)",
                 }}
               >
-                {v === "month" ? "Monat" : "Woche"}
+                {v === "month" ? t.calendar.month : t.calendar.week}
               </button>
             ))}
           </div>
@@ -301,7 +325,7 @@ export default function CalendarPage() {
 
           <Link href="/dashboard/requests" className="btn-primary">
             <Plus size={13} />
-            Neuer Antrag
+            {t.vacation.newRequest}
           </Link>
         </div>
       </div>
@@ -369,7 +393,7 @@ export default function CalendarPage() {
             <Building2 size={40} style={{ color: "var(--primary)" }} />
           </div>
           <h2 className="text-2xl font-black mb-3 text-center">
-            Keine Organisation aktiv
+            {t.calendar.noOrg}
           </h2>
           <p className="max-w-md text-center text-sm font-medium opacity-60 mb-8 leading-relaxed">
             Um den Kalender zu nutzen und Termine zu synchronisieren, musst du
@@ -460,6 +484,7 @@ export default function CalendarPage() {
                           <span
                             className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline truncate block w-full text-left`}
                             title={ev.title}
+                            style={{ borderLeft: ev.userId ? `3px solid ${getEmployeeColor(ev.userId, sortedEmployeeIds)}` : undefined }}
                           >
                             {ev.title}
                           </span>
@@ -496,7 +521,7 @@ export default function CalendarPage() {
                           className="text-[9px] font-semibold"
                           style={{ color: "var(--text-muted)" }}
                         >
-                          +{dayEvents.length - maxVisible} mehr
+                          +{dayEvents.length - maxVisible} {t.calendar.moreLabel}
                         </div>
                       )}
                     </div>
@@ -541,6 +566,7 @@ export default function CalendarPage() {
                         const Content = (
                           <span
                             className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline py-1.5 px-2 rounded-lg text-[11px] flex items-center gap-1 w-full text-left`}
+                            style={{ borderLeft: ev.userId ? `3px solid ${getEmployeeColor(ev.userId, sortedEmployeeIds)}` : undefined }}
                           >
                             {ev.title}
                           </span>
@@ -598,7 +624,7 @@ export default function CalendarPage() {
             className="text-sm font-bold mb-4"
             style={{ color: "var(--text-base)" }}
           >
-            Aktuelle Anträge
+            {t.calendar.upcomingRequests}
           </h2>
           <div className="space-y-2">
             {requests.slice(0, 8).map((r) => {
@@ -643,7 +669,7 @@ export default function CalendarPage() {
                         parseISO(r.to),
                         parseISO(r.from),
                       ) + 1}{" "}
-                      Tage)
+                      {t.vacation.days})
                     </span>
                   </div>
                   {r.reason && (
@@ -655,7 +681,7 @@ export default function CalendarPage() {
                     </div>
                   )}
                   <span
-                    className={`badge ${cfg?.label === "Genehmigt" ? "badge-approved" : cfg?.label === "Ausstehend" ? "badge-pending" : "badge-rejected"} shrink-0 ml-auto`}
+                    className={`badge ${r.status === "approved" ? "badge-approved" : r.status === "pending" ? "badge-pending" : "badge-rejected"} shrink-0 ml-auto`}
                   >
                     {cfg?.label}
                   </span>
@@ -690,7 +716,7 @@ export default function CalendarPage() {
               <div className="flex items-center gap-2">
                 <RefreshCw size={14} className="text-[var(--primary)]" />
                 <span className="text-xs font-bold uppercase tracking-widest opacity-60">
-                  Synchronisierter Termin
+                  {t.calendar.syncedEvent}
                 </span>
               </div>
               <button
@@ -713,7 +739,7 @@ export default function CalendarPage() {
                   </div>
                   <div>
                     <label className="text-[10px] uppercase font-bold tracking-widest opacity-40 block mb-1">
-                      Zeitraum
+                      {t.calendar.period}
                     </label>
                     <p className="text-sm font-semibold">
                       {format(

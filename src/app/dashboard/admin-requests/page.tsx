@@ -408,7 +408,7 @@ export default function AdminRequestsPage() {
                           background: "var(--danger-light)",
                           color: "var(--danger)",
                         }}
-                        title="Ablehnen"
+                        title={t.approvals.reject}
                       >
                         <XCircle size={12} />
                       </button>

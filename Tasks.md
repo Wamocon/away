@@ -23,5 +23,6 @@
 - [ ] UI: Button für Kalender-Eintrag und Einladung
 - [ ] Dokumentation und Hinweise im Code
 - [ ] `admin/settings/page.tsx`: Tailwind `block`/`flex`-Klassen-Konflikte bereinigen (pre-existing)
+- [x] **BugFix v4.9**: Rekursive RLS-Policy `super_admins_all` auf `public.super_admins` entfernt + nicht-rekursiv mit `is_super_admin()` ersetzt → behebt 500-Fehler in der Aboverwaltung
 
 Ich werde diese Liste bei jedem Schritt aktualisieren und abhaken.

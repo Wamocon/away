@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 interface SystemStats {
   memberCount: number;
@@ -36,6 +37,7 @@ interface SystemStats {
 }
 
 export function SystemTab({ orgId }: { orgId: string | null }) {
+  const { t } = useLanguage();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -155,19 +157,19 @@ export function SystemTab({ orgId }: { orgId: string | null }) {
           color: "#3b82f6",
         },
         {
-          label: "Ausstehend",
+          label: t.status.pending,
           value: stats.pendingCount,
           Icon: Clock,
           color: "var(--warning)",
         },
         {
-          label: "Genehmigt",
+          label: t.status.approved,
           value: stats.approvedCount,
           Icon: CheckCircle,
           color: "var(--success)",
         },
         {
-          label: "Abgelehnt",
+          label: t.status.rejected,
           value: stats.rejectedCount,
           Icon: XCircle,
           color: "var(--danger)",
@@ -399,17 +401,17 @@ export function SystemTab({ orgId }: { orgId: string | null }) {
           <div className="space-y-2">
             {[
               {
-                label: "Genehmigt",
+                label: t.status.approved,
                 count: stats.approvedCount,
                 color: "var(--success)",
               },
               {
-                label: "Ausstehend",
+                label: t.status.pending,
                 count: stats.pendingCount,
                 color: "var(--warning)",
               },
               {
-                label: "Abgelehnt",
+                label: t.status.rejected,
                 count: stats.rejectedCount,
                 color: "var(--danger)",
               },

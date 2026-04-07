@@ -7,30 +7,7 @@ import {
 } from "@/lib/vacation";
 import { format, parseISO } from "date-fns";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
-
-const statusConfig = {
-  pending: {
-    label: "Ausstehend",
-    color: "text-amber-400",
-    bg: "bg-amber-400/10",
-    border: "border-amber-400/20",
-    icon: Clock,
-  },
-  approved: {
-    label: "Genehmigt",
-    color: "text-green-400",
-    bg: "bg-green-400/10",
-    border: "border-green-400/20",
-    icon: CheckCircle,
-  },
-  rejected: {
-    label: "Abgelehnt",
-    color: "text-red-400",
-    bg: "bg-red-400/10",
-    border: "border-red-400/20",
-    icon: XCircle,
-  },
-};
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 export default function VacationList({
   organizationId,
@@ -39,6 +16,30 @@ export default function VacationList({
   organizationId: string;
   isAdmin: boolean;
 }) {
+  const { t } = useLanguage();
+  const statusConfig = {
+    pending: {
+      label: t.status.pending,
+      color: "text-amber-400",
+      bg: "bg-amber-400/10",
+      border: "border-amber-400/20",
+      icon: Clock,
+    },
+    approved: {
+      label: t.status.approved,
+      color: "text-green-400",
+      bg: "bg-green-400/10",
+      border: "border-green-400/20",
+      icon: CheckCircle,
+    },
+    rejected: {
+      label: t.status.rejected,
+      color: "text-red-400",
+      bg: "bg-red-400/10",
+      border: "border-red-400/20",
+      icon: XCircle,
+    },
+  };
   const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);

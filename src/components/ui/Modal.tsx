@@ -2,6 +2,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 interface ModalProps {
   isOpen: boolean;
@@ -28,8 +29,7 @@ export default function Modal({
   children,
   footer,
   maxWidth = "max-w-lg",
-}: ModalProps) {
-  const [mounted, setMounted] = useState(false);
+}: ModalProps) {  const { t } = useLanguage();  const [mounted, setMounted] = useState(false);
   // Track whether *this* instance incremented the counter so we only
   // decrement once, even under React Strict Mode double-invocation.
   const didLockRef = useRef(false);
@@ -88,7 +88,7 @@ export default function Modal({
           <button
             onClick={onClose}
             className="mt-1 p-2 bg-white/5 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white"
-            aria-label="Schließen"
+            aria-label={t.common.close}
           >
             <X size={20} />
           </button>

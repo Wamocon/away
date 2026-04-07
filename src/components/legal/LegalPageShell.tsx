@@ -2,6 +2,7 @@
 import React from "react";
 import { ArrowLeft, Clock, ShieldCheck } from "lucide-react";
 import LinkNext from "next/link";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 interface LegalPageShellProps {
   title: string;
@@ -13,8 +14,7 @@ export function LegalPageShell({
   title,
   updatedAt,
   children,
-}: LegalPageShellProps) {
-  return (
+}: LegalPageShellProps) {  const { t } = useLanguage();  return (
     <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-base)] pb-20">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-[var(--bg-page)]/80 backdrop-blur-md border-b border-[var(--border)]">
@@ -27,7 +27,7 @@ export function LegalPageShell({
               size={18}
               className="group-hover:-translate-x-1 transition-transform"
             />
-            <span className="text-sm font-semibold">Zurück zum Dashboard</span>
+            <span className="text-sm font-semibold">{t.errors.backToDashboard}</span>
           </LinkNext>
           <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-muted)] bg-[var(--bg-elevated)] px-3 py-1.5 rounded-full border border-[var(--border)]">
             <Clock size={12} className="text-[var(--primary)]" />

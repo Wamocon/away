@@ -424,7 +424,7 @@ function SidebarContent({
         {/* Administration Sektion */}
         {(role === "admin" || role === "cio" || isSuperAdminUser) && isElevatedMode && (
           <div className="px-3 mt-6">
-            <p className="section-label px-2 mb-2">Administration</p>
+            <p className="section-label px-2 mb-2">{t.nav.admin}</p>
             <nav className="flex flex-col gap-0.5">
               {adminItems.map((item) => (
                 <NavLink key={item.href} item={item} />
@@ -521,7 +521,7 @@ function SidebarContent({
                     ? "bg-[var(--primary-light)] text-[var(--primary)]"
                     : "text-[var(--text-muted)] hover:text-[var(--text-base)] hover:bg-[var(--bg-elevated)]"
                 }`}
-                title="Einstellungen"
+                title={t.nav.settings}
               >
                 <Settings size={13} />
               </Link>

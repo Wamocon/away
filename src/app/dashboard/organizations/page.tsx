@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { useViewMode } from "@/components/ui/ViewModeProvider";
+import { useLanguage } from "@/components/ui/LanguageProvider";
 
 interface Org {
   id: string;
@@ -54,6 +55,7 @@ function Modal({
 
 export default function OrganizationsPage() {
   const { viewMode, setViewMode } = useViewMode();
+  const { t } = useLanguage();
   const [userId, setUserId] = useState<string | null>(null);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [roles, setRoles] = useState<Record<string, string>>({});
@@ -136,14 +138,14 @@ export default function OrganizationsPage() {
             <button
               onClick={() => setViewMode("list")}
               className={`p-1.5 rounded-lg transition-all ${viewMode === "list" ? "bg-white dark:bg-gray-800 shadow-sm text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-base)]"}`}
-              title="Listenansicht"
+              title={t.view.listView}
             >
               <List size={14} />
             </button>
             <button
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-lg transition-all ${viewMode === "grid" ? "bg-white dark:bg-gray-800 shadow-sm text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-base)]"}`}
-              title="Rasteransicht"
+              title={t.view.gridView}
             >
               <LayoutGrid size={14} />
             </button>

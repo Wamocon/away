@@ -26,7 +26,7 @@ const LITE_STEPS: TourStep[] = [
   {
     title: "Neuen Antrag stellen",
     description:
-      'Klicke auf "Neuer Antrag" im Dashboard. Wähle Start- und Enddatum, traga optional einen Grund ein und sende den Antrag ab. Der Genehmiger wird automatisch informiert.',
+      'Click "New Request" on the dashboard. Select start and end date, optionally add a reason, and submit. The approver is notified automatically.',
     icon: "📝",
   },
   {

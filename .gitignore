@@ -47,5 +47,5 @@ away.code-workspace
 /playwright-report/
 /playwright/.cache/
 playwright.config.ts
-
+init-prod-data.sql
 

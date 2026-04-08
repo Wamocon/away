@@ -99,17 +99,28 @@ export async function getOrgMembersWithEmails(orgId: string) {
           const { data: userData } = await adminClient.auth.admin.getUserById(
             m.user_id,
           );
+          const { data: settingsRow } = await adminClient
+            .from("user_settings")
+            .select("settings")
+            .eq("user_id", m.user_id)
+            .eq("organization_id", orgId)
+            .maybeSingle();
+          const s = (settingsRow?.settings ?? {}) as Record<string, unknown>;
           return {
             user_id: m.user_id,
             role: m.role as UserRole,
             created_at: m.created_at,
             email: userData?.user?.email,
+            firstName: (s.firstName as string) ?? "",
+            lastName: (s.lastName as string) ?? "",
           };
-        } catch (err) {
+        } catch {
           return {
             user_id: m.user_id,
             role: m.role as UserRole,
             created_at: m.created_at,
+            firstName: "",
+            lastName: "",
           };
         }
       }),

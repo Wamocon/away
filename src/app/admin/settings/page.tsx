@@ -75,6 +75,8 @@ interface OrgMember {
   user_id: string;
   role: UserRole;
   email?: string;
+  firstName?: string;
+  lastName?: string;
   created_at: string;
 }
 
@@ -972,10 +974,14 @@ export default function AdminSettingsPage() {
                               onClick={() => handleExpandMember(m.user_id)}
                             >
                               <td className="px-6 py-4">
-                                <p className="text-sm font-bold">{m.email}</p>
-                                <p className="text-[10px] text-[var(--text-muted)]">
-                                  ID: {m.user_id.slice(0, 8)}...
+                                <p className="text-sm font-bold">
+                                  {m.firstName || m.lastName
+                                    ? `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim()
+                                    : m.email ?? m.user_id}
                                 </p>
+                                {(m.firstName || m.lastName) && (
+                                  <p className="text-[11px] text-[var(--text-muted)] truncate">{m.email}</p>
+                                )}
                               </td>
                               <td className="px-6 py-4">
                                 <span className={`badge ${ROLE_COLORS[m.role]}`}>
@@ -1268,10 +1274,17 @@ export default function AdminSettingsPage() {
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
                               m.role === "approver" ? "bg-[var(--warning)] text-white" : "bg-[var(--primary)]/10 text-[var(--primary)]"
                             }`}>
-                              {(m.email ?? "?").charAt(0).toUpperCase()}
+                              {(m.firstName || m.email || "?").charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold truncate">{m.email ?? m.user_id}</p>
+                              <p className="text-sm font-semibold truncate">
+                                {m.firstName || m.lastName
+                                  ? `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim()
+                                  : m.email ?? m.user_id}
+                              </p>
+                              {(m.firstName || m.lastName) && (
+                                <p className="text-[11px] text-[var(--text-muted)] truncate">{m.email}</p>
+                              )}
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${ROLE_COLORS[m.role]}`}>
                                 {ROLE_LABELS[m.role]}
                               </span>
@@ -1454,7 +1467,11 @@ export default function AdminSettingsPage() {
                                     }}
                                     className="rounded"
                                   />
-                                  <span className="text-sm flex-1 truncate">{m.email ?? m.user_id}</span>
+                                  <span className="text-sm flex-1 truncate">
+                                    {m.firstName || m.lastName
+                                      ? `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim()
+                                      : m.email ?? m.user_id}
+                                  </span>
                                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${ROLE_COLORS[m.role]}`}>
                                     {ROLE_LABELS[m.role]}
                                   </span>

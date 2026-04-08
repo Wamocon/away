@@ -154,6 +154,7 @@ describe("getOrgMembersWithEmails", () => {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     order: vi.fn(),
+    maybeSingle: vi.fn(),
   };
 
   beforeEach(() => {
@@ -169,6 +170,7 @@ describe("getOrgMembersWithEmails", () => {
     mockAdminClient.from.mockReturnValue(mockAdminClient);
     mockAdminClient.select.mockReturnValue(mockAdminClient);
     mockAdminClient.eq.mockReturnValue(mockAdminClient);
+    mockAdminClient.maybeSingle.mockResolvedValue({ data: null, error: null });
   });
 
   it("returns error when not authenticated", async () => {
@@ -211,6 +213,11 @@ describe("getOrgMembersWithEmails", () => {
     // getUserById
     mockAdminClient.auth.admin.getUserById.mockResolvedValue({
       data: { user: { email: "admin@x.de" } },
+    });
+    // user_settings query (firstName/lastName)
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: { settings: { firstName: "Admin", lastName: "User" } },
+      error: null,
     });
 
     const res = await getOrgMembersWithEmails("org-1");

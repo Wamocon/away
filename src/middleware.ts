@@ -33,6 +33,14 @@ export async function middleware(request: NextRequest) {
     else if (env === "preview") schema = "away-test";
   }
 
+  // 2. SameSite-Policy: 'none' nur für Cross-Site-Requests (z.B. TeamRadar-iframe),
+  //    ansonsten 'lax' (Standard – konsistent mit client.ts und server.ts).
+  const secFetchSite = request.headers.get("sec-fetch-site");
+  const isIframeRequest =
+    secFetchSite === "cross-site" ||
+    request.headers.get("sec-fetch-dest") === "iframe";
+  const cookieSameSite: "none" | "lax" = isIframeRequest ? "none" : "lax";
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -59,7 +67,7 @@ export async function middleware(request: NextRequest) {
         },
       },
       cookieOptions: {
-        sameSite: "none",
+        sameSite: cookieSameSite,
         secure: true,
       },
     },

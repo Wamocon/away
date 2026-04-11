@@ -1,0 +1,58 @@
+#!/usr/bin/env sh
+
+# ── Secret-Scanner ───────────────────────────────────────────────────────────
+# Verhindert das Committen von Secrets, API-Keys und Passwörtern.
+# Prüft nur staged Dateien (git diff --cached).
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+# Muster die auf Secrets hinweisen
+PATTERNS=(
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.'
+  'supabase\.co.*eyJ'
+  'SERVICE_ROLE_KEY\s*=\s*["'"'"'][A-Za-z0-9._-]{20,}'
+  'SERVICE_KEY\s*=\s*["'"'"'][A-Za-z0-9._-]{20,}'
+  'api[_-]?key\s*=\s*["'"'"'][A-Za-z0-9._/+=-]{16,}'
+  '-----BEGIN.*PRIVATE KEY-----'
+  'AKIA[0-9A-Z]{16}'
+)
+
+FOUND=0
+
+for FILE in $STAGED; do
+  case "$FILE" in
+    *.lock|package-lock.json|*.png|*.jpg|*.ico|*.woff*|*.env.local.example) continue ;;
+  esac
+
+  case "$FILE" in
+    .env|.env.local|.env.production|.env.test)
+      echo "BLOCKED: '$FILE' darf nicht committet werden – trage es in .gitignore ein."
+      FOUND=1
+      continue
+      ;;
+  esac
+
+  for PATTERN in "${PATTERNS[@]}"; do
+    MATCH=$(git diff --cached -- "$FILE" | grep "^+" | grep -v "^+++" | grep -E "$PATTERN" 2>/dev/null || true)
+    if [ -n "$MATCH" ]; then
+      echo ""
+      echo "BLOCKED: Mögliches Secret in '$FILE':"
+      echo "$MATCH" | head -3
+      echo ""
+      echo "  Verwende process.env.SUPABASE_SERVICE_ROLE_KEY statt Literal-Werte."
+      echo "  Zum Überspringen (nur wenn sicher): git commit --no-verify"
+      FOUND=1
+      break
+    fi
+  done
+done
+
+if [ "$FOUND" -ne 0 ]; then
+  exit 1
+fi
+
+exit 0

@@ -89,7 +89,7 @@ export default function LoginPage() {
           ReturnType<typeof createClient>["auth"]["signInWithOAuth"]
         >[0]["provider"],
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           scopes:
             provider === "microsoft"
               ? "Calendars.Read offline_access"

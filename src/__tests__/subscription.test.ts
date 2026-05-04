@@ -137,6 +137,21 @@ describe("hasFeature", () => {
     expect(hasFeature(sub, "calendar_invite")).toBe(false);
   });
 
+  it("falls back to LITE_FEATURES when plan.features is null", () => {
+    const sub = makeSub({}, "lite");
+    const subNullFeatures = { ...sub, plan: { ...sub.plan!, features: null } };
+    // plan?.features is null → ?? LITE_FEATURES
+    expect(hasFeature(subNullFeatures as any, "vacation_requests")).toBe(true);
+    expect(hasFeature(subNullFeatures as any, "calendar_sync")).toBe(false);
+  });
+
+  it("falls back to LITE_FEATURES when plan is null", () => {
+    const sub = makeSub({}, "lite");
+    const subNullPlan = { ...sub, plan: null };
+    // plan? is null → plan?.features = undefined → ?? LITE_FEATURES
+    expect(hasFeature(subNullPlan as any, "vacation_requests")).toBe(true);
+  });
+
   it("pro plan: all features enabled", () => {
     const sub = makeSub({}, "pro");
     expect(hasFeature(sub, "calendar_sync")).toBe(true);

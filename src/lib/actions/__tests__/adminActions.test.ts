@@ -135,6 +135,68 @@ describe("inviteUserToOrg Logic", () => {
 
     expect(result.success).toBe(true);
   });
+
+  it("returns error when not authenticated (no session)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+    });
+    const result = await inviteUserToOrg(
+      "test@example.com",
+      "org-123",
+      "employee",
+      "http://localhost:3000",
+    );
+    expect(result.error).toContain("Nicht authentifiziert");
+  });
+
+  it("returns permission error when role is not admin and not super-admin", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "user-1" } } },
+    });
+    // role = "employee" → isCallerSuperAdmin called; mockAdminClient has no .from → throws → returns false
+    mockSupabase.single.mockResolvedValue({ data: { role: "employee" }, error: null });
+    const result = await inviteUserToOrg(
+      "test@example.com",
+      "org-123",
+      "employee",
+      "http://localhost:3000",
+    );
+    expect(result.error).toContain("Keine Berechtigung");
+  });
+
+  it("returns generic error message for unknown invite error type", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+    });
+    mockSupabase.single.mockResolvedValue({ data: { role: "admin" }, error: null });
+    mockAdminClient.auth.admin.inviteUserByEmail.mockResolvedValue({
+      error: { message: "Some unexpected system error" },
+    });
+    const result = await inviteUserToOrg(
+      "test@example.com",
+      "org-123",
+      "employee",
+      "http://localhost:3000",
+    );
+    expect(result.error).toBe("Einladungsfehler: Some unexpected system error");
+  });
+
+  it("returns server error when inviteUserByEmail throws (outer catch)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+    });
+    mockSupabase.single.mockResolvedValue({ data: { role: "admin" }, error: null });
+    mockAdminClient.auth.admin.inviteUserByEmail.mockRejectedValue(
+      new Error("Network timeout"),
+    );
+    const result = await inviteUserToOrg(
+      "test@example.com",
+      "org-123",
+      "employee",
+      "http://localhost:3000",
+    );
+    expect(result.error).toContain("Server-Fehler");
+  });
 });
 
 describe("getOrgMembersWithEmails", () => {
@@ -223,6 +285,71 @@ describe("getOrgMembersWithEmails", () => {
     const res = await getOrgMembersWithEmails("org-1");
     expect(res.data).toHaveLength(1);
     expect(res.data![0].email).toBe("admin@x.de");
+  });
+
+  it("covers ?? fallbacks when user_settings is null (settingsRow null path)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+    });
+    mockSupabase.single.mockResolvedValueOnce({ data: { role: "admin" }, error: null });
+    mockAdminClient.order.mockResolvedValueOnce({
+      data: [{ user_id: "u1", role: "admin", created_at: "" }],
+      error: null,
+    });
+    mockAdminClient.auth.admin.getUserById.mockResolvedValue({
+      data: { user: { email: "test@x.de" } },
+    });
+    // settingsRow = null → s = {} → firstName/lastName ?? "" fallback
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+    const res = await getOrgMembersWithEmails("org-1");
+    expect(res.data).toHaveLength(1);
+    expect(res.data![0].firstName).toBe("");
+    expect(res.data![0].lastName).toBe("");
+  });
+
+  it("returns error when roles query fails (outer catch path)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+    });
+    mockSupabase.single.mockResolvedValueOnce({ data: { role: "admin" }, error: null });
+    mockAdminClient.order.mockResolvedValueOnce({
+      data: null,
+      error: { message: "DB connection failed" },
+    });
+
+    const res = await getOrgMembersWithEmails("org-1");
+    expect(res.error).toContain("interner Fehler");
+  });
+
+  it("returns empty data array when roles query returns null data", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+    });
+    mockSupabase.single.mockResolvedValueOnce({ data: { role: "admin" }, error: null });
+    mockAdminClient.order.mockResolvedValueOnce({ data: null, error: null });
+
+    const res = await getOrgMembersWithEmails("org-1");
+    expect(res.data).toEqual([]);
+  });
+
+  it("covers inner catch when getUserById throws (partial member without email)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+    });
+    mockSupabase.single.mockResolvedValueOnce({ data: { role: "admin" }, error: null });
+    mockAdminClient.order.mockResolvedValueOnce({
+      data: [{ user_id: "u1", role: "admin", created_at: "" }],
+      error: null,
+    });
+    mockAdminClient.auth.admin.getUserById.mockRejectedValue(
+      new Error("getUserById failed"),
+    );
+
+    const res = await getOrgMembersWithEmails("org-1");
+    expect(res.data).toHaveLength(1);
+    // inner catch returns partial member without email field
+    expect(res.data![0].email).toBeUndefined();
   });
 });
 
@@ -336,6 +463,31 @@ describe("getOrgApproversForNotification", () => {
     const res = await getOrgApproversForNotification("org-1");
     expect(res).toEqual([]);
   });
+
+  it("returns settingsEmail directly when user_settings has email (Ln240 path)", async () => {
+    vi.mocked(createSupabaseClient).mockReturnValue({
+      auth: { admin: { getUserById: vi.fn() } },
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue({
+              data: [{ user_id: "u1", role: "admin" }],
+              error: null,
+            }),
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { settings: { email: "admin@settings.de" } },
+              }),
+            }),
+          }),
+        }),
+      }),
+    } as any);
+
+    const res = await getOrgApproversForNotification("org-1");
+    expect(res).toHaveLength(1);
+    expect(res[0].email).toBe("admin@settings.de");
+  });
 });
 
 // ─── v4.3: getMemberSettings & updateMemberSettings ──────────────────────────
@@ -428,6 +580,21 @@ describe("getMemberSettings", () => {
     const res = await getMemberSettings("target-user", "org-1");
     expect(res.data).toEqual({});
   });
+
+  it("returns error when maybeSingle throws (catch path)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({ data: { role: "admin" }, error: null });
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: { message: "query error" },
+    });
+
+    const res = await getMemberSettings("target-user", "org-1");
+    expect(res.error).toBe("query error");
+  });
 });
 
 describe("updateMemberSettings", () => {
@@ -460,6 +627,15 @@ describe("updateMemberSettings", () => {
     mockAdminClient.from.mockReturnValue(mockAdminClient);
     mockAdminClient.select.mockReturnValue(mockAdminClient);
     mockAdminClient.eq.mockReturnValue(mockAdminClient);
+  });
+
+  it("returns error when not authenticated (session null)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    const res = await updateMemberSettings("target", "org-1", {});
+    expect(res.error).toContain("Nicht authentifiziert");
   });
 
   it("returns error when not admin", async () => {
@@ -503,6 +679,21 @@ describe("updateMemberSettings", () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it("returns error when upsert throws (catch path)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({ data: { role: "admin" }, error: null });
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    mockAdminClient.upsert.mockResolvedValueOnce({
+      error: { message: "upsert failed" },
+    });
+
+    const res = await updateMemberSettings("target", "org-1", { key: "val" });
+    expect(res.error).toBe("upsert failed");
   });
 });
 
@@ -730,6 +921,22 @@ describe("removeUserFromOrg", () => {
     const res = await removeUserFromOrg("target-1", "org-1");
     expect(res.success).toBe(true);
   });
+
+  it("returns error when user_roles delete fails (roleError catch path)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "admin-id" } } },
+    });
+    mockSupabase.single.mockResolvedValueOnce({ data: { role: "admin" }, error: null });
+
+    // user_roles delete chain: from().delete().eq("user_id").eq("org_id") → error
+    const finalEq = vi.fn().mockResolvedValue({ error: { message: "delete failed" } });
+    const firstEq = vi.fn().mockReturnValue({ eq: finalEq });
+    mockAdminClient.delete.mockReturnValue({ eq: firstEq });
+    mockAdminClient.from.mockReturnValue({ ...mockAdminClient, delete: mockAdminClient.delete });
+
+    const res = await removeUserFromOrg("target-1", "org-1");
+    expect(res.error).toBe("delete failed");
+  });
 });
 
 // ─── getMyOrganizations ──────────────────────────────────────────────────────
@@ -825,6 +1032,33 @@ describe("getMyOrganizations", () => {
     expect(Array.isArray(res)).toBe(true);
   });
 
+  it("returns [] when super admin query returns null data (data ?? [] branch)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "super-admin-id" } } },
+    });
+
+    vi.mocked(createSupabaseClient).mockReturnValue({
+      from: vi.fn()
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: { user_id: "super-admin-id" } }),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: null, // null data → ?? [] fallback
+            }),
+          }),
+        }),
+    } as any);
+
+    const res = await getMyOrganizations();
+    expect(res).toEqual([]);
+  });
+
   it("returns empty array when exception is thrown (catch block)", async () => {
     mockSupabase.auth.getSession.mockResolvedValue({
       data: { session: { user: { id: "u1" } } },
@@ -835,6 +1069,61 @@ describe("getMyOrganizations", () => {
     });
     const res = await getMyOrganizations();
     expect(res).toEqual([]);
+  });
+
+  it("returns empty array when user_roles data is null (normal user !data path)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "user-1" } } },
+    });
+
+    vi.mocked(createSupabaseClient).mockReturnValue({
+      from: vi.fn()
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null }), // not super admin
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: null }), // user_roles data = null
+          }),
+        }),
+    } as any);
+
+    const res = await getMyOrganizations();
+    expect(res).toEqual([]);
+  });
+
+  it("filters out null organization entries from user_roles (filter false branch)", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "user-1" } } },
+    });
+
+    vi.mocked(createSupabaseClient).mockReturnValue({
+      from: vi.fn()
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null }), // not super admin
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                { organization_id: "org-1", organizations: { id: "org-1", name: "Org One" } },
+                { organization_id: "org-2", organizations: null }, // null entry → filtered out
+              ],
+            }),
+          }),
+        }),
+    } as any);
+
+    const res = await getMyOrganizations();
+    expect(res).toEqual([{ id: "org-1", name: "Org One" }]);
   });
 });
 
@@ -1198,6 +1487,24 @@ describe("getOrgAdmins", () => {
     expect(res.map((r) => r.email)).toContain("admin1@x.de");
     expect(res.map((r) => r.email)).toContain("admin2@x.de");
   });
+
+  it("returns empty array when listUsers returns null data", async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "u1" } } },
+    });
+    vi.mocked(createSupabaseClient).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [{ user_id: "admin-1" }], error: null }),
+          }),
+        }),
+      }),
+      auth: { admin: { listUsers: vi.fn().mockResolvedValue({ data: null }) } },
+    } as any);
+    const res = await getOrgAdmins("org-1");
+    expect(res).toEqual([]);
+  });
 });
 
 // ─── assignApproverToUsers ───────────────────────────────────────────────────
@@ -1342,5 +1649,16 @@ describe("getAssignedApprover", () => {
     });
     const res = await getAssignedApprover("user-1", "org-1");
     expect(res).toBeNull();
+  });
+
+  it("returns fallback when org is null (?.approverEmails optional chain branch)", async () => {
+    mockAdminClient.maybeSingle.mockResolvedValueOnce({
+      data: { settings: { assignedApproverEmail: "boss@x.de" } },
+      error: null,
+    });
+    // org = null → org?.settings = undefined → ?.approverEmails = undefined → || [] → found = undefined → fallback
+    mockAdminClient.single.mockResolvedValueOnce({ data: null, error: null });
+    const res = await getAssignedApprover("user-1", "org-1");
+    expect(res).toEqual({ name: "", email: "boss@x.de" });
   });
 });

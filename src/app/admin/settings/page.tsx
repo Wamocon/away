@@ -33,6 +33,11 @@ import {
   updateApproverEmails,
   ApproverEmail,
 } from "@/lib/admin";
+import {
+  DocumentNumberPattern,
+  DEFAULT_PATTERN,
+  buildDocumentId,
+} from "@/lib/documentNumbers";
 import { assignApproverToUsers } from "@/lib/actions/adminActions";
 import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -61,6 +66,8 @@ import {
   MapPin,
   Plus,
   Monitor,
+  Hash,
+  RefreshCw,
 } from "lucide-react";
 import AlertModal, { AlertType } from "@/components/ui/AlertModal";
 
@@ -116,6 +123,12 @@ export default function AdminSettingsPage() {
   ]);
   const [holidayRegion, setHolidayRegion] = useState("BY"); // Default: Bayern
   const [autoApproveLimit, setAutoApproveLimit] = useState(0); // 0 = disabled
+
+  // Belegnummer-Muster
+  const [docPattern, setDocPattern] = useState<DocumentNumberPattern>(DEFAULT_PATTERN);
+  const [docPatternPreview, setDocPatternPreview] = useState("");
+  const [syncingDocNumbers, setSyncingDocNumbers] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ fixed: number; registered: number } | null>(null);
 
   // Invitation
   const [inviteEmail, setInviteEmail] = useState("");
@@ -240,6 +253,8 @@ export default function AdminSettingsPage() {
         setHolidayRegion(settings.holidayRegion as string);
       if (settings.autoApproveLimit !== undefined)
         setAutoApproveLimit(settings.autoApproveLimit as number);
+      if (settings.documentNumberPattern)
+        setDocPattern(settings.documentNumberPattern as DocumentNumberPattern);
       const approvers = await getApproverEmails(id);
       setApproverEmails(approvers);
       if (approvers.length > 0) setSelectedApproverEmail(approvers[0].email);
@@ -338,6 +353,7 @@ export default function AdminSettingsPage() {
         workDays: companyWorkDays,
         holidayRegion,
         autoApproveLimit,
+        documentNumberPattern: docPattern,
       });
 
       showSuccess("Organisationseinstellungen erfolgreich gespeichert.");
@@ -608,6 +624,38 @@ export default function AdminSettingsPage() {
       }
     } finally {
       setAssigningApprover(false);
+    }
+  };
+
+  // Belegnummer-Vorschau live berechnen
+  useEffect(() => {
+    try {
+      const preview = buildDocumentId(docPattern, "Max", "Mustermann", 1);
+      setDocPatternPreview(preview);
+    } catch {
+      setDocPatternPreview("(ungültiges Muster)");
+    }
+  }, [docPattern]);
+
+  // Bestehende Anträge synchronisieren: fehlende/ungültige Belegnummern vergeben
+  const handleSyncDocumentNumbers = async () => {
+    if (!orgId) return;
+    setSyncingDocNumbers(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/sync-document-numbers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId, pattern: docPattern }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Fehler bei der Synchronisation");
+      setSyncResult({ fixed: json.fixed, registered: json.registered });
+      showSuccess(`Sync abgeschlossen: ${json.fixed} Anträge korrigiert, ${json.registered} Belegnummern gespeichert.`);
+    } catch (err) {
+      showError("Sync fehlgeschlagen: " + (err as Error).message);
+    } finally {
+      setSyncingDocNumbers(false);
     }
   };
 
@@ -926,6 +974,101 @@ export default function AdminSettingsPage() {
                       Richtlinien sichern
                     </button>
                   </form>
+
+                  {/* Belegnummer-Muster */}
+                  <div className="border-t border-[var(--border)] pt-6 space-y-5">
+                    <h3 className="text-sm font-bold flex items-center gap-2">
+                      <Hash size={16} className="text-[var(--primary)]" /> Belegnummer-Muster
+                    </h3>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Lege fest, nach welchem Schema Belegnummern für diese Organisation generiert werden.
+                      Verfügbare Platzhalter:{" "}
+                      <code className="bg-[var(--bg-elevated)] px-1 rounded text-[10px]">{"{VORNAME1}"}</code>{" "}
+                      <code className="bg-[var(--bg-elevated)] px-1 rounded text-[10px]">{"{NACHNAME2}"}</code>{" "}
+                      <code className="bg-[var(--bg-elevated)] px-1 rounded text-[10px]">{"{JAHR}"}</code>{" "}
+                      <code className="bg-[var(--bg-elevated)] px-1 rounded text-[10px]">{"{JAHR2}"}</code>{" "}
+                      <code className="bg-[var(--bg-elevated)] px-1 rounded text-[10px]">{"{NR}"}</code>{" "}
+                      <code className="bg-[var(--bg-elevated)] px-1 rounded text-[10px]">{"{ORGKUERZEL}"}</code>
+                    </p>
+
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">
+                          Muster
+                        </label>
+                        <input
+                          type="text"
+                          value={docPattern.pattern}
+                          onChange={(e) => setDocPattern(p => ({ ...p, pattern: e.target.value }))}
+                          placeholder="{VORNAME1}{NACHNAME2}{JAHR}{NR}"
+                          className="w-full rounded-xl border px-4 py-3 text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:border-[var(--primary)] outline-none font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">
+                          Stellen Nummer
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={6}
+                          value={docPattern.counterDigits}
+                          onChange={(e) => setDocPattern(p => ({ ...p, counterDigits: Number(e.target.value) }))}
+                          className="w-full rounded-xl border px-4 py-3 text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:border-[var(--primary)] outline-none text-center font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black mb-1.5 text-[var(--text-muted)] uppercase tracking-wider">
+                        Org-Kürzel (für {"{ORGKUERZEL}"})
+                      </label>
+                      <input
+                        type="text"
+                        value={docPattern.orgAbbreviation ?? ""}
+                        onChange={(e) => setDocPattern(p => ({ ...p, orgAbbreviation: e.target.value }))}
+                        placeholder="z. B. WMC"
+                        maxLength={10}
+                        className="w-40 rounded-xl border px-4 py-3 text-sm bg-[var(--bg-elevated)] border-[var(--border)] focus:border-[var(--primary)] outline-none font-mono uppercase"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20">
+                      <Hash size={14} className="text-indigo-500 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Vorschau (Beispiel: Max Mustermann, 2. Antrag)</p>
+                        <p className="font-mono font-black text-sm">{docPatternPreview || "…"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleUpdateOrgSettings}
+                        disabled={isSavingOrg}
+                        className="btn-primary min-w-[180px] justify-center"
+                      >
+                        {isSavingOrg ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                        Muster speichern
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSyncDocumentNumbers}
+                        disabled={syncingDocNumbers}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-xs font-black uppercase tracking-widest hover:border-indigo-500 transition-all disabled:opacity-40"
+                      >
+                        {syncingDocNumbers ? <Loader size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                        Bestehende Anträge synchronisieren
+                      </button>
+                    </div>
+
+                    {syncResult && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
+                        <CheckCircle size={14} />
+                        {syncResult.fixed} Anträge korrigiert · {syncResult.registered} Belegnummern gespeichert
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

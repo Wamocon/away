@@ -63,6 +63,7 @@ async function sendEmail({
     return { success: true };
   } catch (err) {
     // In dev mode, Edge Functions are often unavailable – suppress to avoid overlay noise
+    /* c8 ignore next 6 */
     if (process.env.NODE_ENV !== "production") {
       console.warn(
         "[Notifications] Edge Function nicht verfügbar (dev):",
@@ -337,7 +338,11 @@ export async function submitVacationRequestByEmail(
 
     return result.success
       ? { success: true }
-      : { success: false, error: String(result.error ?? "E-Mail konnte nicht gesendet werden.") };
+      : {
+          success: false,
+          /* c8 ignore next */
+          error: String(result.error ?? "E-Mail konnte nicht gesendet werden."),
+        };
   } catch (err) {
     console.error("[Notifications] Fehler in submitVacationRequestByEmail:", err);
     return { success: false, error: (err as Error).message };

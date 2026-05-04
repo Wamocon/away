@@ -55,6 +55,23 @@ describe("holidays", () => {
       expect(names).toContain("Buß- und Bettag");
     });
 
+    it("includes Buß- und Bettag for year where Nov 23 is Monday (offset <= 0 branch)", () => {
+      // 2026: Nov 23 is a Monday → dayOfWeek=1, offset=1-3=-2 → offset+=7 branch
+      const holidays = getHolidays(2026, "SN");
+      const names = holidays.map((h) => h.name);
+      expect(names).toContain("Buß- und Bettag");
+      // Buß- und Bettag 2026 should be Nov 18 (Wednesday before Nov 23)
+      const buss = holidays.find((h) => h.name === "Buß- und Bettag");
+      expect(buss).toBeDefined();
+      expect(buss!.date.getMonth()).toBe(10); // November
+    });
+
+    it("ALL state includes Buß- und Bettag for year with offset <= 0", () => {
+      const holidays = getHolidays(2026, "ALL");
+      const names = holidays.map((h) => h.name);
+      expect(names).toContain("Buß- und Bettag");
+    });
+
     it("includes Thüringen (TH) Weltkindertag", () => {
       const holidays = getHolidays(2024, "TH");
       const names = holidays.map((h) => h.name);
@@ -114,6 +131,16 @@ describe("holidays", () => {
         "BY",
       );
       expect(days).toBe(5);
+    });
+
+    it("covers isWeekend TRUE branch (Saturday and Sunday excluded)", () => {
+      // June 1 (Sat), June 2 (Sun), June 3 (Mon) → only Monday counts
+      const days = calculateVacationDays(
+        new Date(2024, 5, 1),
+        new Date(2024, 5, 3),
+        "BY",
+      );
+      expect(days).toBe(1);
     });
 
     it("excludes public holidays", () => {

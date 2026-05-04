@@ -124,6 +124,12 @@ describe("vacation lib", () => {
   });
 
   describe("getMyVacationRequests", () => {
+    it("returns empty array when data is null (no error)", async () => {
+      mockSupabase.order.mockResolvedValueOnce({ data: null, error: null });
+      const res = await getMyVacationRequests("user-1");
+      expect(res).toEqual([]);
+    });
+
     it("returns requests for a user", async () => {
       mockSupabase.order.mockResolvedValueOnce({
         data: [{ id: "r1", user_id: "u1" }],

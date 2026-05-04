@@ -23,6 +23,14 @@ describe("renderFieldValue", () => {
     );
   });
 
+  it("should return empty string for checked items with no label", () => {
+    // item.label is missing → item.label || "" → uses empty string
+    const value = [{ id: "1", checked: true }];
+    const result = renderFieldValue(value);
+    // activeLabels.length > 0 → joins ("")
+    expect(result).toBe("");
+  });
+
   it("should render arrays of checked items", () => {
     const value = [
       { id: "1", label: "Dienstwagen", checked: true },

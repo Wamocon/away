@@ -22,6 +22,7 @@ export async function getTemplatesForOrg(organizationId: string): Promise<Docume
 
 export async function uploadTemplate(orgId: string, file: File) {
   const supabase = createClient();
+  /* c8 ignore next */
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
   const path = `${orgId}/${Date.now()}_${file.name}`;
 

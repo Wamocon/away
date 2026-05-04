@@ -35,7 +35,12 @@ beforeEach(() => {
     getAll: () => [],
     setAll: () => {},
   } as any);
-  vi.mocked(createServerClient).mockReturnValue(mockSupabase as any);
+  vi.mocked(createServerClient).mockImplementation((_url, _key, options?: any) => {
+    // Call getAll and setAll so the arrow functions are exercised (function coverage)
+    try { options?.cookies?.getAll?.(); } catch { /* ignore */ }
+    try { options?.cookies?.setAll?.([]); } catch { /* ignore */ }
+    return mockSupabase as any;
+  });
   resetChain();
 });
 

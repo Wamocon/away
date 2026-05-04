@@ -397,5 +397,103 @@ describe("calendarSync lib", () => {
       expect(events[0].start).toBe("2025-12-25");
       vi.unstubAllGlobals();
     });
+
+    it("returns empty array when outlook response has no value field", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({}), // no value field → json.value ?? []
+        }),
+      );
+      const events = await fetchExternalEvents("outlook", "a".repeat(20));
+      expect(events).toEqual([]);
+      vi.unstubAllGlobals();
+    });
+
+    it("returns empty array when google response has no items field", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({}), // no items field → json.items ?? []
+        }),
+      );
+      const events = await fetchExternalEvents("google", "a".repeat(20));
+      expect(events).toEqual([]);
+      vi.unstubAllGlobals();
+    });
+
+    it("uses fallback title for google events with no summary", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            items: [
+              {
+                id: "g3",
+                // no summary → ev.summary ?? "(Kein Titel)"
+                start: { dateTime: "2025-06-01T10:00:00" },
+                end: { dateTime: "2025-06-01T11:00:00" },
+              },
+            ],
+          }),
+        }),
+      );
+      const events = await fetchExternalEvents("google", "a".repeat(20));
+      expect(events[0].title).toBe("(Kein Titel)");
+      vi.unstubAllGlobals();
+    });
+
+    it("uses end.date fallback when google event has no end.dateTime", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            items: [
+              {
+                id: "g4",
+                summary: "All-day event",
+                start: { date: "2025-07-01" },
+                end: { date: "2025-07-02" }, // no dateTime → ev.end.date fallback
+              },
+            ],
+          }),
+        }),
+      );
+      const events = await fetchExternalEvents("google", "a".repeat(20));
+      expect(events[0].end).toBe("2025-07-02");
+      vi.unstubAllGlobals();
+    });
+
+    it("uses empty string fallback when both start.date and start.dateTime are missing (Ln272 B0)", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            items: [
+              {
+                id: "g5",
+                summary: "No-dates event",
+                start: {}, // neither dateTime nor date → ?? "" fallback
+                end: {},   // neither dateTime nor date → ?? "" fallback
+              },
+            ],
+          }),
+        }),
+      );
+      const events = await fetchExternalEvents("google", "a".repeat(20));
+      expect(events[0].start).toBe("");
+      expect(events[0].end).toBe("");
+      vi.unstubAllGlobals();
+    });
   });
 });

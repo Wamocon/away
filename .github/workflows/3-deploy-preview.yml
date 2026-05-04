@@ -83,9 +83,9 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          for attempt in 1 2 3; do
-            echo "Deploy attempt $attempt of 3..."
-            if vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} > /tmp/vercel-deploy.txt 2>&1; then
+          for attempt in 1 2 3 4 5; do
+            echo "Deploy attempt $attempt of 5..."
+            if vercel deploy --prebuilt --archive=tgz --token=${{ secrets.VERCEL_TOKEN }} > /tmp/vercel-deploy.txt 2>&1; then
               cat /tmp/vercel-deploy.txt
               URL=$(grep -E '^https://' /tmp/vercel-deploy.txt | tail -1)
               echo "url=$URL" >> "$GITHUB_OUTPUT"
@@ -93,12 +93,13 @@ jobs:
               break
             else
               cat /tmp/vercel-deploy.txt
-              if [ "$attempt" = "3" ]; then
-                echo "::error::Vercel deploy failed after 3 attempts"
+              if [ "$attempt" = "5" ]; then
+                echo "::error::Vercel deploy failed after 5 attempts"
                 exit 1
               fi
-              echo "Retrying in 15 seconds..."
-              sleep 15
+              WAIT=$((attempt * 20))
+              echo "Retrying in ${WAIT} seconds..."
+              sleep $WAIT
             fi
           done
 

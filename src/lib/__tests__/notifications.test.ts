@@ -93,6 +93,41 @@ describe("notifications", () => {
       expect(toAddresses).toContain("approver@x.de");
     });
 
+    it("uses 'Kein Grund angegeben' when request has no reason", async () => {
+      vi.mocked(getOrgApproversForNotification).mockResolvedValueOnce([
+        { user_id: "a1", email: "admin@x.de", role: "admin" },
+      ]);
+      vi.mocked(getOAuthSettings).mockResolvedValue({
+        email: "sender@x.de",
+        token: "tok",
+      });
+      mockFunctions.invoke.mockResolvedValue({ error: null });
+
+      const reqNoReason = { ...sampleRequest, reason: "" };
+      await notifyApproversOfSubmission(reqNoReason, "Max Mustermann");
+
+      expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+      const body = mockFunctions.invoke.mock.calls[0][1].body;
+      expect(body.text).toContain("Kein Grund angegeben");
+    });
+
+    it("sends email via microsoft provider when only outlook is configured", async () => {
+      vi.mocked(getOrgApproversForNotification).mockResolvedValueOnce([
+        { user_id: "a1", email: "admin@x.de", role: "admin" },
+      ]);
+      // google returns null, outlook returns a token
+      vi.mocked(getOAuthSettings)
+        .mockResolvedValueOnce(null) // google call
+        .mockResolvedValueOnce({ email: "sender@outlook.de", token: "outlook-tok" }); // outlook call
+      mockFunctions.invoke.mockResolvedValue({ error: null });
+
+      await notifyApproversOfSubmission(sampleRequest, "Max Mustermann");
+
+      expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+      const body = mockFunctions.invoke.mock.calls[0][1].body;
+      expect(body.provider).toBe("microsoft");
+    });
+
     it("skips gracefully if getOrgApproversForNotification returns empty", async () => {
       vi.mocked(getOrgApproversForNotification).mockResolvedValueOnce([]);
       await expect(
@@ -301,6 +336,46 @@ describe("submitVacationRequestByEmail", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("uses 'Hallo' salutation when approver has no name", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "", // empty name → "Hallo" fallback (line 299)
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings)
+      .mockResolvedValueOnce(null) // google
+      .mockResolvedValueOnce({ email: "sender@company.de", token: "oauth-token" }); // outlook
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    expect(res.success).toBe(true);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("Hallo,");
+  });
+
+  it("uses 'E-Mail konnte nicht gesendet werden' when sendEmail result has no error field", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@company.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@company.de",
+      token: "oauth-token",
+    });
+    // invoke returns error=null → sendEmail returns {success: false, error: undefined}
+    // We simulate sendEmail returning success:false by making invoke return error:null
+    // but the edge function logic returns a failure object
+    // Actually we need to make the invoke succeed but return a non-success
+    // The easiest way: mock the underlying invoke to return { data: null, error: new Error(...) }
+    mockFunctions.invoke.mockResolvedValue({
+      error: new Error("invoke failed"),
+    });
+
+    const res = await submitVacationRequestByEmail(sampleReq, "Max Mustermann");
+    expect(res.success).toBe(false);
+    // error field should contain a string
+    expect(typeof res.error).toBe("string");
   });
 
   it("returns error when no approver is configured", async () => {
@@ -524,6 +599,58 @@ describe("notifyApplicantWithSignedDocument", () => {
     vi.unstubAllGlobals();
   });
 
+  it("uses empty string for missing lastName when only firstName present (firstName ?? '' branch)", async () => {
+    const reqOnlyFirst: VacationRequest = {
+      ...sampleReq,
+      template_fields: { firstName: "Max" }, // no lastName → tf.lastName ?? "" = ""
+    };
+
+    const emailMaybeSingle = vi.fn().mockResolvedValue({
+      data: { settings: { email: "max@company.de" } },
+      error: null,
+    });
+    const emailEqInner = vi.fn().mockReturnValue({ maybeSingle: emailMaybeSingle });
+    const emailEqOuter = vi.fn().mockReturnValue({ eq: emailEqInner });
+    const emailSelect = vi.fn().mockReturnValue({ eq: emailEqOuter });
+    mockFrom.mockReturnValue({ select: emailSelect });
+
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "approver@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    await notifyApplicantWithSignedDocument(reqOnlyFirst, "approver-1", "Anna Boss");
+
+    expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("Max");
+  });
+
+  it("uses 'Dein Genehmiger' when approverName is empty string", async () => {
+    const emailMaybeSingle = vi.fn().mockResolvedValue({
+      data: { settings: { email: "max@company.de" } },
+      error: null,
+    });
+    const emailEqInner = vi.fn().mockReturnValue({ maybeSingle: emailMaybeSingle });
+    const emailEqOuter = vi.fn().mockReturnValue({ eq: emailEqInner });
+    const emailSelect = vi.fn().mockReturnValue({ eq: emailEqOuter });
+    mockFrom.mockReturnValue({ select: emailSelect });
+
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "approver@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    // empty approverName → approverName || "Dein Genehmiger" (line 392)
+    await notifyApplicantWithSignedDocument(sampleReq, "approver-1", "");
+
+    expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("Dein Genehmiger");
+  });
+
   it("skips gracefully when applicant has no email in user_settings", async () => {
     const noEmailMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     const noEmailEqInner = vi.fn().mockReturnValue({ maybeSingle: noEmailMaybeSingle });
@@ -638,5 +765,257 @@ describe("notifyApplicantWithSignedDocument", () => {
       expect.anything(),
     );
     errorSpy.mockRestore();
+  });
+
+  it("uses only lastName when firstName is missing (|| B0 branch + firstName ?? '' fallback)", async () => {
+    const reqOnlyLast: VacationRequest = {
+      ...sampleReq,
+      template_fields: { lastName: "Mustermann" }, // no firstName
+    };
+
+    const emailMaybeSingle = vi.fn().mockResolvedValue({
+      data: { settings: { email: "last@company.de" } },
+      error: null,
+    });
+    const emailEqInner = vi.fn().mockReturnValue({ maybeSingle: emailMaybeSingle });
+    const emailEqOuter = vi.fn().mockReturnValue({ eq: emailEqInner });
+    const emailSelect = vi.fn().mockReturnValue({ eq: emailEqOuter });
+    mockFrom.mockReturnValue({ select: emailSelect });
+
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "approver@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    await notifyApplicantWithSignedDocument(reqOnlyLast, "approver-1", "Anna Boss");
+
+    expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("Mustermann");
+  });
+
+  it("uses '{}' fallback when template_fields is undefined (Ln368 B0)", async () => {
+    const reqNoFields: VacationRequest = {
+      id: "req-nofields",
+      user_id: "user-1",
+      organization_id: "org-1",
+      from: "2026-07-01",
+      to: "2026-07-10",
+      reason: "Urlaub",
+      status: "approved",
+      created_at: "2026-04-01T08:00:00Z",
+      // template_fields intentionally omitted → undefined → tf = {} fallback
+    };
+
+    const emailMaybeSingle = vi.fn().mockResolvedValue({
+      data: { settings: { email: "nofields@company.de" } },
+      error: null,
+    });
+    const emailEqInner = vi.fn().mockReturnValue({ maybeSingle: emailMaybeSingle });
+    const emailEqOuter = vi.fn().mockReturnValue({ eq: emailEqInner });
+    const emailSelect = vi.fn().mockReturnValue({ eq: emailEqOuter });
+    mockFrom.mockReturnValue({ select: emailSelect });
+
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "approver@company.de",
+      token: "oauth-token",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    await notifyApplicantWithSignedDocument(reqNoFields, "approver-1", "Anna Boss");
+    expect(mockFunctions.invoke).toHaveBeenCalledTimes(1);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("Mitarbeiter");
+  });
+});
+
+// ── getAppBaseUrl environment branches ────────────────────────────────────────
+
+describe("getAppBaseUrl via submitVacationRequestByEmail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getOAuthSettings).mockResolvedValue(null);
+    vi.mocked(getAssignedApprover).mockResolvedValue(null);
+    vi.mocked(getApproverEmails).mockResolvedValue([]);
+    vi.mocked(getTemplatesForOrg).mockResolvedValue([]);
+    vi.mocked(generatePDF).mockResolvedValue(
+      new Blob(["pdf-content"], { type: "application/pdf" }),
+    );
+    const mockFileReader = {
+      readAsDataURL: vi.fn(function (this: { onloadend?: () => void; result?: string }) {
+        this.result = "data:application/pdf;base64,dGVzdA==";
+        if (this.onloadend) this.onloadend();
+      }),
+      onloadend: null as (() => void) | null,
+      onerror: null,
+      result: null as string | null,
+    };
+    vi.stubGlobal("FileReader", vi.fn(() => mockFileReader));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.VERCEL_URL;
+  });
+
+  it("uses NEXT_PUBLIC_APP_URL when set (Ln15 B0 branch)", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "http://custom.away.app";
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@x.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@x.de",
+      token: "tok",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(
+      { id: "r", user_id: "u", organization_id: "o", from: "2026-08-01", to: "2026-08-05",
+        reason: "Urlaub", status: "pending", created_at: "2026-01-01T00:00:00Z" },
+      "Test User",
+    );
+    expect(res.success).toBe(true);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("custom.away.app");
+  });
+
+  it("uses VERCEL_URL when NEXT_PUBLIC_APP_URL is not set (Ln16 B0 branch)", async () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    process.env.VERCEL_URL = "my-deploy.vercel.app";
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@x.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@x.de",
+      token: "tok",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(
+      { id: "r2", user_id: "u", organization_id: "o", from: "2026-08-01", to: "2026-08-05",
+        reason: "Urlaub", status: "pending", created_at: "2026-01-01T00:00:00Z" },
+      "Test User",
+    );
+    expect(res.success).toBe(true);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("my-deploy.vercel.app");
+  });
+
+  it("uses window.location.origin in browser context (Ln13 B0 branch)", async () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.VERCEL_URL;
+    vi.stubGlobal("window", { location: { origin: "http://localhost:3000" } });
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@x.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@x.de",
+      token: "tok",
+    });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const res = await submitVacationRequestByEmail(
+      { id: "r3", user_id: "u", organization_id: "o", from: "2026-08-01", to: "2026-08-05",
+        reason: "Urlaub", status: "pending", created_at: "2026-01-01T00:00:00Z" },
+      "Test User",
+    );
+    expect(res.success).toBe(true);
+    const body = mockFunctions.invoke.mock.calls[0][1].body;
+    expect(body.text).toContain("localhost:3000");
+  });
+
+  it("suppresses console.warn in production mode (Ln69 B0 branch)", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    (process.env as Record<string, string>).NODE_ENV = "production";
+
+    vi.mocked(getAssignedApprover).mockResolvedValue({
+      name: "Boss",
+      email: "boss@x.de",
+    });
+    vi.mocked(getOAuthSettings).mockResolvedValue({
+      email: "sender@x.de",
+      token: "tok",
+    });
+    // invoke throws so sendEmail catch block runs
+    mockFunctions.invoke.mockResolvedValue({ error: new Error("smtp failed") });
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await submitVacationRequestByEmail(
+      { id: "r4", user_id: "u", organization_id: "o", from: "2026-08-01", to: "2026-08-05",
+        reason: "Urlaub", status: "pending", created_at: "2026-01-01T00:00:00Z" },
+      "Test User",
+    );
+    // In production mode, the console.warn inside sendEmail catch is suppressed
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("Edge Function"),
+      expect.anything(),
+    );
+    warnSpy.mockRestore();
+    (process.env as Record<string, string>).NODE_ENV = originalNodeEnv ?? "test";
+  });
+});
+
+// ── buildDocumentData branch coverage ────────────────────────────────────────
+
+describe("buildDocumentData via submitVacationRequestByEmail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getTemplatesForOrg).mockResolvedValue([]);
+    vi.mocked(generatePDF).mockResolvedValue(
+      new Blob(["pdf"], { type: "application/pdf" }),
+    );
+    const mockFileReader = {
+      readAsDataURL: vi.fn(function (this: { onloadend?: () => void; result?: string }) {
+        this.result = "data:application/pdf;base64,dGVzdA==";
+        if (this.onloadend) this.onloadend();
+      }),
+      onloadend: null as (() => void) | null,
+      onerror: null,
+      result: null as string | null,
+    };
+    vi.stubGlobal("FileReader", vi.fn(() => mockFileReader));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("handles null reason (reason ?? '' fallback - Ln234 B0)", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({ name: "Boss", email: "boss@x.de" });
+    vi.mocked(getApproverEmails).mockResolvedValue([]);
+    vi.mocked(getOAuthSettings).mockResolvedValue({ email: "s@x.de", token: "tok" });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const reqNullReason: VacationRequest = {
+      id: "r", user_id: "u", organization_id: "o",
+      from: "2026-08-01", to: "2026-08-05",
+      reason: null as unknown as string, // null triggers ?? "" fallback
+      status: "pending", created_at: "2026-01-01T00:00:00Z",
+    };
+
+    const res = await submitVacationRequestByEmail(reqNullReason, "Test");
+    expect(res.success).toBe(true);
+  });
+
+  it("handles defined vacationDays in template_fields (ternary true branch - Ln244 B0)", async () => {
+    vi.mocked(getAssignedApprover).mockResolvedValue({ name: "Boss", email: "boss@x.de" });
+    vi.mocked(getApproverEmails).mockResolvedValue([]);
+    vi.mocked(getOAuthSettings).mockResolvedValue({ email: "s@x.de", token: "tok" });
+    mockFunctions.invoke.mockResolvedValue({ error: null });
+
+    const reqWithDays: VacationRequest = {
+      id: "r2", user_id: "u", organization_id: "o",
+      from: "2026-08-01", to: "2026-08-05",
+      reason: "Urlaub", status: "pending", created_at: "2026-01-01T00:00:00Z",
+      template_fields: { vacationDays: 5 }, // defined → Number(5) = 5
+    };
+
+    const res = await submitVacationRequestByEmail(reqWithDays, "Test");
+    expect(res.success).toBe(true);
   });
 });

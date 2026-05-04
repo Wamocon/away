@@ -368,6 +368,325 @@ describe("documentGenerator", () => {
       // drawText should be called at least once for name/dates in fallback mode
       expect(drawTextMock).toHaveBeenCalled();
     });
+
+    it("embeds PNG employee signature and draws it on the field widget", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+
+      const drawImageMock = vi.fn();
+      const mockPageSig = {
+        getSize: vi.fn().mockReturnValue({ width: 595, height: 841 }),
+        drawText: vi.fn(),
+        drawLine: vi.fn(),
+        drawImage: drawImageMock,
+      };
+
+      const embedPngMock = vi.fn().mockResolvedValue({ width: 100, height: 50 });
+      const embedJpgMock = vi.fn().mockResolvedValue({ width: 100, height: 50 });
+      const setTextMock = vi.fn();
+      const flattenMock = vi.fn();
+
+      // Build a fake PNG: first byte 0x89, second byte 0x50
+      const pngBytes = new Uint8Array(16);
+      pngBytes[0] = 0x89;
+      pngBytes[1] = 0x50;
+      // Convert to base64
+      const base64Png = btoa(String.fromCharCode(...pngBytes));
+      const employeeSignatureBase64 = `data:image/png;base64,${base64Png}`;
+
+      const sigFieldName = "employeesignature";
+      const mockSigAcroField = {
+        getWidgets: vi.fn().mockReturnValue([
+          { getRectangle: vi.fn().mockReturnValue({ x: 50, y: 100, width: 200, height: 50 }) },
+        ]),
+      };
+
+      const mockPdfDocSig = {
+        getForm: vi.fn().mockReturnValue({
+          getFields: vi.fn().mockReturnValue([
+            { getName: () => "from_date", acroField: { getWidgets: vi.fn().mockReturnValue([]) } },
+            { getName: () => sigFieldName, acroField: mockSigAcroField },
+          ]),
+          getTextField: vi.fn().mockImplementation((name: string) => {
+            if (name === "from_date") return { setText: vi.fn(), getText: () => "" };
+            if (name === sigFieldName) return { setText: setTextMock, getText: () => "" };
+            throw new Error("no such field");
+          }),
+          getCheckBox: vi.fn().mockImplementation(() => { throw new Error("not checkbox"); }),
+          flatten: flattenMock,
+        }),
+        getPages: vi.fn().mockReturnValue([mockPageSig]),
+        embedFont: vi.fn().mockResolvedValue({}),
+        embedPng: embedPngMock,
+        embedJpg: embedJpgMock,
+        save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+      };
+
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDocSig as any);
+
+      const dataWithSig: DocumentData = {
+        ...sampleData,
+        employeeSignatureBase64,
+      };
+
+      const blob = await generatePDF(dataWithSig, templateBytes);
+      expect(blob).toBeInstanceOf(Blob);
+      expect(embedPngMock).toHaveBeenCalled(); // PNG path
+      expect(drawImageMock).toHaveBeenCalled(); // image drawn on page
+    });
+
+    it("embeds JPEG employee signature when bytes are not PNG", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+
+      const embedJpgMock = vi.fn().mockResolvedValue({ width: 80, height: 40 });
+      const embedPngMock = vi.fn().mockResolvedValue({ width: 80, height: 40 });
+
+      // JPEG: first bytes are NOT 0x89 0x50
+      const jpgBytes = new Uint8Array(16);
+      jpgBytes[0] = 0xFF; // JPEG starts with 0xFF 0xD8
+      jpgBytes[1] = 0xD8;
+      const base64Jpg = btoa(String.fromCharCode(...jpgBytes));
+      const employeeSignatureBase64 = `data:image/jpeg;base64,${base64Jpg}`;
+
+      const mockPdfDocJpg = {
+        getForm: vi.fn().mockReturnValue({
+          getFields: vi.fn().mockReturnValue([]),
+          getTextField: vi.fn().mockImplementation(() => { throw new Error("not text"); }),
+          getCheckBox: vi.fn().mockImplementation(() => { throw new Error("not checkbox"); }),
+          flatten: vi.fn(),
+        }),
+        getPages: vi.fn().mockReturnValue([{
+          getSize: vi.fn().mockReturnValue({ width: 595, height: 841 }),
+          drawText: vi.fn(),
+          drawLine: vi.fn(),
+          drawImage: vi.fn(),
+        }]),
+        embedFont: vi.fn().mockResolvedValue({}),
+        embedPng: embedPngMock,
+        embedJpg: embedJpgMock,
+        save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+      };
+
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDocJpg as any);
+
+      const dataWithJpgSig: DocumentData = {
+        ...sampleData,
+        employeeSignatureBase64,
+      };
+
+      const blob = await generatePDF(dataWithJpgSig, templateBytes);
+      expect(blob).toBeInstanceOf(Blob);
+      expect(embedJpgMock).toHaveBeenCalled(); // JPEG path taken
+      expect(embedPngMock).not.toHaveBeenCalled();
+    });
+
+    it("draws underline for empty non-large-box text fields during flatten", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+
+      const drawLineMock = vi.fn();
+      const mockPageFlatten = {
+        getSize: vi.fn().mockReturnValue({ width: 595, height: 841 }),
+        drawText: vi.fn(),
+        drawLine: drawLineMock,
+        drawImage: vi.fn(),
+      };
+
+      const mockGetText = vi.fn().mockReturnValue(""); // empty text field
+      const mockSetText = vi.fn();
+      const flattenMock = vi.fn();
+
+      const mockPdfDocFlatten = {
+        getForm: vi.fn().mockReturnValue({
+          getFields: vi.fn().mockReturnValue([
+            {
+              getName: () => "employee_name",
+              acroField: {
+                getWidgets: vi.fn().mockReturnValue([
+                  { getRectangle: vi.fn().mockReturnValue({ x: 50, y: 200, width: 200, height: 20 }) },
+                ]),
+              },
+            },
+          ]),
+          getTextField: vi.fn().mockReturnValue({ setText: mockSetText, getText: mockGetText }),
+          getCheckBox: vi.fn().mockImplementation(() => { throw new Error("not checkbox"); }),
+          flatten: flattenMock,
+        }),
+        getPages: vi.fn().mockReturnValue([mockPageFlatten]),
+        embedFont: vi.fn().mockResolvedValue({}),
+        embedPng: vi.fn().mockResolvedValue({}),
+        embedJpg: vi.fn().mockResolvedValue({}),
+        save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+      };
+
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDocFlatten as any);
+
+      const blob = await generatePDF(sampleData, templateBytes);
+      expect(blob).toBeInstanceOf(Blob);
+      // Empty non-large-box field → drawLine is called for underline
+      expect(drawLineMock).toHaveBeenCalled();
+    });
+
+    it("skips underline for large-box text fields (isLargeBox=true branch)", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+      const drawLineMock = vi.fn();
+      const mockPageLargeBox = {
+        getSize: vi.fn().mockReturnValue({ width: 595, height: 841 }),
+        drawText: vi.fn(),
+        drawLine: drawLineMock,
+        drawImage: vi.fn(),
+      };
+      const mockGetText = vi.fn().mockReturnValue(""); // empty
+      const flattenMock = vi.fn();
+      const mockPdfDocLargeBox = {
+        getForm: vi.fn().mockReturnValue({
+          getFields: vi.fn().mockReturnValue([
+            {
+              getName: () => "reason_field",  // matches "reason" in largeBoxPatterns → isLargeBox=true
+              acroField: {
+                getWidgets: vi.fn().mockReturnValue([
+                  { getRectangle: vi.fn().mockReturnValue({ x: 50, y: 200, width: 200, height: 80 }) },
+                ]),
+              },
+            },
+          ]),
+          getTextField: vi.fn().mockReturnValue({ setText: vi.fn(), getText: mockGetText }),
+          getCheckBox: vi.fn().mockImplementation(() => { throw new Error("not checkbox"); }),
+          flatten: flattenMock,
+        }),
+        getPages: vi.fn().mockReturnValue([mockPageLargeBox]),
+        embedFont: vi.fn().mockResolvedValue({}),
+        embedPng: vi.fn().mockResolvedValue({}),
+        embedJpg: vi.fn().mockResolvedValue({}),
+        save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+      };
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDocLargeBox as any);
+
+      const blob = await generatePDF(sampleData, templateBytes);
+      expect(blob).toBeInstanceOf(Blob);
+      // Large box field is empty but should NOT get an underline
+      expect(drawLineMock).not.toHaveBeenCalled();
+    });
+
+    it("includes vacationDays in coord fallback when data.vacationDays is defined (Ln185 B0)", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+
+      const drawTextMock = vi.fn();
+      const mockPageCoordVacDays = {
+        getSize: vi.fn().mockReturnValue({ width: 595, height: 841 }),
+        drawText: drawTextMock,
+        drawLine: vi.fn(),
+        drawImage: vi.fn(),
+      };
+
+      const flattenMock = vi.fn();
+      const mockPdfDocCoordVacDays = {
+        getForm: vi.fn().mockReturnValue({
+          getFields: vi.fn().mockReturnValue([
+            {
+              getName: () => "paidLeave",
+              acroField: {
+                getWidgets: vi.fn().mockReturnValue([
+                  { getRectangle: vi.fn().mockReturnValue({ x: 100, y: 490, width: 10, height: 10 }) },
+                ]),
+              },
+            },
+          ]),
+          getCheckBox: vi.fn().mockReturnValue({ check: vi.fn(), uncheck: vi.fn() }),
+          getTextField: vi.fn().mockImplementation(() => { throw new Error("not text"); }),
+          flatten: flattenMock,
+        }),
+        getPages: vi.fn().mockReturnValue([mockPageCoordVacDays]),
+        embedFont: vi.fn().mockResolvedValue({}),
+        save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+      };
+
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDocCoordVacDays as any);
+
+      const dataWithVacDays: DocumentData = {
+        ...sampleData,
+        firstName: "Max",
+        lastName: "Mustermann",
+        vacationDays: 7,  // ← top-level vacationDays → triggers coord(String(7), ...)
+      };
+
+      const blob = await generatePDF(dataWithVacDays, templateBytes);
+      expect(blob).toBeInstanceOf(Blob);
+      // "7" should be drawn for vacationDays
+      const calledTexts = drawTextMock.mock.calls.map((c: any[]) => c[0]);
+      expect(calledTexts).toContain("7");
+    });
+
+    it("populates textFieldMap ternary for vacationDays (Ln73/74 true branch)", async () => {
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+      const setTextMock = vi.fn();
+      const flattenMock = vi.fn();
+      const mockPdfDocVacText = {
+        getForm: vi.fn().mockReturnValue({
+          getFields: vi.fn().mockReturnValue([
+            {
+              getName: () => "vacationdays",
+              acroField: { getWidgets: vi.fn().mockReturnValue([]) },
+            },
+          ]),
+          getTextField: vi.fn().mockReturnValue({ setText: setTextMock, getText: () => "" }),
+          getCheckBox: vi.fn().mockImplementation(() => { throw new Error("not checkbox"); }),
+          flatten: flattenMock,
+        }),
+        getPages: vi.fn().mockReturnValue([{
+          getSize: vi.fn().mockReturnValue({ width: 595, height: 841 }),
+          drawText: vi.fn(),
+          drawLine: vi.fn(),
+          drawImage: vi.fn(),
+        }]),
+        embedFont: vi.fn().mockResolvedValue({}),
+        save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+      };
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDocVacText as any);
+
+      const dataWithVacDaysTopLevel: DocumentData = {
+        from: "2025-06-01",
+        to: "2025-06-10",
+        reason: "Urlaub",
+        deputy: "Max",
+        notes: "",
+        userEmail: "emp@test.de",
+        orgName: "Acme GmbH",
+        date: "2025-05-20",
+        vacationDays: 5, // top-level triggers the ternary true branch
+        customFields: {
+          firstName: "Hans",
+          lastName: "Muster",
+          employeeId: "p-001",
+          // intentionally NO vacationDays in customFields → top-level "5" wins
+        },
+      };
+
+      await generatePDF(dataWithVacDaysTopLevel, templateBytes);
+      expect(setTextMock).toHaveBeenCalledWith("5");
+    });
+
+    it("suppresses console.log of fields in production mode (Ln62 B0)", async () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      (process.env as Record<string, string>).NODE_ENV = "production";
+      const { PDFDocument } = await import("pdf-lib");
+      const templateBytes = new ArrayBuffer(8);
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      vi.mocked(PDFDocument.load).mockResolvedValue(mockPdfDoc as any);
+
+      await generatePDF(sampleData, templateBytes);
+      // In production mode, "[PDF Fields]" log should NOT be printed
+      const fieldLogCalls = logSpy.mock.calls.filter((c) =>
+        c.some((a) => typeof a === "string" && a.includes("[PDF Fields]")),
+      );
+      expect(fieldLogCalls).toHaveLength(0);
+      logSpy.mockRestore();
+      (process.env as Record<string, string>).NODE_ENV = originalNodeEnv ?? "test";
+    });
   });
 });
 

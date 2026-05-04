@@ -21,6 +21,7 @@ import {
   generateWord,
   DocumentData,
 } from "@/lib/documentGenerator";
+import { getTemplatesForOrg, getTemplateBytes } from "@/lib/template";
 import { parseISO } from "date-fns";
 import { createVacationRequest } from "@/lib/vacation";
 import { getUserSettings } from "@/lib/userSettings";
@@ -28,6 +29,10 @@ import {
   isDocumentIdUsed,
   registerDocumentId,
   getNextDocumentCounter,
+  buildDocumentPrefix,
+  buildDocumentId,
+  DEFAULT_PATTERN,
+  DocumentNumberPattern,
 } from "@/lib/documentNumbers";
 import {
   calculateVacationDays,
@@ -119,6 +124,7 @@ export default function WizardVacationRequest({
   const [generating, setGenerating] = useState(false);
   const [generatingDocId, setGeneratingDocId] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [orgDocPattern, setOrgDocPattern] = useState<DocumentNumberPattern>(DEFAULT_PATTERN);
 
   const { hasFeature, loading: subLoading } = useSubscription();
   const canUseTemplates = !subLoading && hasFeature("document_templates");
@@ -141,6 +147,19 @@ export default function WizardVacationRequest({
           .eq("organization_id", orgId)
           .then(({ data }) => setTemplates((data as Template[]) || []));
       }
+
+      // Org-Belegnummer-Muster laden
+      supabase
+        .from("organizations")
+        .select("settings")
+        .eq("id", orgId)
+        .maybeSingle()
+        .then(({ data }) => {
+          const s = (data?.settings as Record<string, unknown> | undefined) ?? {};
+          if (s.documentNumberPattern) {
+            setOrgDocPattern(s.documentNumberPattern as DocumentNumberPattern);
+          }
+        });
 
       // Fetch profile settings for pre-filling (Bug 7)
       getUserSettings(userId, orgId).then((data) => {
@@ -178,15 +197,9 @@ export default function WizardVacationRequest({
     if (!firstName || !lastName || !orgId) return;
     setGeneratingDocId(true);
     try {
-      const firstChar = firstName.charAt(0).toUpperCase();
-      // First 2 letters of last name, upper-cased
-      const lastChars = lastName.substring(0, 2).toUpperCase();
-      const year = new Date().getFullYear().toString();
-      const prefix = `${firstChar}${lastChars}${year}`;
-
+      const prefix = buildDocumentPrefix(orgDocPattern, firstName, lastName);
       const nextCounter = await getNextDocumentCounter(orgId, prefix);
-      // Format: NSC20260, NSC20261, NSC20262, ... (no zero-padding)
-      setDocumentId(`${prefix}${nextCounter}`);
+      setDocumentId(buildDocumentId(orgDocPattern, firstName, lastName, nextCounter));
     } catch (err) {
       console.warn("Belegnummer konnte nicht generiert werden:", err);
     } finally {
@@ -251,6 +264,19 @@ export default function WizardVacationRequest({
         if (downloadError) throw downloadError;
         bytes = await fileData.arrayBuffer();
         type = selectedTemplate.type;
+      }
+
+      // Fallback: hinterlegte Org-Vorlage verwenden wenn keine explizite Auswahl
+      if (!bytes && orgId) {
+        try {
+          const orgTemplates = await getTemplatesForOrg(orgId);
+          if (orgTemplates.length > 0) {
+            bytes = await getTemplateBytes(orgTemplates[0].storage_path);
+            type = orgTemplates[0].type;
+          }
+        } catch {
+          /* kein gespeichertes Template vorhanden, Fallback-PDF wird erstellt */
+        }
       }
 
       // vacationTypes als id→checked Map für PDF-Checkbox-Mapping

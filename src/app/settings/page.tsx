@@ -14,9 +14,18 @@ import {
   Upload,
   Trash2,
   Sparkles,
+  Hash,
+  Plus,
+  X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { saveUserSettings, getUserSettings } from "@/lib/userSettings";
+import {
+  getUserDocumentNumbers,
+  registerDocumentId,
+  deleteDocumentNumberById,
+  DocumentNumberEntry,
+} from "@/lib/documentNumbers";
 import { getOAuthSettings, saveOAuthSettings } from "@/lib/calendarSync";
 import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -87,6 +96,13 @@ export default function SettingsPage() {
   const [signatureUploading] = useState(false);
   const sigInputRef = useRef<HTMLInputElement>(null);
 
+  // Belegnummern
+  const [docNumbers, setDocNumbers] = useState<DocumentNumberEntry[]>([]);
+  const [docNumLoading, setDocNumLoading] = useState(false);
+  const [docNumDeleting, setDocNumDeleting] = useState<string | null>(null);
+  const [newDocNumInput, setNewDocNumInput] = useState("");
+  const [docNumError, setDocNumError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
     if (!userId) return;
     try {
@@ -135,6 +151,19 @@ export default function SettingsPage() {
       setSaveError("Einstellungen konnten nicht geladen werden: " + (err instanceof Error ? err.message : String(err)));
     }
   }, [userId, orgId]);
+
+  const loadDocumentNumbers = useCallback(async () => {
+    if (!userId) return;
+    setDocNumLoading(true);
+    try {
+      const entries = await getUserDocumentNumbers(userId, orgId ?? undefined);
+      setDocNumbers(entries);
+    } catch {
+      // Tabelle evtl. noch nicht migriert – still ignorieren
+    } finally {
+      setDocNumLoading(false);
+    }
+  }, [userId, orgId]);
   useEffect(() => {
     const supabase = createClient();
     supabase.auth
@@ -154,6 +183,10 @@ export default function SettingsPage() {
   useEffect(() => {
     if (userId) loadData();
   }, [userId, loadData]);
+
+  useEffect(() => {
+    if (userId) loadDocumentNumbers();
+  }, [userId, loadDocumentNumbers]);
 
   const toggleWorkDay = (day: number) => {
     setWorkDays((prev) =>
@@ -244,7 +277,8 @@ export default function SettingsPage() {
       </div>
 
       {userId && (
-        <form onSubmit={handleSave} className="space-y-6">
+        <>
+          <form onSubmit={handleSave} className="space-y-6">
           {/* User profile */}
           <section className="card p-5 space-y-4">
             <h2 className="text-sm font-bold flex items-center gap-2">
@@ -854,6 +888,120 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+
+        {/* Belegnummern – außerhalb des Formulars, eigene Aktionen */}
+        <section className="card p-5 space-y-4">
+          <h2 className="text-sm font-bold flex items-center gap-2">
+            <Hash size={16} className="text-[var(--primary)]" /> Belegnummern
+          </h2>
+          <p className="text-[11px] text-[var(--text-muted)]">
+            Hier siehst du alle bereits vergebenen Belegnummern. Du kannst einzelne Einträge löschen oder manuell eine neue Nummer hinzufügen.
+            Die nächste automatisch generierte Nummer wird dir unten als Vorschau angezeigt.
+          </p>
+
+          {docNumError && (
+            <div className="rounded-xl p-3 bg-[var(--danger-light)] border border-[var(--danger)] text-[var(--danger)] text-xs font-medium flex items-center gap-2">
+              <span className="font-black">⚠</span>
+              {docNumError}
+              <button onClick={() => setDocNumError(null)} className="ml-auto opacity-70 hover:opacity-100">✕</button>
+            </div>
+          )}
+
+          {/* Nächste Nummer Vorschau */}
+          {firstName && lastName && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0">
+                <Hash size={14} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Nächste automatische Nummer</p>
+                <p className="text-sm font-black font-mono">
+                  {(() => {
+                    const prefix = firstName.charAt(0).toUpperCase() + lastName.substring(0, 2).toUpperCase() + new Date().getFullYear().toString();
+                    const existing = docNumbers.filter(n => n.document_id.startsWith(prefix));
+                    let next = 0;
+                    if (existing.length > 0) {
+                      const nums = existing.map(n => parseInt(n.document_id.slice(prefix.length), 10)).filter(n => !isNaN(n));
+                      if (nums.length > 0) next = Math.max(...nums) + 1;
+                    }
+                    return `${prefix}${String(next).padStart(2, "0")}`;
+                  })()}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Liste der vergebenen Nummern */}
+          {docNumLoading ? (
+            <div className="flex items-center gap-2 text-[var(--text-muted)] text-xs py-2">
+              <Loader size={12} className="animate-spin" /> Belegnummern werden geladen…
+            </div>
+          ) : docNumbers.length === 0 ? (
+            <p className="text-[11px] text-[var(--text-muted)] italic">Noch keine Belegnummern vergeben.</p>
+          ) : (
+            <ul className="space-y-2">
+              {docNumbers.map((entry) => (
+                <li key={entry.id} className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                  <span className="font-mono text-sm font-bold">{entry.document_id}</span>
+                  {entry.created_at && (
+                    <span className="text-[10px] text-[var(--text-muted)] hidden sm:block">
+                      {new Date(entry.created_at).toLocaleDateString("de-DE")}
+                    </span>
+                  )}
+                  <button
+                    disabled={docNumDeleting === entry.id}
+                    onClick={async () => {
+                      if (!userId) return;
+                      setDocNumDeleting(entry.id);
+                      setDocNumError(null);
+                      try {
+                        await deleteDocumentNumberById(entry.id, userId);
+                        setDocNumbers(prev => prev.filter(n => n.id !== entry.id));
+                      } catch (err) {
+                        setDocNumError((err as Error).message);
+                      } finally {
+                        setDocNumDeleting(null);
+                      }
+                    }}
+                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all disabled:opacity-40"
+                    title="Belegnummer löschen"
+                  >
+                    {docNumDeleting === entry.id ? <Loader size={12} className="animate-spin" /> : <X size={12} />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Neue Nummer manuell hinzufügen */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="text"
+              value={newDocNumInput}
+              onChange={(e) => setNewDocNumInput(e.target.value)}
+              placeholder="z. B. NSC202602"
+              className="flex-1 rounded-xl border px-4 py-2.5 text-sm bg-transparent border-[var(--border)] focus:border-[var(--primary)] outline-none transition-all font-mono"
+            />
+            <button
+              disabled={!newDocNumInput.trim() || !userId || !orgId}
+              onClick={async () => {
+                if (!userId || !orgId || !newDocNumInput.trim()) return;
+                setDocNumError(null);
+                try {
+                  await registerDocumentId(orgId, userId, newDocNumInput.trim());
+                  await loadDocumentNumbers();
+                  setNewDocNumInput("");
+                } catch (err) {
+                  setDocNumError((err as Error).message);
+                }
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--primary)] text-white text-xs font-black uppercase tracking-widest disabled:opacity-40 hover:opacity-90 transition-all"
+            >
+              <Plus size={13} /> Hinzufügen
+            </button>
+          </div>
+        </section>
+        </>
       )}
 
       {/* Product Tour Overlay */}

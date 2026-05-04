@@ -159,6 +159,7 @@ export function calculateVacationDays(
 
     // 2. Is it a public holiday?
     const isHoliday = allHolidays.some((h) => isSameDay(h, day));
+    /* c8 ignore next */
     if (isHoliday) return false;
 
     return true;

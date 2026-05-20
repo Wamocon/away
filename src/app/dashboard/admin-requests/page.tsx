@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   LayoutGrid,
   List,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { useViewMode } from "@/components/ui/ViewModeProvider";
@@ -28,6 +29,26 @@ import { useLanguage } from "@/components/ui/LanguageProvider";
 import { useRouter } from "next/navigation";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
+
+const CONSULTANT_COLORS = [
+  "#6366f1","#ec4899","#14b8a6","#f59e0b",
+  "#8b5cf6","#10b981","#f97316","#3b82f6","#ef4444","#06b6d4",
+];
+
+function getApplicantName(r: VacationRequest): string {
+  const tf = r.template_fields as Record<string, unknown> | null;
+  const name = [tf?.firstName, tf?.lastName].filter(Boolean).join(" ");
+  return name || r.user_id.slice(0, 8);
+}
+
+function getApplicantInitials(r: VacationRequest): string {
+  const tf = r.template_fields as Record<string, unknown> | null;
+  const first = tf?.firstName as string | undefined;
+  const last = tf?.lastName as string | undefined;
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  if (first) return first.slice(0, 2).toUpperCase();
+  return r.user_id.slice(0, 2).toUpperCase();
+}
 
 export default function AdminRequestsPage() {
   const { viewMode, setViewMode } = useViewMode();
@@ -49,6 +70,16 @@ export default function AdminRequestsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (uid: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -112,6 +143,14 @@ export default function AdminRequestsPage() {
     approved: requests.filter((r) => r.status === "approved").length,
     rejected: requests.filter((r) => r.status === "rejected").length,
   };
+
+  const sortedUserIds = [...new Set(filtered.map((r) => r.user_id))].sort();
+
+  const groupedRequests = sortedUserIds.map((uid, idx) => ({
+    uid,
+    color: CONSULTANT_COLORS[idx % CONSULTANT_COLORS.length],
+    rows: filtered.filter((r) => r.user_id === uid),
+  }));
 
   return (
     <div className="p-6 md:p-8 w-full animate-fade-in">
@@ -205,220 +244,194 @@ export default function AdminRequestsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
+      {/* Anträge – nach Berater gruppiert */}
+      <div className="space-y-3">
         {loading ? (
-          <div className="p-8 space-y-3">
+          <div className="card p-8 space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="skeleton h-16 rounded-xl" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="card text-center py-16">
             <ClipboardList size={40} className="mx-auto mb-4 opacity-20" />
-            <p
-              className="text-sm font-medium"
-              style={{ color: "var(--text-muted)" }}
-            >
+            <p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
               {statusFilter === "all"
                 ? "Noch keine Anträge vorhanden"
                 : `Keine ${statusConfig[statusFilter].label.toLowerCase()} Anträge`}
             </p>
           </div>
-        ) : viewMode === "list" ? (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Antragsteller</th>
-                <th>Zeitraum</th>
-                <th>Dauer</th>
-                <th>Grund</th>
-                <th>Status</th>
-                <th>Aktionen</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <span className="text-sm font-medium" style={{ color: "var(--text-base)" }}>
-                      {(() => {
-                        const tf = r.template_fields as Record<string, unknown> | null;
-                        const name = [tf?.firstName, tf?.lastName].filter(Boolean).join(" ");
-                        return name || (
-                          <span className="text-xs font-mono opacity-50">{r.user_id.slice(0, 8)}…</span>
-                        );
-                      })()}
-                    </span>
-                  </td>
-                  <td>
-                    <div
-                      style={{ color: "var(--text-base)" }}
-                      className="font-semibold text-sm"
-                    >
-                      {format(parseISO(r.from), "dd.MM.yyyy", { locale: de })}
-                    </div>
-                    <div
-                      style={{ color: "var(--text-muted)" }}
-                      className="text-xs"
-                    >
-                      – {format(parseISO(r.to), "dd.MM.yyyy", { locale: de })}
-                    </div>
-                  </td>
-                  <td>
-                    <span className="badge badge-primary">
-                      {countWorkingDays(r.from, r.to)}{" "}
-                      Tage
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className="text-sm truncate max-w-[160px] block"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {r.reason || "–"}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={`badge ${r.status === "approved" ? "badge-approved" : r.status === "rejected" ? "badge-rejected" : "badge-pending"}`}
-                    >
-                      {r.status === "approved"
-                        ? t.status.approved
-                        : r.status === "rejected"
-                          ? t.status.rejected
-                          : t.status.pending}
-                    </span>
-                  </td>
-                  <td>
-                    {r.status === "pending" && (
-                      <div className="flex items-center gap-1.5">
-                        <Link
-                          href={`/dashboard/requests/${r.id}`}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
-                          style={{
-                            background: "var(--success-light)",
-                            color: "var(--success)",
-                          }}
-                          title="Genehmigen (Unterschrift erforderlich)"
-                        >
-                          <CheckCircle size={10} />
-                          {t.vacation.approve}
-                        </Link>
-                        <button
-                          onClick={() => handleStatus(r.id, "rejected")}
-                          disabled={actionId === r.id}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-                          style={{
-                            background: "var(--danger-light)",
-                            color: "var(--danger)",
-                          }}
-                        >
-                          <XCircle size={10} />
-                          {t.vacation.reject}
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <Link
-                      href={`/dashboard/requests/${r.id}`}
-                      className="btn-ghost p-1.5"
-                      title="Details"
-                    >
-                      <Eye size={14} />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-            {filtered.map((r) => (
-              <div
-                key={r.id}
-                className="border p-4 rounded-xl flex flex-col gap-3 transition-all hover:shadow-md"
-                style={{
-                  borderColor: "var(--border)",
-                  background: "var(--bg-surface)",
-                }}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span
-                      className={`badge mb-2 inline-block ${r.status === "approved" ? "badge-approved" : r.status === "rejected" ? "badge-rejected" : "badge-pending"}`}
-                    >
-                      {r.status === "approved"
-                        ? t.status.approved
-                        : r.status === "rejected"
-                          ? t.status.rejected
-                          : t.status.pending}
-                    </span>
-                    <div
-                      className="text-sm font-bold"
-                      style={{ color: "var(--text-base)" }}
-                    >
-                      {format(parseISO(r.from), "dd.MM")} –{" "}
-                      {format(parseISO(r.to), "dd.MM.yyyy")}
-                    </div>
-                  </div>
-                  <Link
-                    href={`/dashboard/requests/${r.id}`}
-                    className="btn-ghost p-1.5"
-                  >
-                    <Eye size={14} />
-                  </Link>
-                </div>
-                <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  <span
-                    className="font-semibold"
-                    style={{ color: "var(--text-base)" }}
-                  >
-                    {t.vacation.reason}:{" "}
-                  </span>
-                  {r.reason || "–"}
-                </div>
-                <div
-                  className="mt-auto pt-3 border-t flex items-center justify-between"
-                  style={{ borderColor: "var(--border)" }}
+          groupedRequests.map(({ uid, color, rows }) => {
+            const sample = rows[0];
+            const name = getApplicantName(sample);
+            const initials = getApplicantInitials(sample);
+            const isOpen = !collapsedGroups.has(uid);
+            const pendingCount = rows.filter((r) => r.status === "pending").length;
+
+            return (
+              <div key={uid} className="card overflow-hidden">
+                {/* Panel-Kopfzeile */}
+                <button
+                  onClick={() => toggleGroup(uid)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-elevated)] transition-colors text-left"
+                  style={{ borderBottom: isOpen ? "1px solid var(--border)" : "none" }}
                 >
-                  <span className="badge badge-primary text-[10px]">
-                    {countWorkingDays(r.from, r.to)}{" "}
-                    Tage
+                  <span
+                    className="inline-flex items-center justify-center rounded-full text-[10px] font-black text-white shrink-0"
+                    style={{ width: 26, height: 26, background: color }}
+                  >
+                    {initials}
                   </span>
-                  {r.status === "pending" && (
-                    <div className="flex items-center gap-1">
-                      <Link
-                        href={`/dashboard/requests/${r.id}`}
-                        className="p-1.5 rounded-md"
-                        style={{
-                          background: "var(--success-light)",
-                          color: "var(--success)",
-                        }}
-                        title="Genehmigen (Unterschrift erforderlich)"
-                      >
-                        <CheckCircle size={12} />
-                      </Link>
-                      <button
-                        onClick={() => handleStatus(r.id, "rejected")}
-                        disabled={actionId === r.id}
-                        className="p-1.5 rounded-md disabled:opacity-50"
-                        style={{
-                          background: "var(--danger-light)",
-                          color: "var(--danger)",
-                        }}
-                        title={t.approvals.reject}
-                      >
-                        <XCircle size={12} />
-                      </button>
-                    </div>
+                  <span className="font-bold text-sm" style={{ color: "var(--text-base)" }}>
+                    {name}
+                  </span>
+                  <span className="badge badge-primary text-[10px]">{rows.length}</span>
+                  {pendingCount > 0 && (
+                    <span className="badge badge-pending text-[10px]">
+                      {pendingCount} ausstehend
+                    </span>
                   )}
-                </div>
+                  <ChevronDown
+                    size={14}
+                    className={`ml-auto transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    style={{ color: "var(--text-muted)" }}
+                  />
+                </button>
+
+                {/* Panel-Inhalt */}
+                {isOpen &&
+                  (viewMode === "list" ? (
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Zeitraum</th>
+                          <th>Dauer</th>
+                          <th>Grund</th>
+                          <th>Status</th>
+                          <th>Aktionen</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r) => (
+                          <tr key={r.id}>
+                            <td>
+                              <div className="font-semibold text-sm" style={{ color: "var(--text-base)" }}>
+                                {format(parseISO(r.from), "dd.MM.yyyy", { locale: de })}
+                              </div>
+                              <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                – {format(parseISO(r.to), "dd.MM.yyyy", { locale: de })}
+                              </div>
+                            </td>
+                            <td>
+                              <span className="badge badge-primary">
+                                {countWorkingDays(r.from, r.to)} Tage
+                              </span>
+                            </td>
+                            <td>
+                              <span className="text-sm truncate max-w-[160px] block" style={{ color: "var(--text-muted)" }}>
+                                {r.reason || "–"}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`badge ${r.status === "approved" ? "badge-approved" : r.status === "rejected" ? "badge-rejected" : "badge-pending"}`}>
+                                {r.status === "approved" ? t.status.approved : r.status === "rejected" ? t.status.rejected : t.status.pending}
+                              </span>
+                            </td>
+                            <td>
+                              {r.status === "pending" && (
+                                <div className="flex items-center gap-1.5">
+                                  <Link
+                                    href={`/dashboard/requests/${r.id}`}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
+                                    style={{ background: "var(--success-light)", color: "var(--success)" }}
+                                    title="Genehmigen (Unterschrift erforderlich)"
+                                  >
+                                    <CheckCircle size={10} />
+                                    {t.vacation.approve}
+                                  </Link>
+                                  <button
+                                    onClick={() => handleStatus(r.id, "rejected")}
+                                    disabled={actionId === r.id}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+                                    style={{ background: "var(--danger-light)", color: "var(--danger)" }}
+                                  >
+                                    <XCircle size={10} />
+                                    {t.vacation.reject}
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              <Link href={`/dashboard/requests/${r.id}`} className="btn-ghost p-1.5" title="Details">
+                                <Eye size={14} />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                      {rows.map((r) => (
+                        <div
+                          key={r.id}
+                          className="border p-4 rounded-xl flex flex-col gap-3 transition-all hover:shadow-md"
+                          style={{ borderColor: "var(--border)", background: "var(--bg-surface)" }}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className={`badge mb-2 inline-block ${r.status === "approved" ? "badge-approved" : r.status === "rejected" ? "badge-rejected" : "badge-pending"}`}>
+                                {r.status === "approved" ? t.status.approved : r.status === "rejected" ? t.status.rejected : t.status.pending}
+                              </span>
+                              <div className="text-sm font-bold" style={{ color: "var(--text-base)" }}>
+                                {format(parseISO(r.from), "dd.MM")} – {format(parseISO(r.to), "dd.MM.yyyy")}
+                              </div>
+                            </div>
+                            <Link href={`/dashboard/requests/${r.id}`} className="btn-ghost p-1.5">
+                              <Eye size={14} />
+                            </Link>
+                          </div>
+                          <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            <span className="font-semibold" style={{ color: "var(--text-base)" }}>
+                              {t.vacation.reason}:{" "}
+                            </span>
+                            {r.reason || "–"}
+                          </div>
+                          <div className="mt-auto pt-3 border-t flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+                            <span className="badge badge-primary text-[10px]">
+                              {countWorkingDays(r.from, r.to)} Tage
+                            </span>
+                            {r.status === "pending" && (
+                              <div className="flex items-center gap-1">
+                                <Link
+                                  href={`/dashboard/requests/${r.id}`}
+                                  className="p-1.5 rounded-md"
+                                  style={{ background: "var(--success-light)", color: "var(--success)" }}
+                                  title="Genehmigen (Unterschrift erforderlich)"
+                                >
+                                  <CheckCircle size={12} />
+                                </Link>
+                                <button
+                                  onClick={() => handleStatus(r.id, "rejected")}
+                                  disabled={actionId === r.id}
+                                  className="p-1.5 rounded-md disabled:opacity-50"
+                                  style={{ background: "var(--danger-light)", color: "var(--danger)" }}
+                                  title={t.approvals.reject}
+                                >
+                                  <XCircle size={12} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
               </div>
-            ))}
-          </div>
+            );
+          })
         )}
       </div>
     </div>

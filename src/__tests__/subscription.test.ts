@@ -162,6 +162,52 @@ describe("hasFeature", () => {
     expect(hasFeature(sub, "admin_consents")).toBe(true);
     expect(hasFeature(sub, "calendar_invite")).toBe(true);
   });
+
+  // ── plan.name-basierte Logik (v2.2) ────────────────────────────────────────
+
+  it("pro plan by name: returns PRO_FEATURES even when features column is null", () => {
+    // Bug-6-Fix: plan.name === 'pro' → PRO_FEATURES direkt, ohne DB-Features
+    const sub = makeSub({}, "pro");
+    const subNullFeatures = { ...sub, plan: { ...sub.plan!, features: null } };
+    expect(hasFeature(subNullFeatures as any, "reports")).toBe(true);
+    expect(hasFeature(subNullFeatures as any, "calendar_sync")).toBe(true);
+    expect(hasFeature(subNullFeatures as any, "email_integration")).toBe(true);
+  });
+
+  it("pro plan by name: returns PRO_FEATURES even when features column is empty object", () => {
+    const sub = makeSub({}, "pro");
+    const subEmptyFeatures = { ...sub, plan: { ...sub.plan!, features: {} } };
+    expect(hasFeature(subEmptyFeatures as any, "reports")).toBe(true);
+    expect(hasFeature(subEmptyFeatures as any, "document_templates")).toBe(true);
+  });
+
+  it("plan name matching is case-insensitive (Pro → pro)", () => {
+    const sub = makeSub({}, "pro");
+    // Simulate DB returning 'Pro' with capital P
+    const subMixedCase = { ...sub, plan: { ...sub.plan!, name: "Pro" as any } };
+    expect(hasFeature(subMixedCase as any, "reports")).toBe(true);
+    expect(hasFeature(subMixedCase as any, "calendar_sync")).toBe(true);
+  });
+
+  it("lite plan: db features column true overrides LITE_FEATURES false", () => {
+    // Edge case: DB explicitly enables a feature for lite
+    const sub = makeSub({}, "lite");
+    const subWithExtra = {
+      ...sub,
+      plan: {
+        ...sub.plan!,
+        features: { ...LITE_FEATURES, reports: true },
+      },
+    };
+    expect(hasFeature(subWithExtra as any, "reports")).toBe(true);
+  });
+
+  it("lite plan with null plan: falls back to LITE_FEATURES", () => {
+    const sub = makeSub({}, "lite");
+    const subNullPlan = { ...sub, plan: null };
+    expect(hasFeature(subNullPlan as any, "vacation_requests")).toBe(true);
+    expect(hasFeature(subNullPlan as any, "reports")).toBe(false);
+  });
 });
 
 // ── getPlanTier ───────────────────────────────────────────────────────────────

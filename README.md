@@ -8,6 +8,19 @@
 
 ---
 
+## Was ist neu in v2.1 (Mai 2026)
+
+- **Urlaub stornieren** – Mitarbeiter können eigene ausstehende/genehmigte Anträge stornieren (Status `cancelled`)
+- **Digitale Unterschrift speichern** – Unterschrift wird in Profileinstellungen dauerhaft als Base64 gespeichert und automatisch in Anträge eingefügt
+- **Verfügbare Urlaubstage** – Profileinstellungen zeigt Resttage (Kontingent + Übertrag − bereits genehmigt)
+- **Kalender: Berater-Unterscheidung** – Jeder Mitarbeiter erhält eine Farbe + Initialen-Badge im Kalender sowie eine Legende unterhalb
+- **Datumsformat** – Unterschrift-Datum verwendet jetzt das konfigurierte Format (Standard: DD.MM.YYYY)
+- **Autofill für alle Rollen** – Antrag-Vorbefüllung funktioniert nun auch ohne Admin-Rolle via Fallback auf org-unabhängige Einstellungen
+- **Session-Loading-Fix** – Kein "Trial abgelaufen"-Flash mehr beim ersten Laden der App
+- **Belegnummern** – Bereits vergebene Nummern in Profileinstellungen einsehen, ergänzen und löschen
+
+---
+
 ## Business Model
 
 | Feature | Lite | Pro |

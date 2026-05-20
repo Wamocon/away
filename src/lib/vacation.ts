@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 
-export type VacationStatus = "pending" | "approved" | "rejected";
+export type VacationStatus = "pending" | "approved" | "rejected" | "cancelled";
 
 export interface VacationRequest {
   id: string;
@@ -87,6 +87,27 @@ export async function updateVacationStatus(
     .from("vacation_requests")
     .update({ status })
     .eq("id", requestId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as VacationRequest;
+}
+
+/**
+ * Storniert einen eigenen Urlaubsantrag (Status → "cancelled").
+ * Nur der Antragsteller selbst darf stornieren – der userId-Check
+ * erfolgt client-seitig; serverseitig greift RLS.
+ */
+export async function cancelVacationRequest(
+  requestId: string,
+  userId: string,
+): Promise<VacationRequest> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("vacation_requests")
+    .update({ status: "cancelled" })
+    .eq("id", requestId)
+    .eq("user_id", userId)
     .select("*")
     .single();
   if (error) throw error;

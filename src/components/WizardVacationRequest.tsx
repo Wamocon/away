@@ -108,7 +108,11 @@ export default function WizardVacationRequest({
   const [reason, setReason] = useState("");
   const [location, setLocation] = useState("");
   const [signedAt, setSignedAt] = useState(
-    new Date().toISOString().split("T")[0],
+    new Date().toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }),
   );
   const [employeeSignature, setEmployeeSignature] = useState<string | null>(
     null,
@@ -172,6 +176,24 @@ export default function WizardVacationRequest({
           // Erweiterte Vorbefüllung
           if (s.deputyName && !deputyField) setDeputyField(s.deputyName as string);
           if (s.location && !location) setLocation(s.location as string);
+          // Unterschrift aus Einstellungen vorausfüllen
+          if (s.signatureBase64 && !employeeSignature)
+            setEmployeeSignature(s.signatureBase64 as string);
+          // Datum im vom User bevorzugten Format setzen
+          if (s.dateFormat && typeof s.dateFormat === "string") {
+            const now = new Date();
+            const fmt = s.dateFormat as string;
+            const dd = String(now.getDate()).padStart(2, "0");
+            const mm = String(now.getMonth() + 1).padStart(2, "0");
+            const yyyy = now.getFullYear().toString();
+            const formatted =
+              fmt === "YYYY-MM-DD"
+                ? `${yyyy}-${mm}-${dd}`
+                : fmt === "MM/DD/YYYY"
+                  ? `${mm}/${dd}/${yyyy}`
+                  : `${dd}.${mm}.${yyyy}`; // Default DD.MM.YYYY
+            setSignedAt(formatted);
+          }
         }
       });
     }

@@ -55,6 +55,16 @@ function getEmployeeColor(userId: string, sortedIds: string[]): string {
   return EMPLOYEE_COLORS[(idx < 0 ? 0 : idx) % EMPLOYEE_COLORS.length];
 }
 
+/** Extrahiert Initialen aus template_fields (Vorname/Nachname) oder kürzt user_id */
+function getEmployeeInitials(req: VacationRequest): string {
+  const fields = req.template_fields as Record<string, unknown> | undefined;
+  const first = fields?.firstName as string | undefined;
+  const last = fields?.lastName as string | undefined;
+  if (first && last) return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+  if (first) return first.substring(0, 2).toUpperCase();
+  return req.user_id.substring(0, 2).toUpperCase();
+}
+
 type ViewMode = "month" | "week";
 
 interface CalendarEvent {
@@ -480,13 +490,33 @@ export default function CalendarPage() {
                     <div className="space-y-0.5">
                       {dayEvents.slice(0, maxVisible).map((ev) => {
                         const isSync = ev.type === "sync";
+                        // Zugehörige Request für Initialen suchen
+                        const req = requests.find((r) => r.id === ev.id);
+                        const initials = req ? getEmployeeInitials(req) : undefined;
+                        const evColor = ev.userId
+                          ? getEmployeeColor(ev.userId, sortedEmployeeIds)
+                          : undefined;
                         const Content = (
                           <span
-                            className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline truncate block w-full text-left`}
+                            className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline truncate flex items-center gap-1 w-full text-left`}
                             title={ev.title}
-                            style={{ borderLeft: ev.userId ? `3px solid ${getEmployeeColor(ev.userId, sortedEmployeeIds)}` : undefined }}
+                            style={{
+                              borderLeft: evColor ? `3px solid ${evColor}` : undefined,
+                            }}
                           >
-                            {ev.title}
+                            {initials && (
+                              <span
+                                className="inline-flex items-center justify-center rounded-full text-[8px] font-black shrink-0 text-white"
+                                style={{
+                                  width: 14,
+                                  height: 14,
+                                  background: evColor ?? "#6366f1",
+                                }}
+                              >
+                                {initials}
+                              </span>
+                            )}
+                            <span className="truncate">{ev.title}</span>
                           </span>
                         );
 
@@ -563,12 +593,29 @@ export default function CalendarPage() {
                     <div className="flex flex-col gap-1 flex-1">
                       {dayEvents.map((ev) => {
                         const isSync = ev.type === "sync";
+                        const req = requests.find((r) => r.id === ev.id);
+                        const initials = req ? getEmployeeInitials(req) : undefined;
+                        const evColor = ev.userId
+                          ? getEmployeeColor(ev.userId, sortedEmployeeIds)
+                          : undefined;
                         const Content = (
                           <span
                             className={`cal-event ${eventTypeConfig[ev.type].cls} no-underline py-1.5 px-2 rounded-lg text-[11px] flex items-center gap-1 w-full text-left`}
-                            style={{ borderLeft: ev.userId ? `3px solid ${getEmployeeColor(ev.userId, sortedEmployeeIds)}` : undefined }}
+                            style={{ borderLeft: evColor ? `3px solid ${evColor}` : undefined }}
                           >
-                            {ev.title}
+                            {initials && (
+                              <span
+                                className="inline-flex items-center justify-center rounded-full text-[8px] font-black shrink-0 text-white"
+                                style={{
+                                  width: 14,
+                                  height: 14,
+                                  background: evColor ?? "#6366f1",
+                                }}
+                              >
+                                {initials}
+                              </span>
+                            )}
+                            <span className="truncate">{ev.title}</span>
                           </span>
                         );
 
@@ -614,6 +661,39 @@ export default function CalendarPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ─── Mitarbeiter-Legende ─────────────────────────── */}
+      {sortedEmployeeIds.length > 1 && (
+        <div className="mt-4 card p-4 animate-fade-in-d1">
+          <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>
+            Berater-Übersicht
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {sortedEmployeeIds.map((uid) => {
+              const color = getEmployeeColor(uid, sortedEmployeeIds);
+              const sample = requests.find((r) => r.user_id === uid);
+              const fields = sample?.template_fields as Record<string, unknown> | undefined;
+              const first = fields?.firstName as string | undefined;
+              const last = fields?.lastName as string | undefined;
+              const displayName = first && last
+                ? `${first} ${last}`
+                : first ?? uid.substring(0, 8);
+              const initials = getEmployeeInitials(sample ?? { user_id: uid, template_fields: {} } as VacationRequest);
+              return (
+                <div key={uid} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border" style={{ borderColor: color, background: `${color}15` }}>
+                  <span
+                    className="inline-flex items-center justify-center rounded-full text-[8px] font-black text-white shrink-0"
+                    style={{ width: 16, height: 16, background: color }}
+                  >
+                    {initials}
+                  </span>
+                  <span className="text-[11px] font-semibold" style={{ color: "var(--text-base)" }}>{displayName}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

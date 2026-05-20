@@ -1,6 +1,6 @@
 # Produkthandbuch: Away - Professionelle Urlaubsplanung
 
-> **Version 2.0** | Stand: April 2026 | WAMOCON
+> **Version 2.1** | Stand: Mai 2026 | WAMOCON
 
 ---
 
@@ -125,7 +125,34 @@ Per Klick auf Auf Pro upgraden in /settings/subscription:
 3. Genehmigen oder Ablehnen klicken
 4. Optional: Kommentar schreiben
 
-### 4.3 Administrator: Probeabo upgraden
+### 4.5 Antrag stornieren
+
+Mitarbeiter koennen eigene **ausstehende** oder **genehmigte** Antraege stornieren:
+
+1. /dashboard/requests oeffnen
+2. Antrag in der Liste suchen
+3. Stornieren-Symbol (Ban-Icon) neben dem Antrag klicken
+4. Bestaetigung bestaetigen
+5. Status wechselt auf **Storniert** (grau) und Urlaubstage werden zurueckgerechnet
+6. Optional: Vergebene Belegnummer unter /settings > Belegnummern loeschen
+
+### 4.6 Digitale Unterschrift hinterlegen
+
+1. /settings oeffnen
+2. Abschnitt **Meine Unterschrift** suchen
+3. PNG oder JPG (max. 500 KB) hochladen
+4. Einstellungen speichern
+5. Die Unterschrift wird automatisch in alle kuenftigen Urlaubsantraege eingefuegt
+
+### 4.7 Belegnummern verwalten
+
+1. /settings oeffnen
+2. Abschnitt **Belegnummern** scrollen
+3. Bestehende Eintraege anzeigen; loeschen per X-Schaltflaeche
+4. Neue Nummer manuell eingeben und **Hinzufuegen** klicken
+5. Naechste automatisch generierte Nummer wird als Vorschau angezeigt
+
+---
 
 1. /settings/subscription oeffnen
 2. Auf Pro upgraden klicken
@@ -175,11 +202,37 @@ Per Klick auf Auf Pro upgraden in /settings/subscription:
 | Berechtigung | Employee | Approver | Admin | CIO |
 | :--- | :---: | :---: | :---: | :---: |
 | Eigene Antraege stellen | Ja | Ja | Ja | Ja |
+| Eigene Antraege stornieren | Ja | Ja | Ja | Ja |
 | Antraege genehmigen | Nein | Ja | Ja | Ja |
 | Nutzer einladen | Nein | Nein | Ja | Ja |
 | Admin-Einstellungen | Nein | Nein | Ja | Ja |
 | Reports (Pro) | Nein | Ja | Ja | Ja |
 | DSGVO-Panel (Pro) | Nein | Nein | Ja | Ja |
+
+### 5.3 Antragsstatus-Workflow
+
+```
+pending --> approved --> (cancelled)
+        --> rejected
+        --> (cancelled)  [eigene stornieren]
+```
+
+| Status | Farbe | Bedeutung |
+| :--- | :--- | :--- |
+| pending | Gelb | Wartet auf Genehmigung |
+| approved | Gruen | Genehmigt, Tage werden vom Kontingent abgezogen |
+| rejected | Rot | Abgelehnt |
+| cancelled | Grau | Storniert, Tage werden zurueckgerechnet |
+
+### 5.4 Kalender-Ansicht
+
+Der Teamkalender (/dashboard/calendar) zeigt alle Urlaubsantraege farblich unterschieden:
+
+- **Statusfarben**: Genehmigt (gruen), ausstehend (gelb), abgelehnt (rot)
+- **Berater-Farben**: Jeder Mitarbeiter erhaelt eine eindeutige Farbe (Balken links am Eintrag) plus **Initialen-Badge**
+- **Berater-Legende**: Unterhalb des Kalenders eine Legende mit Farbe, Initialen und vollstaendigem Namen
+- **Monats- und Wochenansicht** waehlbar
+- **Datumsauswahl**: Klick auf Tage erzeugt Antragsvorbelegung
 
 ---
 

@@ -40,11 +40,14 @@ const SubscriptionContext = createContext<SubscriptionContextValue>({
 });
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { currentOrgId } = useActiveOrg();
+  const { currentOrgId, loading: orgLoading } = useActiveOrg();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    // Warten bis ActiveOrgProvider fertig geladen ist, damit kein falscher
+    // "Trial abgelaufen"-Flash entsteht, während die Org noch nicht bekannt ist.
+    if (orgLoading) return;
     if (!currentOrgId) {
       setLoading(false);
       return;
@@ -58,7 +61,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [currentOrgId]);
+  }, [currentOrgId, orgLoading]);
 
   useEffect(() => {
     load();

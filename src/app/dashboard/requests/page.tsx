@@ -5,6 +5,7 @@ import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import {
   getVacationRequestsForOrg,
   updateVacationStatus,
+  cancelVacationRequest,
   VacationRequest,
   getMyVacationRequests,
 } from "@/lib/vacation";
@@ -23,6 +24,7 @@ import {
   SlidersHorizontal,
   LayoutGrid,
   List,
+  Ban,
 } from "lucide-react";
 import Link from "next/link";
 import WizardVacationRequest from "@/components/WizardVacationRequest";
@@ -30,13 +32,14 @@ import { useSearchParams } from "next/navigation";
 import { useViewMode } from "@/components/ui/ViewModeProvider";
 import { useLanguage } from "@/components/ui/LanguageProvider";
 
-type StatusFilter = "all" | "pending" | "approved" | "rejected";
+type StatusFilter = "all" | "pending" | "approved" | "rejected" | "cancelled";
 
 const statusConfig = {
   all: { label: "all", cls: "badge-primary", Icon: SlidersHorizontal },
   pending: { label: "pending", cls: "badge-pending", Icon: Clock },
   approved: { label: "approved", cls: "badge-approved", Icon: CheckCircle },
   rejected: { label: "rejected", cls: "badge-rejected", Icon: XCircle },
+  cancelled: { label: "cancelled", cls: "badge-cancelled", Icon: Ban },
 };
 
 function RequestsPageContent() {
@@ -117,6 +120,20 @@ function RequestsPageContent() {
     }
   };
 
+  const handleCancel = async (id: string) => {
+    if (!user) return;
+    if (!window.confirm("Urlaubsantrag wirklich stornieren?")) return;
+    setActionId(id);
+    try {
+      await cancelVacationRequest(id, user.id);
+      setRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: "cancelled" } : r)),
+      );
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const filtered = requests.filter((r) => {
     const matchStatus = statusFilter === "all" || r.status === statusFilter;
     const matchSearch =
@@ -132,6 +149,7 @@ function RequestsPageContent() {
     pending: requests.filter((r) => r.status === "pending").length,
     approved: requests.filter((r) => r.status === "approved").length,
     rejected: requests.filter((r) => r.status === "rejected").length,
+    cancelled: requests.filter((r) => r.status === "cancelled").length,
   };
 
   return (
@@ -332,14 +350,18 @@ function RequestsPageContent() {
                           ? "badge-approved"
                           : r.status === "rejected"
                             ? "badge-rejected"
-                            : "badge-pending"
+                            : r.status === "cancelled"
+                              ? "badge-cancelled"
+                              : "badge-pending"
                       }`}
                     >
                       {r.status === "approved"
                         ? t.status.approved
                         : r.status === "rejected"
                           ? t.status.rejected
-                          : t.status.pending}
+                          : r.status === "cancelled"
+                            ? "Storniert"
+                            : t.status.pending}
                     </span>
                   </td>
                   {canApprove(role) && (
@@ -379,13 +401,31 @@ function RequestsPageContent() {
                     </td>
                   )}
                   <td>
-                    <Link
-                      href={`/dashboard/requests/${r.id}`}
-                      className="btn-ghost p-1.5"
-                      title={t.common.details}
-                    >
-                      <Eye size={14} />
-                    </Link>
+                    <div className="flex items-center gap-1">
+                      {/* Stornieren-Button: eigene ausstehende/genehmigte Anträge */}
+                      {(r.status === "pending" || r.status === "approved") &&
+                        r.user_id === user?.id && (
+                          <button
+                            onClick={() => handleCancel(r.id)}
+                            disabled={actionId === r.id}
+                            className="btn-ghost p-1.5 text-rose-500 hover:bg-rose-500/10 disabled:opacity-40"
+                            title="Antrag stornieren"
+                          >
+                            {actionId === r.id ? (
+                              <Loader size={14} className="animate-spin" />
+                            ) : (
+                              <Ban size={14} />
+                            )}
+                          </button>
+                        )}
+                      <Link
+                        href={`/dashboard/requests/${r.id}`}
+                        className="btn-ghost p-1.5"
+                        title={t.common.details}
+                      >
+                        <Eye size={14} />
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

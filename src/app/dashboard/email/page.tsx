@@ -38,7 +38,7 @@ export default function EmailPage() {
           getUserSettings(data.user.id, orgId)
             .then((settings) => {
               if (settings?.email) {
-                setEmailInput(settings.email);
+                setEmailInput(settings.email as string);
               } else {
                 setEmailInput("");
               }

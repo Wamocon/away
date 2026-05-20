@@ -6,7 +6,7 @@ import {
   VacationRequest,
 } from "@/lib/vacation";
 import { format, parseISO } from "date-fns";
-import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Ban } from "lucide-react";
 import { useLanguage } from "@/components/ui/LanguageProvider";
 
 export default function VacationList({
@@ -38,6 +38,13 @@ export default function VacationList({
       bg: "bg-red-400/10",
       border: "border-red-400/20",
       icon: XCircle,
+    },
+    cancelled: {
+      label: t.status.cancelled,
+      color: "text-gray-400",
+      bg: "bg-gray-400/10",
+      border: "border-gray-400/20",
+      icon: Ban,
     },
   };
   const [requests, setRequests] = useState<VacationRequest[]>([]);

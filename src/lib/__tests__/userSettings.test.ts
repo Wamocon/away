@@ -97,8 +97,8 @@ describe("userSettings lib", () => {
       });
 
       const result = await getUserSettings("user-1", "org-1");
-      expect(result.email).toBe("pref@test.com");
-      expect(result.settings.theme).toBe("dark");
+      expect(result!.email).toBe("pref@test.com");
+      expect((result!.settings as Record<string, unknown>).theme).toBe("dark");
     });
 
     it("should handle missing organization_id by limiting results", async () => {
@@ -260,8 +260,8 @@ describe("userSettings lib", () => {
       });
 
       const result = await getUserSettings("user-1", "org-1");
-      expect(result.settings.deputyName).toBe("Max Mustermann");
-      expect(result.settings.deputyEmail).toBe("max@example.de");
+      expect((result!.settings as Record<string, unknown>).deputyName).toBe("Max Mustermann");
+      expect((result!.settings as Record<string, unknown>).deputyEmail).toBe("max@example.de");
     });
 
     it("returns firstName and lastName from settings JSON", async () => {
@@ -274,8 +274,8 @@ describe("userSettings lib", () => {
       });
 
       const result = await getUserSettings("user-1", "org-1");
-      expect(result.settings.firstName).toBe("Anna");
-      expect(result.settings.lastName).toBe("Schmidt");
+      expect((result!.settings as Record<string, unknown>).firstName).toBe("Anna");
+      expect((result!.settings as Record<string, unknown>).lastName).toBe("Schmidt");
     });
 
     it("returns vacationQuota and carryOver from settings JSON", async () => {
@@ -288,8 +288,8 @@ describe("userSettings lib", () => {
       });
 
       const result = await getUserSettings("user-1", "org-1");
-      expect(result.settings.vacationQuota).toBe(28);
-      expect(result.settings.carryOver).toBe(5);
+      expect((result!.settings as Record<string, unknown>).vacationQuota).toBe(28);
+      expect((result!.settings as Record<string, unknown>).carryOver).toBe(5);
     });
 
     it("handles empty settings JSON gracefully", async () => {

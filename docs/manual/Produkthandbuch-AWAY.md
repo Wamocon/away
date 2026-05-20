@@ -1,6 +1,6 @@
 # Produkthandbuch: Away - Professionelle Urlaubsplanung
 
-> **Version 2.1** | Stand: Mai 2026 | WAMOCON
+> **Version 2.2** | Stand: Mai 2026 | WAMOCON
 
 ---
 
@@ -121,9 +121,29 @@ Per Klick auf Auf Pro upgraden in /settings/subscription:
 ### 4.2 Genehmiger: Antrag genehmigen oder ablehnen
 
 1. Genehmigungen in Navigation klicken
-2. Antrag anklicken
-3. Genehmigen oder Ablehnen klicken
-4. Optional: Kommentar schreiben
+2. Berater-Panel aufklappen (Klick auf Kopfzeile mit Avatar und Namen)
+3. Antrag in der Tabelle anklicken
+4. Genehmigen oder Ablehnen klicken
+5. Optional: Kommentar schreiben
+
+### 4.3 Genehmiger: Berater-Panels verwalten
+
+Antraege werden auf /dashboard/admin-requests **nach Berater gruppiert** dargestellt:
+
+1. Jede Person erscheint als eigenes aufklappbares Panel (Kopfzeile: Farbiger Initialen-Avatar, Name, Anzahl, offene Antraege)
+2. Klick auf die Kopfzeile klappt das Panel auf oder zu
+3. Innerhalb des Panels: Tabellenansicht (Liste) oder Kacheln (Raster) waehlbar
+4. Status-Filter und Suche wirken auf alle Panels gleichzeitig
+
+### 4.8 Kalender: Berater-Panels nutzen
+
+Auf /dashboard/calendar erscheint unterhalb des Kalenders ein **Berater-Uebersicht**-Bereich:
+
+1. Jeder Mitarbeiter hat ein eigenes aufklappbares Panel mit Initialen-Avatar, Name und Antrags-Zaehler
+2. Das eigene Panel wird mit **(ich)** markiert
+3. Klick auf einen Eintrag im **eigenen** Panel oeffnet die Antragsdetails
+4. Eintraege anderer Berater sind **schreibgeschuetzt** (sichtbar, aber nicht klickbar) – Tooltip: "Du kannst nur eigene Antraege oeffnen"
+5. Im Kalender-Grid (Monats- und Wochenansicht) gilt dieselbe Regel: fremde Ereignisse sind nicht anklickbar
 
 ### 4.5 Antrag stornieren
 
@@ -204,6 +224,9 @@ Mitarbeiter koennen eigene **ausstehende** oder **genehmigte** Antraege stornier
 | Eigene Antraege stellen | Ja | Ja | Ja | Ja |
 | Eigene Antraege stornieren | Ja | Ja | Ja | Ja |
 | Antraege genehmigen | Nein | Ja | Ja | Ja |
+| Kalender anderer Berater einsehen | Ja | Ja | Ja | Ja |
+| Kalender anderer Berater oeffnen | Nein | Nein | Nein | Nein |
+| Berater-Panels (Admin-Requests) | Nein | Ja | Ja | Ja |
 | Nutzer einladen | Nein | Nein | Ja | Ja |
 | Admin-Einstellungen | Nein | Nein | Ja | Ja |
 | Reports (Pro) | Nein | Ja | Ja | Ja |
@@ -230,9 +253,20 @@ Der Teamkalender (/dashboard/calendar) zeigt alle Urlaubsantraege farblich unter
 
 - **Statusfarben**: Genehmigt (gruen), ausstehend (gelb), abgelehnt (rot)
 - **Berater-Farben**: Jeder Mitarbeiter erhaelt eine eindeutige Farbe (Balken links am Eintrag) plus **Initialen-Badge**
-- **Berater-Legende**: Unterhalb des Kalenders eine Legende mit Farbe, Initialen und vollstaendigem Namen
+- **Berater-Panels**: Unterhalb des Kalenders ein aufklappbares Panel pro Berater mit vollstaendiger Antrags-Uebersicht
+- **Eigene vs. fremde Eintraege**: Eigene Antraege sind klickbar, Antraege anderer Berater nur lesbar (kein Link, Tooltip-Hinweis)
 - **Monats- und Wochenansicht** waehlbar
 - **Datumsauswahl**: Klick auf Tage erzeugt Antragsvorbelegung
+
+### 5.5 Antraege nach Berater gruppiert (/dashboard/admin-requests)
+
+Genehmiger und Administratoren sehen alle Antraege ihrer Organisation **nach Berater gruppiert**:
+
+- Pro Berater ein aufklappbares **Panel** mit farbigem Avatar, vollstaendigem Namen und Anzahl-Badges
+- **Ausstehend-Badge** wird nur angezeigt, wenn noch offene Antraege vorhanden sind
+- **Status-Filter** (Alle / Ausstehend / Genehmigt / Abgelehnt) und **Suche** wirken global auf alle Panels
+- **Ansicht wechseln**: Liste (Tabelle) oder Raster (Kacheln) – beide Ansichten innerhalb der Panels verfuegbar
+- Innerhalb eines Panels entfaellt die Antragsteller-Spalte – der Name steht bereits im Panel-Header
 
 ---
 
@@ -288,3 +322,6 @@ Nach Grace Period automatisch geloescht: vacation_requests, user_settings, user_
 | RLS | Row Level Security - PostgreSQL-Datenisolation |
 | mailto: Fallback | System-Mail-Client oeffnen wenn kein Provider konfiguriert |
 | pending_order | Upgrade beantragt, Freischaltung ausstehend |
+| Berater-Panel | Aufklappbares Panel pro Mitarbeiter in Antraege und Kalender |
+| countWorkingDays | Hilfsfunktion: zaehlt Arbeitstage (Mo-Fr) zwischen zwei Datumsangaben |
+| Schreibgeschuetzt | Kalender-Eintraege fremder Berater sind sichtbar aber nicht klickbar |

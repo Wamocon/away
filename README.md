@@ -8,6 +8,17 @@
 
 ---
 
+## Was ist neu in v2.2 (Mai 2026)
+
+- **Anträge nach Berater gruppiert** – `/dashboard/admin-requests` zeigt alle Anträge als aufklappbare Panels pro Berater (farbiger Initialen-Avatar, Name, Anzahl-Badge, "X ausstehend"-Badge). Beide Ansichtsmodi (Liste & Raster) innerhalb der Panels verfügbar
+- **Kalender: Berater-Panels** – Unterhalb des Kalenders ersetzt ein aufklappbares Panel pro Berater die frühere flache Mitarbeiter-Legende. Enthält vollständige Antragsübersicht pro Person
+- **Kalender: Schreibschutz für fremde Einträge** – Alle Nutzer können sehen, wann Kollegen Urlaub haben, aber fremde Anträge sind nicht klickbar (weder im Grid noch im Panel). Eigene Einträge bleiben Links zur Detailseite
+- **Arbeitstage statt Kalendertage** – Alle Dauerberechnungen (Dashboard, Antragsübersicht, Reports, Einstellungen) zählen ausschließlich Werktage (Mo–Fr) via `countWorkingDays()`
+- **In-App Stornierungsbestätigung** – `window.confirm()` durch ein natives Modal ersetzt
+- **Reports: Plan-Name-Prüfung** – `hasFeature()` nutzt `plan.name` statt DB-Features-Spalte; verhindert gesperrte Reports bei leerem Features-JSON
+
+---
+
 ## Was ist neu in v2.1 (Mai 2026)
 
 - **Urlaub stornieren** – Mitarbeiter können eigene ausstehende/genehmigte Anträge stornieren (Status `cancelled`)
@@ -125,12 +136,19 @@ pnpm test:coverage
 ```
 src/
   app/           – Next.js App Router (Seiten & API)
+    dashboard/
+      admin-requests/  – Anträge nach Berater gruppiert (aufklappbare Panels)
+      calendar/        – Teamkalender mit Berater-Panels; fremde Events read-only
+      requests/        – Eigene Anträge; In-App Stornierungsmodal
+      reports/         – Analytics; Arbeitstage-basierte Auswertung
   components/    – React-Komponenten
     ui/          – PlanGate, SubscriptionProvider, ProductTour, …
     layout/      – Sidebar, Header
   lib/           – Supabase-Client, subscription.ts, email.ts, …
+    utils/
+      formatters.ts    – countWorkingDays(), renderFieldValue()
 supabase/
-  migrations/    – SQL-Migrationen
+  migrations/    – SQL-Migrationen (inkl. 20260520_v5_0_cancelled_status.sql)
   functions/     – Edge Functions
 docs/
   manual/        – Produkthandbuch (HTML + Markdown)

@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import {
-  getVacationRequestsForOrg,
   updateVacationStatus,
   cancelVacationRequest,
   VacationRequest,

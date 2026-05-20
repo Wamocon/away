@@ -16,7 +16,6 @@ import {
   isWeekend,
   startOfWeek,
   addDays,
-  differenceInCalendarDays,
 } from "date-fns";
 import { de } from "date-fns/locale";
 import {
@@ -30,6 +29,7 @@ import {
   Plus,
   Building2,
   LayoutDashboard,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -90,6 +90,7 @@ export default function CalendarPage() {
   const [showSync, setShowSync] = useState(false);
   const [selectedSyncEvent, setSelectedSyncEvent] =
     useState<CalendarEvent | null>(null);
+  const [collapsedCalGroups, setCollapsedCalGroups] = useState<Set<string>>(new Set());
   // Bug 8: Datumsauswahl per Klick im Kalender
   const [rangeStart, setRangeStart] = useState<Date | null>(null);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
@@ -536,14 +537,21 @@ export default function CalendarPage() {
                           );
                         }
 
+                        if (ev.userId === userId) {
+                          return (
+                            <Link
+                              key={ev.id}
+                              href={`/dashboard/requests/${ev.id}`}
+                              className="no-underline block"
+                            >
+                              {Content}
+                            </Link>
+                          );
+                        }
                         return (
-                          <Link
-                            key={ev.id}
-                            href={`/dashboard/requests/${ev.id}`}
-                            className="no-underline block"
-                          >
+                          <div key={ev.id} title="Antrag eines Kollegen – nur lesbar">
                             {Content}
-                          </Link>
+                          </div>
                         );
                       })}
                       {dayEvents.length > maxVisible && (
@@ -636,15 +644,22 @@ export default function CalendarPage() {
                           );
                         }
 
+                        if (ev.userId === userId) {
+                          return (
+                            <Link
+                              key={ev.id}
+                              href={`/dashboard/requests/${ev.id}`}
+                              className="no-underline block"
+                              title={ev.title}
+                            >
+                              {Content}
+                            </Link>
+                          );
+                        }
                         return (
-                          <Link
-                            key={ev.id}
-                            href={`/dashboard/requests/${ev.id}`}
-                            className="no-underline block"
-                            title={ev.title}
-                          >
+                          <div key={ev.id} title="Antrag eines Kollegen – nur lesbar">
                             {Content}
-                          </Link>
+                          </div>
                         );
                       })}
                       {dayEvents.length === 0 && isToday_ && (
@@ -664,111 +679,171 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* ─── Mitarbeiter-Legende ─────────────────────────── */}
-      {sortedEmployeeIds.length > 1 && (
-        <div className="mt-4 card p-4 animate-fade-in-d1">
-          <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>
+      {/* ─── Berater-Panels ─────────────────────────────── */}
+      {sortedEmployeeIds.length > 0 && (
+        <div className="mt-6 space-y-3 animate-fade-in-d2">
+          <p
+            className="text-[10px] font-black uppercase tracking-widest px-1"
+            style={{ color: "var(--text-muted)" }}
+          >
             Berater-Übersicht
           </p>
-          <div className="flex flex-wrap gap-2">
-            {sortedEmployeeIds.map((uid) => {
-              const color = getEmployeeColor(uid, sortedEmployeeIds);
-              const sample = requests.find((r) => r.user_id === uid);
-              const fields = sample?.template_fields as Record<string, unknown> | undefined;
-              const first = fields?.firstName as string | undefined;
-              const last = fields?.lastName as string | undefined;
-              const displayName = first && last
+          {sortedEmployeeIds.map((uid) => {
+            const color = getEmployeeColor(uid, sortedEmployeeIds);
+            const sample = requests.find((r) => r.user_id === uid);
+            const fields = sample?.template_fields as
+              | Record<string, unknown>
+              | undefined;
+            const first = fields?.firstName as string | undefined;
+            const last = fields?.lastName as string | undefined;
+            const displayName =
+              first && last
                 ? `${first} ${last}`
                 : first ?? uid.substring(0, 8);
-              const initials = getEmployeeInitials(sample ?? { user_id: uid, template_fields: {} } as VacationRequest);
-              return (
-                <div key={uid} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border" style={{ borderColor: color, background: `${color}15` }}>
+            const initials = getEmployeeInitials(
+              sample ??
+                ({
+                  user_id: uid,
+                  template_fields: {},
+                } as VacationRequest),
+            );
+            const userRequests = requests.filter((r) => r.user_id === uid);
+            const isOwnGroup = uid === userId;
+            const isOpen = !collapsedCalGroups.has(uid);
+            const pendingCount = userRequests.filter(
+              (r) => r.status === "pending",
+            ).length;
+
+            return (
+              <div key={uid} className="card overflow-hidden">
+                <button
+                  onClick={() =>
+                    setCollapsedCalGroups((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(uid)) next.delete(uid);
+                      else next.add(uid);
+                      return next;
+                    })
+                  }
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-elevated)] transition-colors text-left"
+                  style={{
+                    borderBottom: isOpen ? "1px solid var(--border)" : "none",
+                  }}
+                >
                   <span
-                    className="inline-flex items-center justify-center rounded-full text-[8px] font-black text-white shrink-0"
-                    style={{ width: 16, height: 16, background: color }}
+                    className="inline-flex items-center justify-center rounded-full text-[10px] font-black text-white shrink-0"
+                    style={{ width: 26, height: 26, background: color }}
                   >
                     {initials}
                   </span>
-                  <span className="text-[11px] font-semibold" style={{ color: "var(--text-base)" }}>{displayName}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ─── Upcoming Requests ──────────────────────────── */}
-      {requests.length > 0 && (
-        <div className="mt-6 card p-5 animate-fade-in-d2">
-          <h2
-            className="text-sm font-bold mb-4"
-            style={{ color: "var(--text-base)" }}
-          >
-            {t.calendar.upcomingRequests}
-          </h2>
-          <div className="space-y-2">
-            {requests.slice(0, 8).map((r) => {
-              const cfg =
-                eventTypeConfig[r.status as keyof typeof eventTypeConfig];
-              return (
-                <Link
-                  key={r.id}
-                  href={`/dashboard/requests/${r.id}`}
-                  className="flex items-center gap-3 p-3 rounded-xl border no-underline group hover:border-[rgba(99,102,241,0.2)] transition-all"
-                  style={{
-                    borderColor: "var(--border)",
-                    background: "var(--bg-elevated)",
-                  }}
-                >
-                  <div
-                    className={`w-2 h-2 rounded-full shrink-0 ${
-                      r.status === "approved"
-                        ? "bg-[var(--success)]"
-                        : r.status === "rejected"
-                          ? "bg-[var(--danger)]"
-                          : "bg-[var(--warning)]"
-                    }`}
-                  />
-                  <div
-                    className="text-sm"
+                  <span
+                    className="font-bold text-sm"
                     style={{ color: "var(--text-base)" }}
                   >
-                    <span className="font-semibold">
-                      {format(parseISO(r.from), "dd.MM.yyyy")}
-                    </span>
-                    {" – "}
-                    <span className="font-semibold">
-                      {format(parseISO(r.to), "dd.MM.yyyy")}
-                    </span>
-                    <span
-                      className="text-xs ml-2"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      (
-                      {differenceInCalendarDays(
-                        parseISO(r.to),
-                        parseISO(r.from),
-                      ) + 1}{" "}
-                      {t.vacation.days})
-                    </span>
-                  </div>
-                  {r.reason && (
-                    <div
-                      className="text-xs truncate flex-1"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {r.reason}
-                    </div>
-                  )}
-                  <span
-                    className={`badge ${r.status === "approved" ? "badge-approved" : r.status === "pending" ? "badge-pending" : "badge-rejected"} shrink-0 ml-auto`}
-                  >
-                    {cfg?.label}
+                    {displayName}
+                    {isOwnGroup && (
+                      <span className="ml-1.5 text-[10px] font-normal opacity-60">
+                        (ich)
+                      </span>
+                    )}
                   </span>
-                </Link>
-              );
-            })}
-          </div>
+                  <span className="badge badge-primary text-[10px]">
+                    {userRequests.length}
+                  </span>
+                  {pendingCount > 0 && (
+                    <span className="badge badge-pending text-[10px]">
+                      {pendingCount} ausstehend
+                    </span>
+                  )}
+                  <ChevronDown
+                    size={14}
+                    className={`ml-auto transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                    style={{ color: "var(--text-muted)" }}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div
+                    className="divide-y"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    {userRequests.map((r) => {
+                      const cfg =
+                        eventTypeConfig[
+                          r.status as keyof typeof eventTypeConfig
+                        ];
+                      const canOpen = r.user_id === userId;
+                      const inner = (
+                        <div
+                          className="flex items-center gap-3 p-3"
+                          style={{ background: "var(--bg-elevated)" }}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              r.status === "approved"
+                                ? "bg-[var(--success)]"
+                                : r.status === "rejected"
+                                  ? "bg-[var(--danger)]"
+                                  : "bg-[var(--warning)]"
+                            }`}
+                          />
+                          <div
+                            className="text-sm flex-1"
+                            style={{ color: "var(--text-base)" }}
+                          >
+                            <span className="font-semibold">
+                              {format(parseISO(r.from), "dd.MM.yyyy")}
+                            </span>
+                            {" – "}
+                            <span className="font-semibold">
+                              {format(parseISO(r.to), "dd.MM.yyyy")}
+                            </span>
+                          </div>
+                          {r.reason && (
+                            <div
+                              className="text-xs truncate max-w-[140px]"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {r.reason}
+                            </div>
+                          )}
+                          <span
+                            className={`badge shrink-0 ${
+                              r.status === "approved"
+                                ? "badge-approved"
+                                : r.status === "pending"
+                                  ? "badge-pending"
+                                  : "badge-rejected"
+                            }`}
+                          >
+                            {cfg?.label}
+                          </span>
+                        </div>
+                      );
+                      return canOpen ? (
+                        <Link
+                          key={r.id}
+                          href={`/dashboard/requests/${r.id}`}
+                          className="block no-underline hover:brightness-95 transition-all"
+                        >
+                          {inner}
+                        </Link>
+                      ) : (
+                        <div
+                          key={r.id}
+                          title="Du kannst nur eigene Anträge öffnen"
+                        >
+                          {inner}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

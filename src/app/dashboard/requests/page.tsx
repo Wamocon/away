@@ -3,15 +3,15 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useActiveOrg } from "@/components/ui/ActiveOrgProvider";
 import {
-  getVacationRequestsForOrg,
   updateVacationStatus,
   cancelVacationRequest,
   VacationRequest,
   getMyVacationRequests,
 } from "@/lib/vacation";
 import { getUserRole, UserRole, canApprove } from "@/lib/roles";
-import { format, parseISO, differenceInCalendarDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
+import { countWorkingDays } from "@/lib/utils/formatters";
 import {
   ClipboardList,
   Plus,
@@ -60,6 +60,8 @@ function RequestsPageContent() {
     initialFilter === "all" && searchParams.get("open") === "wizard",
   );
   const [actionId, setActionId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   // Bug 8: Datum-Vorbelegung aus URL-Params (Kalender-Auswahl)
   const initialFromParam = searchParams.get("from") ?? undefined;
   const initialToParam = searchParams.get("to") ?? undefined;
@@ -92,9 +94,7 @@ function RequestsPageContent() {
         );
         setRole(r);
 
-        const data = canApprove(r)
-          ? await getVacationRequestsForOrg(currentOrg.id)
-          : await getMyVacationRequests(user.id);
+        const data = await getMyVacationRequests(user.id);
         setRequests(data);
       }
     } catch (err) {
@@ -122,13 +122,20 @@ function RequestsPageContent() {
 
   const handleCancel = async (id: string) => {
     if (!user) return;
-    if (!window.confirm("Urlaubsantrag wirklich stornieren?")) return;
+    setConfirmCancelId(id);
+  };
+
+  const doCancel = async (id: string) => {
+    setConfirmCancelId(null);
+    setCancelError(null);
     setActionId(id);
     try {
-      await cancelVacationRequest(id, user.id);
+      await cancelVacationRequest(id, user!.id);
       setRequests((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status: "cancelled" } : r)),
       );
+    } catch (err) {
+      setCancelError((err as Error).message ?? "Stornierung fehlgeschlagen");
     } finally {
       setActionId(null);
     }
@@ -162,12 +169,10 @@ function RequestsPageContent() {
             style={{ color: "var(--text-base)" }}
           >
             <ClipboardList size={22} style={{ color: "var(--primary)" }} />
-            {canApprove(role) ? t.requests.allRequests : t.requests.myRequests}
+            {t.requests.myRequests}
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            {canApprove(role)
-              ? `${org?.name} ${t.requests.allSubmitted}`
-              : t.requests.manageYours}
+            {t.requests.manageYours}
           </p>
         </div>
         <button
@@ -328,10 +333,7 @@ function RequestsPageContent() {
                   </td>
                   <td>
                     <span className="badge badge-primary">
-                      {differenceInCalendarDays(
-                        parseISO(r.to),
-                        parseISO(r.from),
-                      ) + 1}{" "}
+                      {countWorkingDays(r.from, r.to)}{" "}
                       {t.common.days}
                     </span>
                   </td>
@@ -488,10 +490,7 @@ function RequestsPageContent() {
                   style={{ borderColor: "var(--border)" }}
                 >
                   <span className="badge badge-primary text-[10px] px-2 py-0.5">
-                    {differenceInCalendarDays(
-                      parseISO(r.to),
-                      parseISO(r.from),
-                    ) + 1}{" "}
+                    {countWorkingDays(r.from, r.to)}{" "}
                     {t.common.days}
                   </span>
 
@@ -549,6 +548,52 @@ function RequestsPageContent() {
           initialFrom={initialFromParam}
           initialTo={initialToParam}
         />
+      )}
+
+      {/* In-App Stornierung-Bestätigung */}
+      {confirmCancelId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div
+            className="w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200"
+            style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--danger-light)" }}>
+                <Ban size={18} style={{ color: "var(--danger)" }} />
+              </div>
+              <div>
+                <p className="font-black text-sm" style={{ color: "var(--text-base)" }}>Antrag stornieren</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Soll dieser Urlaubsantrag wirklich storniert werden? Diese Aktion kann nicht rückgängig gemacht werden.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setConfirmCancelId(null)}
+                className="flex-1 btn-secondary text-sm py-2"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => doCancel(confirmCancelId)}
+                className="flex-1 py-2 rounded-xl text-sm font-black transition-all hover:opacity-90"
+                style={{ background: "var(--danger)", color: "#fff" }}
+              >
+                Ja, stornieren
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fehler-Banner */}
+      {cancelError && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-sm font-semibold"
+          style={{ background: "var(--danger)", color: "#fff" }}
+        >
+          <XCircle size={16} />
+          {cancelError}
+          <button onClick={() => setCancelError(null)} className="ml-2 opacity-70 hover:opacity-100">×</button>
+        </div>
       )}
     </div>
   );

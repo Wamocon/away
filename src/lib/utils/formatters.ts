@@ -2,6 +2,22 @@ import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 
 /**
+ * Counts working days (Mon–Fri) between two ISO date strings (inclusive).
+ */
+export function countWorkingDays(fromISO: string, toISO: string): number {
+  const start = parseISO(fromISO);
+  const end = parseISO(toISO);
+  let count = 0;
+  const current = new Date(start);
+  while (current <= end) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) count++;
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
+/**
  * Renders any field value from vacation template fields into a human-readable string or ReactNode.
  * Handles strings, numbers, booleans, and complex checkbox arrays.
  */

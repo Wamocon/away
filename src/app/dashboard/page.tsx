@@ -8,6 +8,7 @@ import { getVacationRequestsForOrg, VacationRequest } from "@/lib/vacation";
 import { getUserRole, UserRole, canApprove, ROLE_LABELS } from "@/lib/roles";
 import { format, parseISO, differenceInCalendarDays, isFuture } from "date-fns";
 import { de } from "date-fns/locale";
+import { countWorkingDays } from "@/lib/utils/formatters";
 import {
   ClipboardList,
   CheckCircle,
@@ -113,8 +114,7 @@ export default function Dashboard() {
         r.status === "approved" && parseISO(r.from).getFullYear() === thisYear,
     )
     .reduce(
-      (sum, r) =>
-        sum + differenceInCalendarDays(parseISO(r.to), parseISO(r.from)) + 1,
+      (sum, r) => sum + countWorkingDays(r.from, r.to),
       0,
     );
 
@@ -383,11 +383,8 @@ export default function Dashboard() {
                           className="ml-2 text-xs font-normal"
                           style={{ color: "var(--text-muted)" }}
                         >
-                          (
-                          {differenceInCalendarDays(
-                            parseISO(r.to),
-                            parseISO(r.from),
-                          ) + 1}{" "}
+                        (
+                          {countWorkingDays(r.from, r.to)}{" "}
                           {t.common.days})
                         </span>
                       </p>
@@ -429,10 +426,7 @@ export default function Dashboard() {
                         className="text-[10px] font-bold"
                         style={{ color: "var(--text-muted)" }}
                       >
-                        {differenceInCalendarDays(
-                          parseISO(r.to),
-                          parseISO(r.from),
-                        ) + 1}{" "}
+                        {countWorkingDays(r.from, r.to)}{" "}
                         {t.common.days}
                       </span>
                     </div>

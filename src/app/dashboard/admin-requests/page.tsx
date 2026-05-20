@@ -8,8 +8,9 @@ import {
   VacationRequest,
 } from "@/lib/vacation";
 import { getUserRole, UserRole, canApprove } from "@/lib/roles";
-import { format, parseISO, differenceInCalendarDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
+import { countWorkingDays } from "@/lib/utils/formatters";
 import {
   ClipboardList,
   CheckCircle,
@@ -241,8 +242,14 @@ export default function AdminRequestsPage() {
               {filtered.map((r) => (
                 <tr key={r.id}>
                   <td>
-                    <span className="text-xs font-mono opacity-50">
-                      {r.user_id.slice(0, 8)}…
+                    <span className="text-sm font-medium" style={{ color: "var(--text-base)" }}>
+                      {(() => {
+                        const tf = r.template_fields as Record<string, unknown> | null;
+                        const name = [tf?.firstName, tf?.lastName].filter(Boolean).join(" ");
+                        return name || (
+                          <span className="text-xs font-mono opacity-50">{r.user_id.slice(0, 8)}…</span>
+                        );
+                      })()}
                     </span>
                   </td>
                   <td>
@@ -261,10 +268,7 @@ export default function AdminRequestsPage() {
                   </td>
                   <td>
                     <span className="badge badge-primary">
-                      {differenceInCalendarDays(
-                        parseISO(r.to),
-                        parseISO(r.from),
-                      ) + 1}{" "}
+                      {countWorkingDays(r.from, r.to)}{" "}
                       Tage
                     </span>
                   </td>
@@ -381,10 +385,7 @@ export default function AdminRequestsPage() {
                   style={{ borderColor: "var(--border)" }}
                 >
                   <span className="badge badge-primary text-[10px]">
-                    {differenceInCalendarDays(
-                      parseISO(r.to),
-                      parseISO(r.from),
-                    ) + 1}{" "}
+                    {countWorkingDays(r.from, r.to)}{" "}
                     Tage
                   </span>
                   {r.status === "pending" && (

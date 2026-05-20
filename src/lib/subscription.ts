@@ -142,8 +142,13 @@ export function hasFeature(
   feature: FeatureKey,
 ): boolean {
   if (!sub) return LITE_FEATURES[feature];
-  const features = sub.plan?.features ?? LITE_FEATURES;
-  return features[feature] === true;
+  // Plan-Namen auswerten ist zuverlässiger als die DB-Features-Spalte,
+  // weil die Spalte ggf. leer/veraltet sein kann.
+  const planName = (sub.plan?.name ?? "lite").toLowerCase();
+  if (planName === "pro") return PRO_FEATURES[feature];
+  // Fallback: DB-Features-Spalte prüfen, sonst Lite-Defaults
+  const dbFeatures = sub.plan?.features as Record<string, boolean> | undefined;
+  return dbFeatures?.[feature] === true || LITE_FEATURES[feature];
 }
 
 /**

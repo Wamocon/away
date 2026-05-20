@@ -21,7 +21,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { saveUserSettings, getUserSettings } from "@/lib/userSettings";
 import { getMyVacationRequests } from "@/lib/vacation";
-import { differenceInCalendarDays, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
+import { countWorkingDays } from "@/lib/utils/formatters";
 import {
   getUserDocumentNumbers,
   registerDocumentId,
@@ -151,10 +152,7 @@ export default function SettingsPage() {
               parseISO(r.from).getFullYear() === thisYear,
           )
           .reduce(
-            (sum, r) =>
-              sum +
-              differenceInCalendarDays(parseISO(r.to), parseISO(r.from)) +
-              1,
+            (sum, r) => sum + countWorkingDays(r.from, r.to),
             0,
           );
         setUsedVacationDays(used);

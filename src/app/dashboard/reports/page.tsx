@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/client";
 import { getOrganizationsForUser } from "@/lib/organization";
 import { getVacationRequestsForOrg, VacationRequest } from "@/lib/vacation";
 import {
-  differenceInCalendarDays,
   parseISO,
   format,
   getMonth,
@@ -15,6 +14,7 @@ import {
   subMonths,
 } from "date-fns";
 import { de } from "date-fns/locale";
+import { countWorkingDays } from "@/lib/utils/formatters";
 import {
   ClipboardList,
   FileBarChart,
@@ -110,8 +110,7 @@ export default function ReportsPage() {
   const totalDays = filtered
     .filter((r) => r.status === "approved")
     .reduce(
-      (sum, r) =>
-        sum + differenceInCalendarDays(parseISO(r.to), parseISO(r.from)) + 1,
+      (sum, r) => sum + countWorkingDays(r.from, r.to),
       0,
     );
   const pending = filtered.filter((r) => r.status === "pending").length;
@@ -124,10 +123,7 @@ export default function ReportsPage() {
           filtered
             .filter((r) => r.status === "approved")
             .reduce(
-              (sum, r) =>
-                sum +
-                differenceInCalendarDays(parseISO(r.to), parseISO(r.from)) +
-                1,
+              (sum, r) => sum + countWorkingDays(r.from, r.to),
               0,
             ) / approved
         ).toFixed(1)
@@ -167,8 +163,7 @@ export default function ReportsPage() {
     filtered
       .filter((r) => r.status === "approved")
       .forEach((r) => {
-        const d =
-          differenceInCalendarDays(parseISO(r.to), parseISO(r.from)) + 1;
+        const d = countWorkingDays(r.from, r.to);
         if (!map[r.user_id]) map[r.user_id] = { days: 0, count: 0 };
         map[r.user_id].days += d;
         map[r.user_id].count++;
@@ -193,7 +188,7 @@ export default function ReportsPage() {
       r.id.slice(0, 8),
       r.from,
       r.to,
-      differenceInCalendarDays(parseISO(r.to), parseISO(r.from)) + 1,
+      countWorkingDays(r.from, r.to),
       `"${(r.reason || "").replace(/"/g, '""')}"`,
       r.status,
       format(parseISO(r.created_at), "dd.MM.yyyy HH:mm"),
@@ -553,11 +548,7 @@ export default function ReportsPage() {
                     .sort((a, b) => b.created_at.localeCompare(a.created_at))
                     .slice(0, 10)
                     .map((r) => {
-                      const days =
-                        differenceInCalendarDays(
-                          parseISO(r.to),
-                          parseISO(r.from),
-                        ) + 1;
+                      const days = countWorkingDays(r.from, r.to);
                       const statusColor =
                         r.status === "approved"
                           ? "var(--success)"

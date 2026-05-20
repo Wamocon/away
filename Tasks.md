@@ -25,4 +25,15 @@
 - [ ] `admin/settings/page.tsx`: Tailwind `block`/`flex`-Klassen-Konflikte bereinigen (pre-existing)
 - [x] **BugFix v4.9**: Rekursive RLS-Policy `super_admins_all` auf `public.super_admins` entfernt + nicht-rekursiv mit `is_super_admin()` ersetzt → behebt 500-Fehler in der Aboverwaltung
 
+## Version 2.1 Bugfixes — Abgeschlossen ✅
+
+- [x] **Bug 1**: Antrag-Vorbefüllung nur für Vorname/Nachname bei Nicht-Admins — `getUserSettings` fällt jetzt auf org-unabhängige Einstellungen zurück wenn keine org-spezifischen gefunden
+- [x] **Bug 2**: Unterschrift-Datum in englischer Schreibweise (YYYY-MM-DD) — Initialisierung auf `DD.MM.YYYY` korrigiert; Wizard liest `dateFormat` aus User-Settings
+- [x] **Bug 3**: Verfügbare Urlaubstage in Profileinstellungen nicht aktuell — zeigt jetzt `Kontingent + Übertrag - Genommen` mit Echtzeitberechnung
+- [x] **Bug 4**: Kalender ohne Berater-Unterscheidung — Initialen-Badge + eindeutige Farbe pro Mitarbeiter + Legende unter dem Kalender
+- [x] **Bug 5**: Unterschrift in Profileinstellungen nicht gespeichert — `signatureBase64` wird in `saveUserSettings` persistiert und beim Laden zurückgelesen; Wizard füllt Unterschrift automatisch vor
+- [x] **Bug 6**: Kein Stornieren von Urlaubsanträgen — `cancelVacationRequest()` + Status `cancelled` (grau) + Ban-Button in Antragsliste für eigene Anträge
+- [x] **Bug 7**: Belegnummern verwalten — Sektion in Profileinstellungen zeigt alle Nummern mit Löschoption + manuelle Hinzufügen-Funktion (war bereits implementiert, nun vollständig dokumentiert)
+- [x] **Bug 8**: Trial-abgelaufen-Flash beim Laden — `SubscriptionProvider` wartet jetzt auf `ActiveOrgProvider` bevor `loading=false` gesetzt wird
+
 Ich werde diese Liste bei jedem Schritt aktualisieren und abhaken.

@@ -54,27 +54,54 @@ export async function saveUserSettings(
 
 /**
  * Lädt die Benutzereinstellungen für eine bestimmte Organisation.
+ * Wenn keine org-spezifischen Einstellungen gefunden werden, wird auf
+ * organisationsunabhängige Einstellungen zurückgegriffen (org_id IS NULL).
  */
 export async function getUserSettings(userId: string, organizationId?: string) {
   const supabase = createClient();
-  let query = supabase.from("user_settings").select("*").eq("user_id", userId);
+
+  // Hilfsfunktion: Mapping für Frontend-Kompatibilität
+  const mapSettings = (data: Record<string, unknown> | null) => {
+    if (!data) return null;
+    if (data.settings) {
+      const settings = data.settings as Record<string, unknown>;
+      if (settings.email) {
+        return { ...data, email: settings.email as string };
+      }
+    }
+    return data;
+  };
 
   if (organizationId) {
-    query = query.eq("organization_id", organizationId);
-  } else {
-    // Falls keine Org-ID übergeben wurde, versuchen wir den ersten Treffer
-    query = query.limit(1);
+    // 1. Versuch: org-spezifische Einstellungen
+    const { data, error } = await supabase
+      .from("user_settings")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    if (error) throw error;
+
+    if (data) return mapSettings(data as Record<string, unknown>);
+
+    // 2. Fallback: Einstellungen ohne Org-Bezug (null-Org)
+    const { data: fallback, error: fbError } = await supabase
+      .from("user_settings")
+      .select("*")
+      .eq("user_id", userId)
+      .is("organization_id", null)
+      .maybeSingle();
+    if (fbError) throw fbError;
+    return mapSettings(fallback as Record<string, unknown> | null);
   }
 
-  const { data, error } = await query.maybeSingle();
+  // Kein Org-Filter: ersten Treffer zurückgeben
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("*")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
   if (error) throw error;
-
-  // Mapping für Frontend-Kompatibilität (flacht das Email-Feld ab)
-  if (data && data.settings) {
-    const settings = data.settings as Record<string, unknown>;
-    if (settings.email) {
-      return { ...data, email: settings.email as string };
-    }
-  }
-  return data;
+  return mapSettings(data as Record<string, unknown> | null);
 }

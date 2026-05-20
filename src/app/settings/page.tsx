@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { saveUserSettings, getUserSettings } from "@/lib/userSettings";
+import { getMyVacationRequests } from "@/lib/vacation";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import {
   getUserDocumentNumbers,
   registerDocumentId,
@@ -52,6 +54,7 @@ interface UserSettingsData {
   notifyOnRejection?: boolean;
   notifyOnReminder?: boolean;
   tourCompleted?: boolean;
+  signatureBase64?: string;
 }
 
 export default function SettingsPage() {
@@ -95,6 +98,7 @@ export default function SettingsPage() {
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
   const [signatureUploading] = useState(false);
   const sigInputRef = useRef<HTMLInputElement>(null);
+  const [usedVacationDays, setUsedVacationDays] = useState(0);
 
   // Belegnummern
   const [docNumbers, setDocNumbers] = useState<DocumentNumberEntry[]>([]);
@@ -132,6 +136,31 @@ export default function SettingsPage() {
         setNotifyOnRejection(settings.notifyOnRejection);
       if (settings.notifyOnReminder !== undefined)
         setNotifyOnReminder(settings.notifyOnReminder);
+      // Unterschrift laden (Bug 5)
+      if ((settings as Record<string, unknown>).signatureBase64)
+        setSignaturePreview((settings as Record<string, unknown>).signatureBase64 as string);
+
+      // Verwendete Urlaubstage dieses Jahr berechnen (Bug 3)
+      try {
+        const allRequests = await getMyVacationRequests(userId);
+        const thisYear = new Date().getFullYear();
+        const used = allRequests
+          .filter(
+            (r) =>
+              r.status === "approved" &&
+              parseISO(r.from).getFullYear() === thisYear,
+          )
+          .reduce(
+            (sum, r) =>
+              sum +
+              differenceInCalendarDays(parseISO(r.to), parseISO(r.from)) +
+              1,
+            0,
+          );
+        setUsedVacationDays(used);
+      } catch {
+        // nicht-kritisch – still ignorieren
+      }
 
       // OAuth settings (nur wenn Org vorhanden)
       if (activeOrgId) {
@@ -220,6 +249,8 @@ export default function SettingsPage() {
         notifyOnApproval,
         notifyOnRejection,
         notifyOnReminder,
+        // Unterschrift als base64 speichern (Bug 5)
+        signatureBase64: signaturePreview ?? undefined,
       });
 
       // Sprache sofort anwenden
@@ -636,16 +667,17 @@ export default function SettingsPage() {
               style={{ background: "var(--bg-elevated)" }}
             >
               <div
-                className="flex-1 text-xs"
+                className="flex-1 text-xs space-y-0.5"
                 style={{ color: "var(--text-muted)" }}
               >
-                Verfügbare Tage gesamt
+                <div>Kontingent: <span className="font-bold">{vacationQuota}</span> + Übertrag: <span className="font-bold">{carryOver}</span></div>
+                <div>Genommen (dieses Jahr): <span className="font-bold text-amber-500">{usedVacationDays}</span></div>
               </div>
               <div
                 className="text-xl font-black"
-                style={{ color: "var(--success)" }}
+                style={{ color: vacationQuota + carryOver - usedVacationDays > 0 ? "var(--success)" : "var(--danger)" }}
               >
-                {vacationQuota + carryOver}
+                {vacationQuota + carryOver - usedVacationDays}
               </div>
             </div>
           </section>

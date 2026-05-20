@@ -21,6 +21,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Ban,
   Mail,
   Calendar,
   Loader,
@@ -325,6 +326,12 @@ export default function RequestDetailPage() {
       cls: "badge-rejected",
       Icon: XCircle,
       color: "var(--danger)",
+    },
+    cancelled: {
+      label: t.status.cancelled,
+      cls: "badge-cancelled",
+      Icon: Ban,
+      color: "var(--text-muted)",
     },
   };
 

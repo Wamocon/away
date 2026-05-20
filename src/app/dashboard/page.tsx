@@ -13,6 +13,7 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  Ban,
   CalendarDays,
   Plus,
   ArrowRight,
@@ -123,6 +124,7 @@ export default function Dashboard() {
     pending: { label: t.status.pending, color: "badge-pending", Icon: Clock },
     approved: { label: t.status.approved, color: "badge-approved", Icon: CheckCircle },
     rejected: { label: t.status.rejected, color: "badge-rejected", Icon: XCircle },
+    cancelled: { label: t.status.cancelled, color: "badge-cancelled", Icon: Ban },
   };
 
   if (!user) {

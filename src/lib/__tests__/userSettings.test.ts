@@ -97,8 +97,8 @@ describe("userSettings lib", () => {
       });
 
       const result = await getUserSettings("user-1", "org-1");
-      expect(result.email).toBe("pref@test.com");
-      expect(result.settings.theme).toBe("dark");
+      expect(result!.email).toBe("pref@test.com");
+      expect((result!.settings as Record<string, unknown>).theme).toBe("dark");
     });
 
     it("should handle missing organization_id by limiting results", async () => {
@@ -260,8 +260,8 @@ describe("userSettings lib", () => {
       });
 
       const result = await getUserSettings("user-1", "org-1");
-      expect(result.settings.deputyName).toBe("Max Mustermann");
-      expect(result.settings.deputyEmail).toBe("max@example.de");
+      expect((result!.settings as Record<string, unknown>).deputyName).toBe("Max Mustermann");
+      expect((result!.settings as Record<string, unknown>).deputyEmail).toBe("max@example.de");
     });
 
     it("returns firstName and lastName from settings JSON", async () => {
@@ -274,8 +274,8 @@ describe("userSettings lib", () => {
       });
 
       const result = await getUserSettings("user-1", "org-1");
-      expect(result.settings.firstName).toBe("Anna");
-      expect(result.settings.lastName).toBe("Schmidt");
+      expect((result!.settings as Record<string, unknown>).firstName).toBe("Anna");
+      expect((result!.settings as Record<string, unknown>).lastName).toBe("Schmidt");
     });
 
     it("returns vacationQuota and carryOver from settings JSON", async () => {
@@ -288,8 +288,8 @@ describe("userSettings lib", () => {
       });
 
       const result = await getUserSettings("user-1", "org-1");
-      expect(result.settings.vacationQuota).toBe(28);
-      expect(result.settings.carryOver).toBe(5);
+      expect((result!.settings as Record<string, unknown>).vacationQuota).toBe(28);
+      expect((result!.settings as Record<string, unknown>).carryOver).toBe(5);
     });
 
     it("handles empty settings JSON gracefully", async () => {
@@ -342,6 +342,66 @@ describe("userSettings lib", () => {
             employeeId: "EMP-001",
           }),
         }),
+      );
+    });
+
+    it("persists signatureBase64 field (Bug 5 fix)", async () => {
+      mockSupabase.maybeSingle.mockResolvedValueOnce({
+        data: { id: "id-sig", settings: {} },
+        error: null,
+      });
+      mockResult.error = null;
+
+      const fakeBase64 = "data:image/png;base64,abc123";
+      await saveUserSettings("user-1", "org-1", "a@b.de", {
+        signatureBase64: fakeBase64,
+      });
+
+      expect(mockSupabase.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({ signatureBase64: fakeBase64 }),
+        }),
+      );
+    });
+  });
+
+  // ─── Bug 1 Fallback: org-spezifische Settings nicht gefunden → null-Org ───
+  describe("getUserSettings – org fallback (Bug 1 fix)", () => {
+    it("falls back to null-org settings when org-specific row not found", async () => {
+      // First call (org-specific) returns null
+      mockSupabase.maybeSingle
+        .mockResolvedValueOnce({ data: null, error: null })
+        // Second call (null-org fallback) returns settings
+        .mockResolvedValueOnce({
+          data: {
+            id: "fallback-id",
+            settings: { firstName: "Karl", lastName: "Lager", email: "k@l.de" },
+          },
+          error: null,
+        });
+
+      const result = await getUserSettings("user-fb", "org-specific");
+      expect(result).not.toBeNull();
+      // @ts-expect-error runtime check
+      expect(result!.settings.firstName).toBe("Karl");
+    });
+
+    it("returns null when neither org-specific nor null-org settings exist", async () => {
+      mockSupabase.maybeSingle
+        .mockResolvedValueOnce({ data: null, error: null })
+        .mockResolvedValueOnce({ data: null, error: null });
+
+      const result = await getUserSettings("user-x", "org-y");
+      expect(result).toBeNull();
+    });
+
+    it("throws when fallback query fails", async () => {
+      mockSupabase.maybeSingle
+        .mockResolvedValueOnce({ data: null, error: null })
+        .mockResolvedValueOnce({ data: null, error: new Error("fallback fail") });
+
+      await expect(getUserSettings("user-x", "org-y")).rejects.toThrow(
+        "fallback fail",
       );
     });
   });

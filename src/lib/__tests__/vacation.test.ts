@@ -4,6 +4,7 @@ import {
   getVacationRequestsForOrg,
   getMyVacationRequests,
   updateVacationStatus,
+  cancelVacationRequest,
 } from "../vacation";
 
 const mockSupabase = {
@@ -168,6 +169,33 @@ describe("vacation lib", () => {
       await expect(updateVacationStatus("req-1", "rejected")).rejects.toEqual({
         message: "upd err",
       });
+    });
+  });
+
+  describe("cancelVacationRequest", () => {
+    it("sets status to cancelled and returns updated request", async () => {
+      const cancelled = { id: "req-5", status: "cancelled", user_id: "user-9" };
+      mockSupabase.single.mockResolvedValueOnce({ data: cancelled, error: null });
+      const res = await cancelVacationRequest("req-5", "user-9");
+      expect(res.status).toBe("cancelled");
+      expect(mockSupabase.update).toHaveBeenCalledWith({ status: "cancelled" });
+      expect(mockSupabase.eq).toHaveBeenCalledWith("user_id", "user-9");
+    });
+
+    it("throws when DB returns error (e.g. RLS mismatch)", async () => {
+      mockSupabase.single.mockResolvedValueOnce({
+        data: null,
+        error: { message: "rls error" },
+      });
+      await expect(
+        cancelVacationRequest("req-99", "other-user"),
+      ).rejects.toEqual({ message: "rls error" });
+    });
+
+    it("supports cancelled as a valid VacationStatus", async () => {
+      // Type check: cancelled must be assignable to VacationStatus
+      const status: import("../vacation").VacationStatus = "cancelled";
+      expect(status).toBe("cancelled");
     });
   });
 });
